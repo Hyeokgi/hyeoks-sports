@@ -1,0 +1,256 @@
+:root {
+  --grass-1: #0f5132;
+  --grass-2: #1a7a4c;
+  --card-bg: rgba(255, 255, 255, 0.96);
+  --ink: #16241d;
+  --muted: #5b6f64;
+  --accent: #ffb703;
+  --home: #2b7de9;
+  --draw: #8a8a8a;
+  --away: #e0522d;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.06), transparent 40%),
+    repeating-linear-gradient(
+      90deg,
+      var(--grass-1) 0px,
+      var(--grass-1) 60px,
+      var(--grass-2) 60px,
+      var(--grass-2) 120px
+    );
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(15, 81, 50, 0.85);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbar h1 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+#round-select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.95rem;
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel {
+  background: var(--card-bg);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 8px 0 0;
+}
+
+.toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.toggle-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f1f5f2;
+  font-size: 0.88rem;
+}
+
+.toggle-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--grass-2);
+}
+
+.match-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.match-card {
+  border: 1px solid #e3e8e5;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.match-card .meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.match-card .teams {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.prob-bar {
+  display: flex;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 0.72rem;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.prob-bar span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.prob-bar .home { background: var(--home); }
+.prob-bar .draw { background: var(--draw); }
+.prob-bar .away { background: var(--away); }
+
+.confidence {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.btn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid #cfd8d3;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn.primary {
+  background: var(--grass-2);
+  color: #fff;
+  border-color: var(--grass-2);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.report-text {
+  white-space: pre-wrap;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  margin-top: 10px;
+}
+
+.budget-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.budget-row input {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #cfd8d3;
+}
+
+.combo-tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.combo-tier {
+  border: 1px solid #e3e8e5;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.combo-tier .tier-head {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.combo-tier .pick-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  padding: 3px 0;
+  border-bottom: 1px dashed #eef1ef;
+}
+
+.combo-tier .pick-tags span {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  margin-left: 4px;
+  font-size: 0.72rem;
+  color: #fff;
+}
+
+.pick-tags .홈승 { background: var(--home); }
+.pick-tags .무승부 { background: var(--draw); }
+.pick-tags .원정승 { background: var(--away); }
+
+.disclaimer {
+  color: #eef3ef;
+  font-size: 0.75rem;
+  text-align: center;
+  padding: 8px 12px 24px;
+}
+
+@media (max-width: 480px) {
+  .topbar h1 {
+    font-size: 1rem;
+  }
+}

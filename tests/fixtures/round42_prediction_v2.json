@@ -1,0 +1,254 @@
+[
+  {
+    "league": "K리그1",
+    "home": "강원FC",
+    "away": "부천FC",
+    "elo_diff": 120.2,
+    "form_diff": 1.0,
+    "h2h_diff": 0.0,
+    "n_h2h": 1,
+    "p_home": 57.2,
+    "p_draw": 28.5,
+    "p_away": 14.3,
+    "ranked_picks": [
+      "홈승",
+      "무승부",
+      "원정승"
+    ],
+    "confidence_gap": 28.7
+  },
+  {
+    "league": "K리그1",
+    "home": "대전하나",
+    "away": "광주FC",
+    "elo_diff": 104.7,
+    "form_diff": 0.2,
+    "h2h_diff": 0.0,
+    "n_h2h": 5,
+    "p_home": 52.5,
+    "p_draw": 28.5,
+    "p_away": 19.0,
+    "ranked_picks": [
+      "홈승",
+      "무승부",
+      "원정승"
+    ],
+    "confidence_gap": 24.0
+  },
+  {
+    "league": "K리그2",
+    "home": "충북청주",
+    "away": "수원삼성",
+    "elo_diff": -162.8,
+    "form_diff": -0.4,
+    "h2h_diff": -0.4,
+    "n_h2h": 5,
+    "p_home": 21.3,
+    "p_draw": 28.9,
+    "p_away": 49.7,
+    "ranked_picks": [
+      "원정승",
+      "무승부",
+      "홈승"
+    ],
+    "confidence_gap": 20.8
+  },
+  {
+    "league": "K리그1",
+    "home": "제주SKFC",
+    "away": "인천유나",
+    "elo_diff": -2.1,
+    "form_diff": 0.4,
+    "h2h_diff": 0.2,
+    "n_h2h": 5,
+    "p_home": 45.0,
+    "p_draw": 28.5,
+    "p_away": 26.5,
+    "ranked_picks": [
+      "홈승",
+      "무승부",
+      "원정승"
+    ],
+    "confidence_gap": 16.5
+  },
+  {
+    "league": "K리그2",
+    "home": "안산그리",
+    "away": "김해FC",
+    "elo_diff": -36.1,
+    "form_diff": 0.2,
+    "h2h_diff": 1.0,
+    "n_h2h": 1,
+    "p_home": 44.1,
+    "p_draw": 28.9,
+    "p_away": 26.9,
+    "ranked_picks": [
+      "홈승",
+      "무승부",
+      "원정승"
+    ],
+    "confidence_gap": 15.2
+  },
+  {
+    "league": "K리그1",
+    "home": "포항스틸",
+    "away": "김천상무",
+    "elo_diff": 28.7,
+    "form_diff": 0.0,
+    "h2h_diff": -0.4,
+    "n_h2h": 5,
+    "p_home": 42.7,
+    "p_draw": 28.5,
+    "p_away": 28.8,
+    "ranked_picks": [
+      "홈승",
+      "원정승",
+      "무승부"
+    ],
+    "confidence_gap": 14.0
+  },
+  {
+    "league": "K리그2",
+    "home": "천안시티",
+    "away": "용인FC",
+    "elo_diff": -64.2,
+    "form_diff": -1.0,
+    "h2h_diff": 0.0,
+    "n_h2h": 1,
+    "p_home": 29.0,
+    "p_draw": 28.9,
+    "p_away": 42.0,
+    "ranked_picks": [
+      "원정승",
+      "홈승",
+      "무승부"
+    ],
+    "confidence_gap": 13.0
+  },
+  {
+    "league": "K리그1",
+    "home": "울산HDFC",
+    "away": "FC안양",
+    "elo_diff": -43.7,
+    "form_diff": -1.0,
+    "h2h_diff": -0.2,
+    "n_h2h": 5,
+    "p_home": 30.3,
+    "p_draw": 28.5,
+    "p_away": 41.2,
+    "ranked_picks": [
+      "원정승",
+      "홈승",
+      "무승부"
+    ],
+    "confidence_gap": 11.0
+  },
+  {
+    "league": "K리그2",
+    "home": "충남아산",
+    "away": "성남FC",
+    "elo_diff": -9.6,
+    "form_diff": 0.0,
+    "h2h_diff": 0.0,
+    "n_h2h": 5,
+    "p_home": 40.6,
+    "p_draw": 28.9,
+    "p_away": 30.4,
+    "ranked_picks": [
+      "홈승",
+      "원정승",
+      "무승부"
+    ],
+    "confidence_gap": 10.2
+  },
+  {
+    "league": "K리그1",
+    "home": "전북현대",
+    "away": "FC서울",
+    "elo_diff": 6.8,
+    "form_diff": -0.6,
+    "h2h_diff": 0.2,
+    "n_h2h": 5,
+    "p_home": 39.9,
+    "p_draw": 28.5,
+    "p_away": 31.6,
+    "ranked_picks": [
+      "홈승",
+      "원정승",
+      "무승부"
+    ],
+    "confidence_gap": 8.4
+  },
+  {
+    "league": "K리그2",
+    "home": "김포FC",
+    "away": "경남FC",
+    "elo_diff": 51.6,
+    "form_diff": -1.2,
+    "h2h_diff": 0.0,
+    "n_h2h": 5,
+    "p_home": 39.6,
+    "p_draw": 28.9,
+    "p_away": 31.5,
+    "ranked_picks": [
+      "홈승",
+      "원정승",
+      "무승부"
+    ],
+    "confidence_gap": 8.1
+  },
+  {
+    "league": "K리그2",
+    "home": "전남드래",
+    "away": "파주프런",
+    "elo_diff": 1.4,
+    "form_diff": 0.4,
+    "h2h_diff": -1.0,
+    "n_h2h": 1,
+    "p_home": 39.1,
+    "p_draw": 28.9,
+    "p_away": 31.9,
+    "ranked_picks": [
+      "홈승",
+      "원정승",
+      "무승부"
+    ],
+    "confidence_gap": 7.2
+  },
+  {
+    "league": "K리그2",
+    "home": "화성FC",
+    "away": "대구FC",
+    "elo_diff": -29.8,
+    "form_diff": -0.2,
+    "h2h_diff": -1.0,
+    "n_h2h": 1,
+    "p_home": 32.3,
+    "p_draw": 28.9,
+    "p_away": 38.8,
+    "ranked_picks": [
+      "원정승",
+      "홈승",
+      "무승부"
+    ],
+    "confidence_gap": 6.5
+  },
+  {
+    "league": "K리그2",
+    "home": "부산아이",
+    "away": "서울이랜",
+    "elo_diff": -16.5,
+    "form_diff": -1.0,
+    "h2h_diff": 0.2,
+    "n_h2h": 5,
+    "p_home": 34.9,
+    "p_draw": 28.9,
+    "p_away": 36.2,
+    "ranked_picks": [
+      "원정승",
+      "홈승",
+      "무승부"
+    ],
+    "confidence_gap": 1.3
+  }
+]

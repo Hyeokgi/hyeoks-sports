@@ -1,0 +1,22 @@
+name = "kleague-toto-predictor"
+main = "src/index.ts"
+compatibility_date = "2025-07-01"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kleague-toto-db"
+database_id = "REPLACE_AFTER_WRANGLER_D1_CREATE"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "REPLACE_AFTER_WRANGLER_KV_CREATE"
+
+[triggers]
+crons = ["0 */3 * * *", "0 */6 * * *"]
+
+[vars]
+ENVIRONMENT = "production"

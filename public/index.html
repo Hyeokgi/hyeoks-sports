@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚽ K리그 승무패 예측</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>⚽ HYEOKS K리그 승무패 예측</h1>
+    <select id="round-select"></select>
+  </header>
+
+  <main>
+    <section class="panel toggles" id="toggles-panel">
+      <h2>🎛️ 반영 변수</h2>
+      <div class="toggle-grid" id="toggle-grid"></div>
+      <p class="hint">변수를 끄면 해당 요소를 제외하고 확률을 다시 계산합니다.</p>
+    </section>
+
+    <section class="panel" id="report-panel">
+      <h2>🤖 AI 분석 리포트</h2>
+      <button id="report-btn" class="btn primary">이번 회차 리포트 생성</button>
+      <p id="report-text" class="report-text"></p>
+    </section>
+
+    <section class="panel">
+      <h2>📋 경기 목록</h2>
+      <div id="match-list" class="match-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2>💰 예산별 구매 조합</h2>
+      <div class="budget-row">
+        <label for="budget-input">직접 입력 (원)</label>
+        <input id="budget-input" type="number" step="1000" min="1000" max="100000" placeholder="예: 20000" />
+        <button id="budget-custom-btn" class="btn">조합 생성</button>
+      </div>
+      <div id="combo-tiers" class="combo-tiers"></div>
+      <p class="hint">회차당 1인 구매한도(100,000원)를 넘지 않도록 자동으로 제한됩니다. 확신도가 낮은 경기부터 복식·삼복식으로 헤지합니다.</p>
+    </section>
+
+    <p class="disclaimer">
+      본 서비스는 통계 기반 참고용 예측이며 배당 대비 실질적 우위를 보장하지 않습니다. 스포츠토토는 소액의 여가 활동으로만 즐기시고, 절대 무리한 금액을 투입하지 마세요.
+    </p>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
