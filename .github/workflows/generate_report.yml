@@ -1,0 +1,20 @@
+name: Generate AI Report
+
+on:
+  schedule:
+    - cron: "30 */6 * * *" # Worker의 detectNewRound(매 6시간)보다 30분 뒤 실행
+  workflow_dispatch: {}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run report generator
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/generate_report.mjs

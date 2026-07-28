@@ -34,10 +34,16 @@ export interface SystemBetPlan {
   picks: MatchPick[];
 }
 
+export interface SystemBetOptions {
+  // 확신도 낮은 경기 상위 N개는 무승부가 확률 3위라도 예산이 허락하는 한 강제로 포함시킨다(사용자 리스크 선호)
+  guaranteeDrawCount?: number;
+}
+
 export function generateSystemBet(
   matches: ComboMatch[],
   budgetWon: number,
   unitPriceWon: number = UNIT_PRICE_WON,
+  options: SystemBetOptions = {},
 ): SystemBetPlan {
   const maxCombos = Math.floor(Math.min(budgetWon, PERSONAL_LIMIT_WON) / unitPriceWon);
   const factors = matches.map(() => 1);
@@ -56,6 +62,26 @@ export function generateSystemBet(
   const byConfidenceAsc = [...matches.keys()].sort(
     (a, b) => matches[a].prediction.confidenceGap - matches[b].prediction.confidenceGap,
   );
+
+  const guaranteeDrawCount = options.guaranteeDrawCount ?? 0;
+  if (guaranteeDrawCount > 0) {
+    let forcedSuccess = 0;
+    for (const i of byConfidenceAsc) {
+      if (forcedSuccess >= guaranteeDrawCount) break;
+      const drawPos = matches[i].prediction.rankedPicks.indexOf("무승부");
+      const neededFactor = drawPos + 1;
+      if (neededFactor <= factors[i]) {
+        forcedSuccess++;
+        continue;
+      }
+      const newTotal = (total / factors[i]) * neededFactor;
+      if (newTotal <= maxCombos) {
+        total = newTotal;
+        factors[i] = neededFactor;
+        forcedSuccess++;
+      }
+    }
+  }
 
   while (true) {
     const candidate1 = byConfidenceAsc.find((i) => factors[i] === 1);
@@ -87,8 +113,9 @@ export function generateSystemBetTiers(
   matches: ComboMatch[],
   tiers: number[] = DEFAULT_BUDGET_TIERS,
   unitPriceWon: number = UNIT_PRICE_WON,
+  options: SystemBetOptions = {},
 ): SystemBetPlan[] {
-  return tiers.map((budget) => generateSystemBet(matches, budget, unitPriceWon));
+  return tiers.map((budget) => generateSystemBet(matches, budget, unitPriceWon, options));
 }
 
 function toMatchPick(m: ComboMatch, factor: number): MatchPick {

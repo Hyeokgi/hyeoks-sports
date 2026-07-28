@@ -9,30 +9,62 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>⚽ HYEOKS K리그 승무패 예측</h1>
+    <div class="brand">
+      <span class="brand-icon">⚽</span>
+      <h1>HYEOKS K리그 승무패</h1>
+    </div>
     <select id="round-select"></select>
   </header>
 
   <main>
-    <section class="panel toggles" id="toggles-panel">
-      <h2>🎛️ 반영 변수</h2>
-      <div class="toggle-grid" id="toggle-grid"></div>
-      <p class="hint">변수를 끄면 해당 요소를 제외하고 확률을 다시 계산합니다.</p>
+    <!-- 경기 -->
+    <section class="tab-page" data-tab="matches">
+      <div class="panel-head">
+        <span class="eyebrow">일정 · 확률</span>
+        <h2>📋 경기 목록</h2>
+      </div>
+      <div id="match-list" class="match-list"></div>
     </section>
 
-    <section class="panel" id="report-panel">
-      <h2>🤖 AI 분석 리포트</h2>
+    <!-- 변수 설정 -->
+    <section class="tab-page" data-tab="settings" hidden>
+      <div class="panel-head">
+        <span class="eyebrow">모델 · 변수 조정</span>
+        <h2>🎛️ 반영 변수</h2>
+      </div>
+      <div class="toggle-grid" id="toggle-grid"></div>
+      <p class="hint">변수를 끄면 해당 요소를 제외하고 확률을 즉시 다시 계산합니다.</p>
+    </section>
+
+    <!-- AI 분석 -->
+    <section class="tab-page accent" data-tab="ai" hidden>
+      <div class="panel-head">
+        <span class="eyebrow">AI · 경기 분석</span>
+        <h2>🤖 AI 분석 리포트</h2>
+      </div>
       <button id="report-btn" class="btn primary">이번 회차 리포트 생성</button>
       <p id="report-text" class="report-text"></p>
     </section>
 
-    <section class="panel">
-      <h2>📋 경기 목록</h2>
-      <div id="match-list" class="match-list"></div>
-    </section>
+    <!-- 베팅 추천 -->
+    <section class="tab-page" data-tab="bets" hidden>
+      <div class="panel-head">
+        <span class="eyebrow">구매 전략 · 예산</span>
+        <h2>💰 예산별 구매 조합</h2>
+      </div>
 
-    <section class="panel">
-      <h2>💰 예산별 구매 조합</h2>
+      <div class="option-row">
+        <label for="draw-guarantee-select">무승부 강제 포함</label>
+        <select id="draw-guarantee-select">
+          <option value="0">사용 안 함</option>
+          <option value="1">1경기</option>
+          <option value="2" selected>2경기</option>
+          <option value="3">3경기</option>
+          <option value="4">4경기</option>
+        </select>
+      </div>
+      <p class="hint">확신도가 가장 낮은(팽팽한) 경기부터 예산이 허락하는 한 무승부를 픽에 강제로 포함합니다.</p>
+
       <div class="budget-row">
         <label for="budget-input">직접 입력 (원)</label>
         <input id="budget-input" type="number" step="1000" min="1000" max="100000" placeholder="예: 20000" />
@@ -42,10 +74,33 @@
       <p class="hint">회차당 1인 구매한도(100,000원)를 넘지 않도록 자동으로 제한됩니다. 확신도가 낮은 경기부터 복식·삼복식으로 헤지합니다.</p>
     </section>
 
-    <p class="disclaimer">
-      본 서비스는 통계 기반 참고용 예측이며 배당 대비 실질적 우위를 보장하지 않습니다. 스포츠토토는 소액의 여가 활동으로만 즐기시고, 절대 무리한 금액을 투입하지 마세요.
-    </p>
+    <!-- 정보 -->
+    <section class="tab-page" data-tab="info" hidden>
+      <div class="panel-head">
+        <span class="eyebrow">가이드 · 안내</span>
+        <h2>ℹ️ 정보</h2>
+      </div>
+      <div class="info-block">
+        <h3>모델 구성</h3>
+        <p>Elo 전력차 + 최근 폼(5경기) + 상대전적(H2H) + 홈 어드밴티지 + 격차 보정 무승부율을 결합해 승/무/패 확률을 계산합니다. K리그1·K리그2 6시즌(2,500+경기) 실측 데이터를 기반으로 합니다.</p>
+        <h3>범례</h3>
+        <div class="legend-row"><span class="legend-dot home"></span> 홈승 <span class="legend-dot draw"></span> 무승부 <span class="legend-dot away"></span> 원정승</div>
+        <h3>구매 한도</h3>
+        <p>스포츠토토 승무패는 회차당 1인 100,000원(100조합)까지 구매 가능합니다. 예산별 구매 조합 탭에서 자동으로 이 한도를 지킵니다.</p>
+      </div>
+      <p class="disclaimer">
+        본 서비스는 통계 기반 참고용 예측이며 배당 대비 실질적 우위를 보장하지 않습니다. 스포츠토토는 소액의 여가 활동으로만 즐기시고, 절대 무리한 금액을 투입하지 마세요.
+      </p>
+    </section>
   </main>
+
+  <nav class="tabbar">
+    <button class="tab-btn active" data-tab="matches"><span class="tab-icon">📋</span><span>경기</span></button>
+    <button class="tab-btn" data-tab="settings"><span class="tab-icon">🎛️</span><span>변수</span></button>
+    <button class="tab-btn" data-tab="ai"><span class="tab-icon">🤖</span><span>AI분석</span></button>
+    <button class="tab-btn" data-tab="bets"><span class="tab-icon">💰</span><span>베팅추천</span></button>
+    <button class="tab-btn" data-tab="info"><span class="tab-icon">ℹ️</span><span>정보</span></button>
+  </nav>
 
   <script src="/app.js"></script>
 </body>

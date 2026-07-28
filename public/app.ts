@@ -16,6 +16,7 @@ const TOGGLE_LABELS: { key: keyof PredictionToggles; label: string; kind: "bool"
   { key: "useH2H", label: "상대전적(H2H)", kind: "bool" },
   { key: "useHomeAdvantage", label: "홈 어드밴티지", kind: "bool" },
   { key: "useLeagueDrawRate", label: "리그별 무승부율", kind: "bool" },
+  { key: "useClosenessDrawAdjustment", label: "격차 보정 무승부율", kind: "bool" },
 ];
 
 let currentMatches: MatchData[] = [];
@@ -30,6 +31,9 @@ const budgetInput = document.getElementById("budget-input") as HTMLInputElement;
 const budgetBtn = document.getElementById("budget-custom-btn") as HTMLButtonElement;
 const reportBtn = document.getElementById("report-btn") as HTMLButtonElement;
 const reportText = document.getElementById("report-text") as HTMLParagraphElement;
+const drawGuaranteeSelect = document.getElementById("draw-guarantee-select") as HTMLSelectElement;
+const tabButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".tab-btn"));
+const tabPages = Array.from(document.querySelectorAll<HTMLElement>(".tab-page"));
 
 function toInputs(m: MatchData): PredictionInputs {
   return {
@@ -70,7 +74,7 @@ function renderMatches() {
 
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.innerHTML = `<span>${m.seq}경기 · ${m.league}</span><span>확신도 ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>`;
+    meta.innerHTML = `<span class="league-badge">${m.seq}경기 · ${m.league}</span><span class="confidence-badge">확신도 ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>`;
     card.appendChild(meta);
 
     const teams = document.createElement("div");
@@ -88,8 +92,8 @@ function renderMatches() {
     card.appendChild(bar);
 
     const pick = document.createElement("div");
-    pick.className = "confidence";
-    pick.textContent = `모델 추천: ${prediction.rankedPicks[0]}`;
+    pick.className = "pick-line";
+    pick.innerHTML = `모델 추천 <b>${prediction.rankedPicks[0]}</b>`;
     card.appendChild(pick);
 
     matchList.appendChild(card);
@@ -129,7 +133,8 @@ function renderCombos() {
   comboTiersEl.innerHTML = "";
   if (currentMatches.length === 0) return;
   const comboMatches = toComboMatches();
-  const plans = generateSystemBetTiers(comboMatches, DEFAULT_BUDGET_TIERS);
+  const guaranteeDrawCount = Number(drawGuaranteeSelect.value) || 0;
+  const plans = generateSystemBetTiers(comboMatches, DEFAULT_BUDGET_TIERS, undefined, { guaranteeDrawCount });
   plans.forEach((plan, i) => {
     renderComboPlan(comboTiersEl, `${DEFAULT_BUDGET_TIERS[i].toLocaleString()}원 예산`, plan);
   });
@@ -183,11 +188,29 @@ budgetBtn.addEventListener("click", () => {
   const budget = Number(budgetInput.value);
   if (!budget || budget < 1000) return;
   const comboMatches = toComboMatches();
-  const plan = generateSystemBet(comboMatches, budget);
+  const guaranteeDrawCount = Number(drawGuaranteeSelect.value) || 0;
+  const plan = generateSystemBet(comboMatches, budget, undefined, { guaranteeDrawCount });
   const box = document.createElement("div");
   renderComboPlan(box, `직접 입력 ${budget.toLocaleString()}원`, plan);
   comboTiersEl.prepend(box.firstElementChild as HTMLElement);
 });
+
+drawGuaranteeSelect.addEventListener("change", () => {
+  renderCombos();
+});
+
+function switchTab(tabName: string) {
+  for (const btn of tabButtons) {
+    btn.classList.toggle("active", btn.dataset.tab === tabName);
+  }
+  for (const page of tabPages) {
+    page.hidden = page.dataset.tab !== tabName;
+  }
+}
+
+for (const btn of tabButtons) {
+  btn.addEventListener("click", () => switchTab(btn.dataset.tab!));
+}
 
 reportBtn.addEventListener("click", async () => {
   if (!currentRoundId) return;

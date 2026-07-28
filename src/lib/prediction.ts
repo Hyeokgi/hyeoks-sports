@@ -1,5 +1,6 @@
 // Elo/최근폼/상대전적/홈어드밴티지/리그별 무승부율을 토글 가능한 가중치로 결합해 승무패 확률을 계산
 import { HOME_ADV } from "./elo";
+import { closenessAdjustedDrawRate } from "./drawCurve";
 
 // 1~41회차 실측 전체 리그 평균 무승부율 (리그별 값을 끄면 이 값으로 대체)
 export const FALLBACK_DRAW_RATE = 0.271;
@@ -21,6 +22,7 @@ export interface PredictionToggles {
   useH2H: boolean;
   useHomeAdvantage: boolean;
   useLeagueDrawRate: boolean; // false면 FALLBACK_DRAW_RATE 사용
+  useClosenessDrawAdjustment: boolean; // true면 Elo 격차가 작을수록 무승부 확률을 실측 곡선으로 보정
   formWeight: number;
   h2hWeight: number;
 }
@@ -31,6 +33,7 @@ export const DEFAULT_TOGGLES: PredictionToggles = {
   useH2H: true,
   useHomeAdvantage: true,
   useLeagueDrawRate: true,
+  useClosenessDrawAdjustment: true,
   formWeight: DEFAULT_FORM_WEIGHT,
   h2hWeight: DEFAULT_H2H_WEIGHT,
 };
@@ -55,7 +58,10 @@ export function predictMatch(
   const homeAdv = toggles.useHomeAdvantage ? HOME_ADV : 0;
   const pHomeRaw = 1.0 / (1.0 + 10.0 ** (-(totalDiff + homeAdv) / 400.0));
 
-  const pDraw = toggles.useLeagueDrawRate ? inputs.leagueDrawRate : FALLBACK_DRAW_RATE;
+  const baseDrawRate = toggles.useLeagueDrawRate ? inputs.leagueDrawRate : FALLBACK_DRAW_RATE;
+  const pDraw = toggles.useClosenessDrawAdjustment
+    ? closenessAdjustedDrawRate(baseDrawRate, Math.abs(inputs.eloDiff))
+    : baseDrawRate;
   const pHome = pHomeRaw * (1 - pDraw);
   const pAway = (1 - pHomeRaw) * (1 - pDraw);
 

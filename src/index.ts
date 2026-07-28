@@ -3,7 +3,13 @@ import { handleListRounds, handleGetRound } from "./routes/rounds";
 import { handlePredict } from "./routes/predict";
 import { handleCombinations } from "./routes/combinations";
 import { handleReport } from "./routes/report";
-import { handleCorrectRoundNo, handleSync, handleDetectRound, handleNotifyTest } from "./routes/admin";
+import {
+  handleCorrectRoundNo,
+  handleSync,
+  handleDetectRound,
+  handleNotifyTest,
+  handleWriteReport,
+} from "./routes/admin";
 import { refreshHistory } from "./cron/refreshHistory";
 import { detectNewRound } from "./cron/detectNewRound";
 import { json } from "./lib/http";
@@ -11,6 +17,7 @@ import type { Env } from "./types";
 
 const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report))?$/;
 const ADMIN_ROUND_RE = /^\/api\/admin\/rounds\/(\d+)$/;
+const ADMIN_ROUND_REPORT_RE = /^\/api\/admin\/rounds\/(\d+)\/report$/;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -31,6 +38,11 @@ export default {
         if (sub === "combinations" && request.method === "POST")
           return await handleCombinations(env, roundId, request);
         if (sub === "report" && request.method === "GET") return await handleReport(env, roundId);
+      }
+
+      const adminReportMatch = pathname.match(ADMIN_ROUND_REPORT_RE);
+      if (adminReportMatch && request.method === "POST") {
+        return await handleWriteReport(env, Number(adminReportMatch[1]), request);
       }
 
       const adminMatch = pathname.match(ADMIN_ROUND_RE);

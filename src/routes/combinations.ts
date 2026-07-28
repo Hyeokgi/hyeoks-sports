@@ -18,6 +18,7 @@ export async function handleCombinations(env: Env, roundId: number, request: Req
   const toggles = body?.toggles ?? {};
   const budgetWon: number | undefined = body?.budgetWon;
   const tiers: number[] | undefined = body?.tiers;
+  const guaranteeDrawCount: number = body?.guaranteeDrawCount ?? 0;
 
   const predictions = await buildRoundPredictions(env, roundId, toggles);
   const comboMatches: ComboMatch[] = predictions.map((p) => ({
@@ -29,10 +30,12 @@ export async function handleCombinations(env: Env, roundId: number, request: Req
   }));
 
   if (typeof budgetWon === "number") {
-    const plan = generateSystemBet(comboMatches, budgetWon);
+    const plan = generateSystemBet(comboMatches, budgetWon, undefined, { guaranteeDrawCount });
     return json({ round_id: roundId, plan });
   }
 
-  const plans = generateSystemBetTiers(comboMatches, tiers ?? DEFAULT_BUDGET_TIERS);
+  const plans = generateSystemBetTiers(comboMatches, tiers ?? DEFAULT_BUDGET_TIERS, undefined, {
+    guaranteeDrawCount,
+  });
   return json({ round_id: roundId, plans });
 }

@@ -1,31 +1,21 @@
-// GET /api/rounds/:id/report - Gemini 리포트 (KV 6시간 캐시)
+// GET /api/rounds/:id/report - AI 리포트 조회 (KV 캐시만 서빙)
+// Cloudflare Workers의 아웃바운드 IP를 Google이 차단해 Worker에서 직접 Gemini를 호출하면
+// "User location is not supported"로 항상 실패한다. 실제 생성은 GitHub Actions에서 하고
+// (scripts/generate_report.mjs) POST /api/admin/rounds/:id/report로 KV에 채워 넣는다.
 import { getRound } from "../lib/db";
 import { json } from "../lib/http";
-import { buildRoundPredictions } from "../lib/predictRound";
-import { generateReport } from "../lib/gemini";
+import { reportCacheKey } from "../lib/reportCache";
 import type { Env } from "../types";
-
-const CACHE_TTL_SECONDS = 60 * 60 * 6;
 
 export async function handleReport(env: Env, roundId: number): Promise<Response> {
   const round = await getRound(env, roundId);
   if (!round) return json({ error: "round_not_found" }, 404);
 
-  const cacheKey = `report:${roundId}`;
-  const cached = await env.KV.get(cacheKey);
+  const cached = await env.KV.get(reportCacheKey(roundId));
   if (cached) return json({ round_id: roundId, report: cached, cached: true });
 
-  const predictions = await buildRoundPredictions(env, roundId);
-  const roundLabel = round.round_no_confirmed ? `${round.round_no}회차` : `${round.round_no ?? "추정"}회차(미확정)`;
-  const report = await generateReport(env, roundLabel, predictions);
-
-  if (!report) {
-    return json({
-      round_id: roundId,
-      error: "GEMINI_API_KEY가 설정되지 않았거나 리포트 생성에 실패했습니다",
-    });
-  }
-
-  await env.KV.put(cacheKey, report, { expirationTtl: CACHE_TTL_SECONDS });
-  return json({ round_id: roundId, report, cached: false });
+  return json({
+    round_id: roundId,
+    error: "아직 이번 회차 리포트가 생성되지 않았습니다. 잠시 후 다시 시도해주세요",
+  });
 }
