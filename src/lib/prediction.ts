@@ -9,6 +9,10 @@ export const FALLBACK_DRAW_RATE = 0.271;
 export const DEFAULT_FORM_WEIGHT = 60.0;
 export const DEFAULT_H2H_WEIGHT = 50.0;
 
+// 2026-07-30: xG 격차는 별도 백테스트로 fit한 값이 아니라, xG 1점 차이가 대략 Elo 100점과
+// 비슷한 무게를 갖는다는 축구 분석 업계 통념을 그대로 채택한 값(추후 조정 가능).
+export const DEFAULT_XG_WEIGHT = 100.0;
+
 export interface MarketOdds {
   pHome: number;
   pDraw: number;
@@ -22,6 +26,7 @@ export interface PredictionInputs {
   h2hDiff: number;
   leagueDrawRate: number;
   marketOdds?: MarketOdds | null; // 해외 북메이커 배당 기반 암시확률(오버라운드 제거됨), 없으면 미반영
+  xgDiff?: number | null; // 팀 시즌 xG(공격-실점) 격차. K리그2는 FotMob에 데이터가 없어 null
 }
 
 export interface PredictionToggles {
@@ -33,6 +38,8 @@ export interface PredictionToggles {
   useClosenessDrawAdjustment: boolean; // true면 Elo 격차가 작을수록 무승부 확률을 실측 곡선으로 보정
   useMarketOdds: boolean; // true면 해외 배당 암시확률을 모델 확률과 블렌딩
   marketWeight: number; // 블렌딩 시 마켓 확률에 주는 가중치(0~1), 나머지는 모델 확률
+  useXG: boolean; // true면 xG 격차 반영(xgDiff가 있는 경기에만 적용, K리그2는 자동 미적용)
+  xgWeight: number;
   formWeight: number;
   h2hWeight: number;
 }
@@ -52,6 +59,8 @@ export const DEFAULT_TOGGLES: PredictionToggles = {
   useClosenessDrawAdjustment: true,
   useMarketOdds: true,
   marketWeight: DEFAULT_MARKET_WEIGHT,
+  useXG: true,
+  xgWeight: DEFAULT_XG_WEIGHT,
   formWeight: DEFAULT_FORM_WEIGHT,
   h2hWeight: DEFAULT_H2H_WEIGHT,
 };
@@ -71,7 +80,8 @@ export function predictMatch(
   const totalDiff =
     (toggles.useElo ? inputs.eloDiff : 0) +
     (toggles.useForm ? toggles.formWeight * inputs.formDiff : 0) +
-    (toggles.useH2H ? toggles.h2hWeight * inputs.h2hDiff : 0);
+    (toggles.useH2H ? toggles.h2hWeight * inputs.h2hDiff : 0) +
+    (toggles.useXG && inputs.xgDiff != null ? toggles.xgWeight * inputs.xgDiff : 0);
 
   const homeAdv = toggles.useHomeAdvantage ? HOME_ADV : 0;
   const pHomeRaw = 1.0 / (1.0 + 10.0 ** (-(totalDiff + homeAdv) / 400.0));

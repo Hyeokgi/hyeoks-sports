@@ -14,6 +14,7 @@ interface MatchData {
     nH2h: number;
     leagueDrawRate: number;
     market: { pHome: number; pDraw: number; pAway: number; nBookmakers: number } | null;
+    xgDiff: number | null;
   };
 }
 
@@ -25,6 +26,7 @@ const TOGGLE_LABELS: { key: keyof PredictionToggles; label: string; kind: "bool"
   { key: "useLeagueDrawRate", label: "리그별 무승부율", kind: "bool" },
   { key: "useClosenessDrawAdjustment", label: "격차 보정 무승부율", kind: "bool" },
   { key: "useMarketOdds", label: "해외 배당 반영", kind: "bool" },
+  { key: "useXG", label: "기대득점(xG, K리그1만)", kind: "bool" },
 ];
 
 let currentMatches: MatchData[] = [];
@@ -50,6 +52,7 @@ function toInputs(m: MatchData): PredictionInputs {
     h2hDiff: m.raw.h2hDiff,
     leagueDrawRate: m.raw.leagueDrawRate,
     marketOdds: m.raw.market,
+    xgDiff: m.raw.xgDiff,
   };
 }
 
@@ -105,7 +108,8 @@ function renderMatches() {
     const marketNote = m.raw.market
       ? ` <span class="market-note">해외배당 ${m.raw.market.nBookmakers}개사 반영</span>`
       : "";
-    pick.innerHTML = `모델 추천 <b>${prediction.rankedPicks[0]}</b>${marketNote}`;
+    const xgNote = m.raw.xgDiff != null ? ` <span class="market-note">xG 반영</span>` : "";
+    pick.innerHTML = `모델 추천 <b>${prediction.rankedPicks[0]}</b>${marketNote}${xgNote}`;
     card.appendChild(pick);
 
     matchList.appendChild(card);
@@ -186,6 +190,7 @@ async function loadRound(roundId: number) {
       nH2h: m.raw.nH2h,
       leagueDrawRate: m.raw.leagueDrawRate,
       market: m.raw.market ?? null,
+      xgDiff: m.raw.xgDiff ?? null,
     },
   }));
   renderMatches();

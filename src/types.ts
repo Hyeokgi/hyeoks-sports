@@ -38,5 +38,6 @@ export interface RoundPredictionRow {
   h2h_diff: number;
   n_h2h: number;
   league_draw_rate: number;
+  xg_diff: number | null;
   computed_at: string;
 }

@@ -1,7 +1,7 @@
 // 6시간마다 실행: FotMob 예정 경기로 "다음 14경기 묶음"을 추정해 새 회차 등록 + 텔레그램 알림
 // betman.co.kr 공식 회차 확인은 세션 게이트가 있어 Worker에서 직접 못 긁으므로, 실제 회차번호는
 // /api/admin/rounds/:id PATCH로 사용자가 수동 보정한다(화면에 "회차 추정값" 고지).
-import { fetchUpcomingMatches, LEAGUE_IDS } from "../lib/fotmob";
+import { fetchUpcomingMatches, fetchTeamXG, LEAGUE_IDS, type TeamXG } from "../lib/fotmob";
 import { computeEloAndHistory, recentForm, h2hDiff as computeH2hDiff } from "../lib/elo";
 import { getAllMatches, getLeagueDrawRate } from "../lib/db";
 import { NAME_MAP, leagueOfKr } from "../lib/nameMap";
@@ -102,6 +102,21 @@ export async function detectNewRound(env: Env): Promise<{ created: boolean; roun
     "K리그2": await getLeagueDrawRate(env, "K리그2"),
   };
 
+  // xG는 FotMob이 K리그2에서 아예 제공하지 않으므로(실측 확인됨) 해당 리그는 빈 Map이 온다.
+  const xgByLeague: Record<string, Map<string, TeamXG>> = {
+    "K리그1": await fetchTeamXG(LEAGUE_IDS["K리그1"]),
+    "K리그2": await fetchTeamXG(LEAGUE_IDS["K리그2"]),
+  };
+
+  function computeXgDiff(league: League, homeEn: string, awayEn: string): number | null {
+    const home = xgByLeague[league].get(homeEn);
+    const away = xgByLeague[league].get(awayEn);
+    if (!home || !away || home.matchesPlayed === 0 || away.matchesPlayed === 0) return null;
+    const homeNet = home.xgFor / home.matchesPlayed - home.xgAgainst / home.matchesPlayed;
+    const awayNet = away.xgFor / away.matchesPlayed - away.xgAgainst / away.matchesPlayed;
+    return homeNet - awayNet;
+  }
+
   const insertedRound = await env.DB.prepare(
     "INSERT INTO rounds (round_no, round_no_confirmed, status, created_at) VALUES (NULL, 0, 'upcoming', ?) RETURNING id",
   )
@@ -118,6 +133,7 @@ export async function detectNewRound(env: Env): Promise<{ created: boolean; roun
     const formAway = recentForm(teamHistory, c.league, c.awayEn);
     const formDiff = formHome.avgPts - formAway.avgPts;
     const h2h_ = computeH2hDiff(h2h, c.league, c.homeEn, c.awayEn);
+    const xgDiff = computeXgDiff(c.league, c.homeEn, c.awayEn);
 
     const insertedMatch = await env.DB.prepare(
       "INSERT INTO round_matches (round_id, seq, league, home_kr, away_kr, kickoff_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
@@ -127,9 +143,9 @@ export async function detectNewRound(env: Env): Promise<{ created: boolean; roun
     const roundMatchId = insertedMatch!.id;
 
     await env.DB.prepare(
-      "INSERT INTO round_predictions (round_match_id, elo_diff, form_diff, h2h_diff, n_h2h, league_draw_rate, computed_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO round_predictions (round_match_id, elo_diff, form_diff, h2h_diff, n_h2h, league_draw_rate, xg_diff, computed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
-      .bind(roundMatchId, eloDiff, formDiff, h2h_.diff, h2h_.n, drawRates[c.league], new Date().toISOString())
+      .bind(roundMatchId, eloDiff, formDiff, h2h_.diff, h2h_.n, drawRates[c.league], xgDiff, new Date().toISOString())
       .run();
 
     seq++;

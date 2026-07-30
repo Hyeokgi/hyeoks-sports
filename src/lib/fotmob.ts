@@ -158,3 +158,51 @@ export async function fetchUpcomingMatches(leagueId: string): Promise<FotmobUpco
   }
   return results.sort((a, b) => a.date.localeCompare(b.date));
 }
+
+// 팀 시즌 누적 xG(공격/실점) - K리그2는 FotMob이 아예 xG를 안 채워서 빈 Map이 반환된다
+// (실측 확인됨: stats.teams 헤더 목록에 "Expected goals"/"xG conceded" 항목 자체가 없음).
+export interface TeamXG {
+  xgFor: number;
+  xgAgainst: number;
+  matchesPlayed: number;
+}
+
+interface FotmobStatListEntry {
+  ParticipantName?: string;
+  TeamId?: number;
+  StatValue?: number;
+  MatchesPlayed?: number;
+}
+
+async function fetchStatList(url: string): Promise<FotmobStatListEntry[]> {
+  const res = await fetch(url, { headers: HEADERS });
+  if (!res.ok) return [];
+  const data: any = await res.json();
+  return data?.TopLists?.[0]?.StatList ?? [];
+}
+
+export async function fetchTeamXG(leagueId: string): Promise<Map<string, TeamXG>> {
+  const url = `https://www.fotmob.com/ko/leagues/${leagueId}/overview/`;
+  const fullJson = await fetchNextData(url);
+  if (!fullJson) return new Map();
+  const data = extractPageProps(fullJson);
+  const teamStats: any[] = data?.stats?.teams ?? [];
+
+  const xgForUrl = teamStats.find((g) => g?.header === "Expected goals")?.fetchAllUrl;
+  const xgAgainstUrl = teamStats.find((g) => g?.header === "xG conceded")?.fetchAllUrl;
+  if (!xgForUrl || !xgAgainstUrl) return new Map();
+
+  const [forList, againstList] = await Promise.all([fetchStatList(xgForUrl), fetchStatList(xgAgainstUrl)]);
+
+  const result = new Map<string, TeamXG>();
+  for (const e of forList) {
+    if (!e.ParticipantName || e.StatValue == null) continue;
+    result.set(e.ParticipantName, { xgFor: e.StatValue, xgAgainst: 0, matchesPlayed: e.MatchesPlayed ?? 0 });
+  }
+  for (const e of againstList) {
+    if (!e.ParticipantName || e.StatValue == null) continue;
+    const existing = result.get(e.ParticipantName);
+    if (existing) existing.xgAgainst = e.StatValue;
+  }
+  return result;
+}
