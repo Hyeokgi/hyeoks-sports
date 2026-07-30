@@ -37,7 +37,11 @@ export interface PredictionToggles {
   h2hWeight: number;
 }
 
-export const DEFAULT_MARKET_WEIGHT = 0.6;
+// 2026-07-30: 32~41회차 139경기 실측 백테스트 결과, 마켓 top-pick 적중률 45.3%
+// (항상 홈승 찍기 38.1%와 큰 차이 없음), Brier score 0.6092(완전 무작위 0.667 대비 근소 우위).
+// 특히 마켓이 40~50% 확신을 보인 구간(표본 37개)은 실제 적중률이 18.9%로 오히려 나빠서,
+// 애초 계획했던 0.6 가중치는 과했다고 판단해 낮춘다.
+export const DEFAULT_MARKET_WEIGHT = 0.4;
 
 export const DEFAULT_TOGGLES: PredictionToggles = {
   useElo: true,
