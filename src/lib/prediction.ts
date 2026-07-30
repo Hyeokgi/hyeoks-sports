@@ -9,11 +9,19 @@ export const FALLBACK_DRAW_RATE = 0.271;
 export const DEFAULT_FORM_WEIGHT = 60.0;
 export const DEFAULT_H2H_WEIGHT = 50.0;
 
+export interface MarketOdds {
+  pHome: number;
+  pDraw: number;
+  pAway: number;
+  nBookmakers: number;
+}
+
 export interface PredictionInputs {
   eloDiff: number;
   formDiff: number;
   h2hDiff: number;
   leagueDrawRate: number;
+  marketOdds?: MarketOdds | null; // 해외 북메이커 배당 기반 암시확률(오버라운드 제거됨), 없으면 미반영
 }
 
 export interface PredictionToggles {
@@ -23,9 +31,13 @@ export interface PredictionToggles {
   useHomeAdvantage: boolean;
   useLeagueDrawRate: boolean; // false면 FALLBACK_DRAW_RATE 사용
   useClosenessDrawAdjustment: boolean; // true면 Elo 격차가 작을수록 무승부 확률을 실측 곡선으로 보정
+  useMarketOdds: boolean; // true면 해외 배당 암시확률을 모델 확률과 블렌딩
+  marketWeight: number; // 블렌딩 시 마켓 확률에 주는 가중치(0~1), 나머지는 모델 확률
   formWeight: number;
   h2hWeight: number;
 }
+
+export const DEFAULT_MARKET_WEIGHT = 0.6;
 
 export const DEFAULT_TOGGLES: PredictionToggles = {
   useElo: true,
@@ -34,6 +46,8 @@ export const DEFAULT_TOGGLES: PredictionToggles = {
   useHomeAdvantage: true,
   useLeagueDrawRate: true,
   useClosenessDrawAdjustment: true,
+  useMarketOdds: true,
+  marketWeight: DEFAULT_MARKET_WEIGHT,
   formWeight: DEFAULT_FORM_WEIGHT,
   h2hWeight: DEFAULT_H2H_WEIGHT,
 };
@@ -59,11 +73,22 @@ export function predictMatch(
   const pHomeRaw = 1.0 / (1.0 + 10.0 ** (-(totalDiff + homeAdv) / 400.0));
 
   const baseDrawRate = toggles.useLeagueDrawRate ? inputs.leagueDrawRate : FALLBACK_DRAW_RATE;
-  const pDraw = toggles.useClosenessDrawAdjustment
+  const pDraw0 = toggles.useClosenessDrawAdjustment
     ? closenessAdjustedDrawRate(baseDrawRate, Math.abs(inputs.eloDiff))
     : baseDrawRate;
-  const pHome = pHomeRaw * (1 - pDraw);
-  const pAway = (1 - pHomeRaw) * (1 - pDraw);
+  const pHome0 = pHomeRaw * (1 - pDraw0);
+  const pAway0 = (1 - pHomeRaw) * (1 - pDraw0);
+
+  let pHome = pHome0;
+  let pDraw = pDraw0;
+  let pAway = pAway0;
+
+  if (toggles.useMarketOdds && inputs.marketOdds) {
+    const w = toggles.marketWeight;
+    pHome = w * inputs.marketOdds.pHome + (1 - w) * pHome0;
+    pDraw = w * inputs.marketOdds.pDraw + (1 - w) * pDraw0;
+    pAway = w * inputs.marketOdds.pAway + (1 - w) * pAway0;
+  }
 
   const probs: [MatchPrediction["rankedPicks"][number], number][] = [
     ["홈승", pHome],

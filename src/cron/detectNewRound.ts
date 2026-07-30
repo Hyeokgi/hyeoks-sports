@@ -33,12 +33,18 @@ function signature(candidates: Candidate[]): string {
     .join(",");
 }
 
-export async function detectNewRound(env: Env): Promise<{ created: boolean; roundId?: number }> {
+export async function detectNewRound(env: Env): Promise<{ created: boolean; roundId?: number; reason?: string }> {
   const reverse = buildReverseMap();
 
   const allCandidates: Candidate[] = [];
   for (const leagueId of Object.values(LEAGUE_IDS)) {
     const upcoming = await fetchUpcomingMatches(leagueId);
+    // 리그 하나라도 FotMob 응답이 비면(네트워크 오류·일시적 구조변경 등) 절반짜리 회차가
+    // 만들어지므로, 이번 실행 전체를 건너뛴다 - 다음 크론 주기에 다시 시도된다.
+    if (upcoming.length === 0) {
+      console.error(`detectNewRound: ${leagueId} 리그의 예정 경기를 가져오지 못해 스킵`);
+      return { created: false, reason: `empty_fetch:${leagueId}` };
+    }
     for (const m of upcoming) {
       const homeKr = reverse.get(m.home);
       const awayKr = reverse.get(m.away);
@@ -57,7 +63,18 @@ export async function detectNewRound(env: Env): Promise<{ created: boolean; roun
 
   allCandidates.sort((a, b) => (a.kickoffAt ?? a.date).localeCompare(b.kickoffAt ?? b.date));
   const next14 = allCandidates.slice(0, ROUND_SIZE);
-  if (next14.length < ROUND_SIZE) return { created: false };
+  if (next14.length < ROUND_SIZE) return { created: false, reason: "not_enough_candidates" };
+
+  // 실제 승무패 한 회차는 보통 주말 하루~이틀에 몰려 있다. 리그 하나가 부분적으로만 조회되면
+  // (예: K리그2만 비어서 K리그1 경기로 여러 주를 걸쳐 14개를 채우는 경우) 날짜 폭이 비정상적으로
+  // 넓어지므로, 이런 "짜집기 회차"를 걸러낸다.
+  const firstKickoff = new Date(next14[0].kickoffAt ?? next14[0].date).getTime();
+  const lastKickoff = new Date(next14[next14.length - 1].kickoffAt ?? next14[next14.length - 1].date).getTime();
+  const spanDays = (lastKickoff - firstKickoff) / (1000 * 60 * 60 * 24);
+  if (spanDays > 4) {
+    console.error(`detectNewRound: 후보 14경기의 날짜 폭이 ${spanDays.toFixed(1)}일로 비정상적이라 스킵`);
+    return { created: false, reason: "date_span_too_wide" };
+  }
 
   const sig = signature(next14);
   const latest = await env.DB.prepare(

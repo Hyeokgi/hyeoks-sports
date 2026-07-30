@@ -9,6 +9,7 @@ import {
   handleDetectRound,
   handleNotifyTest,
   handleWriteReport,
+  handleWriteMarketOdds,
 } from "./routes/admin";
 import { refreshHistory } from "./cron/refreshHistory";
 import { detectNewRound } from "./cron/detectNewRound";
@@ -18,6 +19,7 @@ import type { Env } from "./types";
 const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report))?$/;
 const ADMIN_ROUND_RE = /^\/api\/admin\/rounds\/(\d+)$/;
 const ADMIN_ROUND_REPORT_RE = /^\/api\/admin\/rounds\/(\d+)\/report$/;
+const ADMIN_ROUND_MARKET_ODDS_RE = /^\/api\/admin\/rounds\/(\d+)\/market-odds$/;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -43,6 +45,11 @@ export default {
       const adminReportMatch = pathname.match(ADMIN_ROUND_REPORT_RE);
       if (adminReportMatch && request.method === "POST") {
         return await handleWriteReport(env, Number(adminReportMatch[1]), request);
+      }
+
+      const adminMarketOddsMatch = pathname.match(ADMIN_ROUND_MARKET_ODDS_RE);
+      if (adminMarketOddsMatch && request.method === "POST") {
+        return await handleWriteMarketOdds(env, Number(adminMarketOddsMatch[1]), request);
       }
 
       const adminMatch = pathname.match(ADMIN_ROUND_RE);

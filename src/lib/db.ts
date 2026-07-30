@@ -38,6 +38,31 @@ export async function getRoundPredictions(
   return map;
 }
 
+export interface MarketOddsRow {
+  round_match_id: number;
+  p_home: number;
+  p_draw: number;
+  p_away: number;
+  n_bookmakers: number;
+  updated_at: string;
+}
+
+export async function getMarketOdds(
+  env: Env,
+  roundMatchIds: number[],
+): Promise<Map<number, MarketOddsRow>> {
+  if (roundMatchIds.length === 0) return new Map();
+  const placeholders = roundMatchIds.map(() => "?").join(",");
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM market_odds WHERE round_match_id IN (${placeholders})`,
+  )
+    .bind(...roundMatchIds)
+    .all<MarketOddsRow>();
+  const map = new Map<number, MarketOddsRow>();
+  for (const row of results ?? []) map.set(row.round_match_id, row);
+  return map;
+}
+
 export async function getAllMatches(env: Env): Promise<MatchRow[]> {
   const { results } = await env.DB.prepare(
     "SELECT league, date, home, away, hg, ag FROM matches ORDER BY league ASC, date ASC",

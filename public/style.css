@@ -330,6 +330,11 @@ main {
   color: var(--gold-bright);
 }
 
+.market-note {
+  color: var(--muted-2);
+  font-size: 0.72rem;
+}
+
 .btn {
   padding: 12px 18px;
   border-radius: 12px;
