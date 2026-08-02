@@ -1,0 +1,23 @@
+name: Fetch Betman Vote Share
+
+on:
+  schedule:
+    - cron: "0 */4 * * *" # 투표 쏠림 변화 추적용, 4시간마다
+  workflow_dispatch: {}
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright
+        run: |
+          npm install playwright@1
+          npx playwright install --with-deps chromium
+      - name: Run vote share fetcher
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/fetch_vote_share.mjs

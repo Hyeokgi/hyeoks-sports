@@ -10,7 +10,7 @@ export interface Env {
   ADMIN_TOKEN?: string;
 }
 
-export type League = "K리그1" | "K리그2";
+export type League = "K리그1" | "K리그2" | "J1리그";
 
 export interface RoundRow {
   id: number;

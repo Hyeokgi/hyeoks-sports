@@ -93,6 +93,45 @@ export async function handleWriteMarketOdds(env: Env, roundId: number, request: 
   return json({ ok: true, round_id: roundId, written });
 }
 
+// GitHub Actions(scripts/fetch_vote_share.mjs)가 betman에서 수집한 회차 투표(득표)율을
+// seq(경기 순번) 기준으로 매칭해 저장한다.
+export async function handleWriteVoteShare(env: Env, roundId: number, request: Request): Promise<Response> {
+  const authError = requireAdmin(request, env);
+  if (authError) return authError;
+
+  const round = await getRound(env, roundId);
+  if (!round) return json({ error: "round_not_found" }, 404);
+
+  const body = await safeJson(request);
+  const votes = body?.votes;
+  if (!Array.isArray(votes)) {
+    return json({ error: "votes(array)가 필요합니다" }, 400);
+  }
+
+  const matches = await getRoundMatches(env, roundId);
+  const bySeq = new Map(matches.map((m) => [m.seq, m.id]));
+
+  const now = new Date().toISOString();
+  let written = 0;
+  const stmts = [];
+  for (const v of votes) {
+    const roundMatchId = bySeq.get(v.seq);
+    if (!roundMatchId) continue;
+    if (typeof v.voteHome !== "number" || typeof v.voteDraw !== "number" || typeof v.voteAway !== "number") {
+      continue;
+    }
+    stmts.push(
+      env.DB.prepare(
+        "INSERT INTO round_vote_share (round_match_id, vote_home, vote_draw, vote_away, snapshot_at) VALUES (?, ?, ?, ?, ?)",
+      ).bind(roundMatchId, v.voteHome, v.voteDraw, v.voteAway, now),
+    );
+    written++;
+  }
+  if (stmts.length > 0) await env.DB.batch(stmts);
+
+  return json({ ok: true, round_id: roundId, written });
+}
+
 export async function handleCorrectRoundNo(env: Env, roundId: number, request: Request): Promise<Response> {
   const authError = requireAdmin(request, env);
   if (authError) return authError;

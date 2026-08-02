@@ -28,7 +28,8 @@ export function buildPrompt(roundLabel: string, matches: ReportMatch[]): string 
     })
     .join("\n");
 
-  return `당신은 HYEOKS 스포츠 분석 센터의 축구 데이터 애널리스트입니다. 아래는 K리그 승무패 ${roundLabel} 14경기에 대한 통계 모델(Elo 전력차 + 최근 폼 + 상대전적 + 리그별 실측 무승부율) 예측 결과입니다.
+  const leagues = [...new Set(matches.map((m) => m.league))].join("/");
+  return `당신은 HYEOKS 스포츠 분석 센터의 축구 데이터 애널리스트입니다. 아래는 축구토토 승무패 ${roundLabel} ${matches.length}경기(${leagues})에 대한 통계 모델(Elo 전력차 + 최근 폼 + 상대전적 + 리그별 실측 무승부율) 예측 결과입니다.
 
 ${lines}
 

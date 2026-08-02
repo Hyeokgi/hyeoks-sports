@@ -1,5 +1,5 @@
 // 한글 팀명 <-> FotMob 영문 팀명 매핑 (predict_round42_v2.py NAME_MAP 이식)
-export type League = "K리그1" | "K리그2";
+export type League = "K리그1" | "K리그2" | "J1리그";
 
 export interface TeamMapEntry {
   nameKr: string;
@@ -7,36 +7,78 @@ export interface TeamMapEntry {
   league: League;
 }
 
-export const K1_TEAMS_KR = [
-  "강원FC", "부천FC", "전북현대", "FC서울", "포항스틸", "김천상무",
-  "울산HDFC", "FC안양", "대전하나", "광주FC", "제주SKFC", "인천유나",
-] as const;
+// league는 팀별로 명시 태그(과거엔 "K1 화이트리스트, 나머지는 K2"인 이진 추론이었으나
+// 팀이 승강격을 거치며 리그별로 다른 Elo 컨텍스트를 갖게 되어 명시적 태깅으로 전환).
+export const TEAM_ENTRIES: TeamMapEntry[] = [
+  // K리그1
+  { nameKr: "강원FC", nameEn: "Gangwon FC", league: "K리그1" },
+  { nameKr: "부천FC", nameEn: "Bucheon FC 1995", league: "K리그1" },
+  { nameKr: "전북현대", nameEn: "Jeonbuk Hyundai Motors FC", league: "K리그1" },
+  { nameKr: "FC서울", nameEn: "FC Seoul", league: "K리그1" },
+  { nameKr: "포항스틸", nameEn: "Pohang Steelers", league: "K리그1" },
+  { nameKr: "김천상무", nameEn: "Gimcheon Sangmu", league: "K리그1" },
+  { nameKr: "울산HDFC", nameEn: "Ulsan HD FC", league: "K리그1" },
+  { nameKr: "FC안양", nameEn: "FC Anyang", league: "K리그1" },
+  { nameKr: "대전하나", nameEn: "Daejeon Hana Citizen", league: "K리그1" },
+  { nameKr: "광주FC", nameEn: "Gwangju FC", league: "K리그1" },
+  { nameKr: "제주SKFC", nameEn: "Jeju SK", league: "K리그1" },
+  { nameKr: "인천유나", nameEn: "Incheon United", league: "K리그1" },
+  // K리그2
+  { nameKr: "충남아산", nameEn: "Chungnam Asan FC", league: "K리그2" },
+  { nameKr: "성남FC", nameEn: "Seongnam FC", league: "K리그2" },
+  { nameKr: "천안시티", nameEn: "Cheonan City", league: "K리그2" },
+  { nameKr: "용인FC", nameEn: "Yongin FC", league: "K리그2" },
+  { nameKr: "충북청주", nameEn: "Cheongju FC", league: "K리그2" },
+  { nameKr: "수원삼성", nameEn: "Suwon Samsung Bluewings", league: "K리그2" },
+  { nameKr: "화성FC", nameEn: "Hwaseong FC", league: "K리그2" },
+  { nameKr: "대구FC", nameEn: "Daegu FC", league: "K리그2" },
+  { nameKr: "부산아이", nameEn: "Busan I'Park", league: "K리그2" },
+  { nameKr: "서울이랜", nameEn: "Seoul E-Land FC", league: "K리그2" },
+  { nameKr: "김포FC", nameEn: "Gimpo FC", league: "K리그2" },
+  { nameKr: "경남FC", nameEn: "Gyeongnam FC", league: "K리그2" },
+  { nameKr: "전남드래", nameEn: "Jeonnam Dragons", league: "K리그2" },
+  { nameKr: "파주프런", nameEn: "Paju Frontier", league: "K리그2" },
+  { nameKr: "수원FC", nameEn: "Suwon FC", league: "K리그2" },
+  { nameKr: "안산그리", nameEn: "Ansan Greeners", league: "K리그2" },
+  { nameKr: "김해FC", nameEn: "Gimhae FC 2008", league: "K리그2" },
+  // J1리그 (2026-08 wisetoto/betman 43회차 실데이터로 교차 확인된 14팀)
+  { nameKr: "FC도쿄", nameEn: "FC Tokyo", league: "J1리그" },
+  { nameKr: "마치다Z", nameEn: "Machida Zelvia", league: "J1리그" },
+  { nameKr: "나고야G", nameEn: "Nagoya Grampus", league: "J1리그" },
+  { nameKr: "시미즈S", nameEn: "Shimizu S-Pulse", league: "J1리그" },
+  { nameKr: "C오사카", nameEn: "Cerezo Osaka", league: "J1리그" },
+  { nameKr: "오카야마", nameEn: "Fagiano Okayama FC", league: "J1리그" },
+  { nameKr: "후쿠오카", nameEn: "Avispa Fukuoka", league: "J1리그" },
+  { nameKr: "비셀고베", nameEn: "Vissel Kobe", league: "J1리그" },
+  { nameKr: "산프히로", nameEn: "Sanfrecce Hiroshima", league: "J1리그" },
+  { nameKr: "제프유나", nameEn: "JEF United Chiba", league: "J1리그" },
+  { nameKr: "도쿄베르", nameEn: "Tokyo Verdy", league: "J1리그" },
+  { nameKr: "가와사키", nameEn: "Kawasaki Frontale", league: "J1리그" },
+  { nameKr: "V바렌나", nameEn: "V-Varen Nagasaki", league: "J1리그" },
+  { nameKr: "교토상가", nameEn: "Kyoto Sanga FC", league: "J1리그" },
+  // J1리그 나머지 6팀 - 이번 세션에 실경기(43회차)로 노출되지 않아 wisetoto/betman 실표기를
+  // 직접 교차 확인하지 못한 추정 표기. 실제 회차에 등장 시 이름이 다르면 NAME_MAP 미스매치로
+  // 조용히 스킵되니(안전장치), 등장하는 대로 실표기로 정정 필요.
+  { nameKr: "감바오사카", nameEn: "Gamba Osaka", league: "J1리그" },
+  { nameKr: "가시마", nameEn: "Kashima Antlers", league: "J1리그" },
+  { nameKr: "가시와", nameEn: "Kashiwa Reysol", league: "J1리그" },
+  { nameKr: "미토", nameEn: "Mito Hollyhock", league: "J1리그" },
+  { nameKr: "우라와", nameEn: "Urawa Red Diamonds", league: "J1리그" },
+  { nameKr: "요코하마M", nameEn: "Yokohama F.Marinos", league: "J1리그" },
+];
 
-export const NAME_MAP: Record<string, string> = {
-  "강원FC": "Gangwon FC", "부천FC": "Bucheon FC 1995",
-  "전북현대": "Jeonbuk Hyundai Motors FC", "FC서울": "FC Seoul",
-  "포항스틸": "Pohang Steelers", "김천상무": "Gimcheon Sangmu",
-  "충남아산": "Chungnam Asan FC", "성남FC": "Seongnam FC",
-  "천안시티": "Cheonan City", "용인FC": "Yongin FC",
-  "충북청주": "Cheongju FC", "수원삼성": "Suwon Samsung Bluewings",
-  "화성FC": "Hwaseong FC", "대구FC": "Daegu FC",
-  "울산HDFC": "Ulsan HD FC", "FC안양": "FC Anyang",
-  "대전하나": "Daejeon Hana Citizen", "광주FC": "Gwangju FC",
-  "제주SKFC": "Jeju SK", "인천유나": "Incheon United",
-  "부산아이": "Busan I'Park", "서울이랜": "Seoul E-Land FC",
-  "김포FC": "Gimpo FC", "경남FC": "Gyeongnam FC",
-  "전남드래": "Jeonnam Dragons", "파주프런": "Paju Frontier",
-  "안산그리": "Ansan Greeners", "김해FC": "Gimhae FC 2008",
-};
+export const NAME_MAP: Record<string, string> = Object.fromEntries(
+  TEAM_ENTRIES.map((e) => [e.nameKr, e.nameEn]),
+);
+
+const LEAGUE_BY_KR: Record<string, League> = Object.fromEntries(
+  TEAM_ENTRIES.map((e) => [e.nameKr, e.league]),
+);
 
 export function leagueOfKr(nameKr: string): League {
-  return (K1_TEAMS_KR as readonly string[]).includes(nameKr) ? "K리그1" : "K리그2";
+  return LEAGUE_BY_KR[nameKr] ?? "K리그2";
 }
 
 export function allTeamMapEntries(): TeamMapEntry[] {
-  return Object.entries(NAME_MAP).map(([nameKr, nameEn]) => ({
-    nameKr,
-    nameEn,
-    league: leagueOfKr(nameKr),
-  }));
+  return TEAM_ENTRIES;
 }

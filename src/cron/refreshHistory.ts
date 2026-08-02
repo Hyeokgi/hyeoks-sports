@@ -1,8 +1,9 @@
-// 3시간마다 실행: FotMob 종료 경기 결과 갱신 + Elo/무승부율 전체 재계산 + 진행중 회차 xG 갱신
+// 3시간마다 실행: FotMob 종료 경기 결과 갱신 + Elo/무승부율 전체 재계산 + 진행중 회차 xG 갱신 + 정산
 import { fetchFinishedMatches, fetchTeamXG, LEAGUE_IDS, type TeamXG } from "../lib/fotmob";
 import { computeEloAndHistory } from "../lib/elo";
 import { getAllMatches } from "../lib/db";
 import { NAME_MAP } from "../lib/nameMap";
+import { settleRounds } from "../lib/settlement";
 import type { Env, League } from "../types";
 
 export async function refreshHistory(env: Env): Promise<{ inserted: number; leagues: string[] }> {
@@ -25,6 +26,7 @@ export async function refreshHistory(env: Env): Promise<{ inserted: number; leag
   }
 
   await refreshXgForActiveRounds(env);
+  await settleRounds(env);
 
   return { inserted, leagues: Object.keys(LEAGUE_IDS) };
 }
@@ -39,6 +41,7 @@ export async function refreshXgForActiveRounds(env: Env): Promise<void> {
   const xgByLeague: Record<string, Map<string, TeamXG>> = {
     "K리그1": await fetchTeamXG(LEAGUE_IDS["K리그1"]),
     "K리그2": await fetchTeamXG(LEAGUE_IDS["K리그2"]),
+    "J1리그": await fetchTeamXG(LEAGUE_IDS["J1리그"]),
   };
   if (xgByLeague["K리그1"].size === 0 && xgByLeague["K리그2"].size === 0) return;
 

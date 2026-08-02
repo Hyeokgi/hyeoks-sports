@@ -1,5 +1,5 @@
 // FotMob __NEXT_DATA__ 스크래핑 (crawl_and_update.py의 pageProps 이중 방어 파싱 이식)
-export const LEAGUE_IDS: Record<string, string> = { "K리그1": "9080", "K리그2": "9116" };
+export const LEAGUE_IDS: Record<string, string> = { "K리그1": "9080", "K리그2": "9116", "J1리그": "223" };
 
 const HEADERS = {
   "User-Agent":
