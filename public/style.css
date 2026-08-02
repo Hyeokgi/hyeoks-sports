@@ -495,7 +495,52 @@ main {
   font-size: 0.86rem;
   line-height: 1.65;
   color: #d7dbe3;
-  margin: 0;
+  margin: 0 0 10px;
+}
+
+.calib-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  margin: 8px 0 14px;
+}
+
+.calib-table th,
+.calib-table td {
+  padding: 8px 10px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.calib-table th {
+  color: var(--gold-bright);
+  font-weight: 700;
+  font-size: 0.76rem;
+}
+
+.calib-table td {
+  color: #d7dbe3;
+}
+
+.evidence-toggle {
+  background: none;
+  border: none;
+  color: var(--muted-2);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+}
+
+.evidence-body {
+  font-size: 0.76rem;
+  line-height: 1.6;
+  color: #d7dbe3;
+  padding: 6px 0 2px;
+}
+
+.evidence-body div {
+  padding: 1px 0;
 }
 
 .legend-row {

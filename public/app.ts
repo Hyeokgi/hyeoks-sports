@@ -1,6 +1,7 @@
 // 프론트엔드 로직: 회차 조회, 변수 토글(클라이언트 즉시 재계산), 예산별 조합, AI 리포트
 import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type PredictionInputs } from "../src/lib/prediction";
 import { generateSystemBetTiers, DEFAULT_BUDGET_TIERS, generateSystemBet, type ComboMatch } from "../src/lib/combinations";
+import { findCalibrationBucket } from "../src/lib/calibration";
 
 interface MatchData {
   seq: number;
@@ -111,6 +112,31 @@ function renderMatches() {
     const xgNote = m.raw.xgDiff != null ? ` <span class="market-note">xG 반영</span>` : "";
     pick.innerHTML = `모델 추천 <b>${prediction.rankedPicks[0]}</b>${marketNote}${xgNote}`;
     card.appendChild(pick);
+
+    const evidenceBtn = document.createElement("button");
+    evidenceBtn.className = "evidence-toggle";
+    evidenceBtn.type = "button";
+    evidenceBtn.textContent = "근거 보기 ▾";
+    const evidenceBody = document.createElement("div");
+    evidenceBody.className = "evidence-body";
+    evidenceBody.hidden = true;
+    const bucket = findCalibrationBucket(m.league, prediction.confidenceGap);
+    const bucketNote = bucket
+      ? `이 확신도 구간(${(bucket.minGap * 100).toFixed(0)}~${(bucket.maxGap * 100).toFixed(0)}%p), 과거 실측 적중률 ${(bucket.accuracy * 100).toFixed(1)}% (표본 ${bucket.n}경기)`
+      : "이 구간에 대한 실측 데이터가 부족합니다";
+    evidenceBody.innerHTML = `
+      <div>Elo 전력차: ${m.raw.eloDiff.toFixed(0)}점 (${m.raw.eloDiff >= 0 ? m.home : m.away} 우세)</div>
+      <div>최근 폼(5경기) 차이: ${m.raw.formDiff.toFixed(2)}점</div>
+      <div>상대전적(H2H) 성향: ${m.raw.h2hDiff.toFixed(2)} (표본 ${m.raw.nH2h}회)</div>
+      <div>리그 실측 무승부율: ${(m.raw.leagueDrawRate * 100).toFixed(1)}%</div>
+      <div>${bucketNote}</div>
+    `;
+    evidenceBtn.addEventListener("click", () => {
+      evidenceBody.hidden = !evidenceBody.hidden;
+      evidenceBtn.textContent = evidenceBody.hidden ? "근거 보기 ▾" : "근거 접기 ▴";
+    });
+    card.appendChild(evidenceBtn);
+    card.appendChild(evidenceBody);
 
     matchList.appendChild(card);
   }
