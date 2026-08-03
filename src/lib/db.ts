@@ -63,6 +63,57 @@ export async function getMarketOdds(
   return map;
 }
 
+export interface RoundResultRow {
+  round_match_id: number;
+  actual: "H" | "D" | "A";
+  hg: number | null;
+  ag: number | null;
+  settled_at: string;
+}
+
+export async function getRoundResults(
+  env: Env,
+  roundMatchIds: number[],
+): Promise<Map<number, RoundResultRow>> {
+  if (roundMatchIds.length === 0) return new Map();
+  const placeholders = roundMatchIds.map(() => "?").join(",");
+  const { results } = await env.DB.prepare(
+    `SELECT * FROM round_results WHERE round_match_id IN (${placeholders})`,
+  )
+    .bind(...roundMatchIds)
+    .all<RoundResultRow>();
+  const map = new Map<number, RoundResultRow>();
+  for (const row of results ?? []) map.set(row.round_match_id, row);
+  return map;
+}
+
+export interface VoteShareRow {
+  round_match_id: number;
+  vote_home: number;
+  vote_draw: number;
+  vote_away: number;
+  snapshot_at: string;
+}
+
+// 회차 진행 중 여러 스냅샷이 쌓일 수 있어(round_vote_share는 append-only) 매치당 가장 최근 것만 사용.
+export async function getLatestVoteShare(
+  env: Env,
+  roundMatchIds: number[],
+): Promise<Map<number, VoteShareRow>> {
+  if (roundMatchIds.length === 0) return new Map();
+  const placeholders = roundMatchIds.map(() => "?").join(",");
+  const { results } = await env.DB.prepare(
+    `SELECT round_match_id, vote_home, vote_draw, vote_away, snapshot_at FROM round_vote_share
+     WHERE round_match_id IN (${placeholders})
+     AND id IN (SELECT MAX(id) FROM round_vote_share WHERE round_match_id IN (${placeholders}) GROUP BY round_match_id)`,
+  )
+    .bind(...roundMatchIds, ...roundMatchIds)
+    .all<VoteShareRow>();
+  const map = new Map<number, VoteShareRow>();
+  for (const row of results ?? []) map.set(row.round_match_id, row);
+  return map;
+}
+
 export async function getAllMatches(env: Env): Promise<MatchRow[]> {
   const { results } = await env.DB.prepare(
     "SELECT league, date, home, away, hg, ag FROM matches ORDER BY league ASC, date ASC",

@@ -63,29 +63,35 @@ async function main() {
     return;
   }
 
+  // winAllot/drawAllot/loseAllot(배당률)은 실측 결과 발매중/마감 모두 0.0으로만 확인됨(2026-08-03) -
+  // 실제 투표 쏠림은 voteStatus.homeVoteStatusList[i].awayVoteStatusList[0/1/2].voteCount(홈/무/원정
+  // 순 매수)에 있고, schedulesList와 같은 순서(배열 인덱스=matchSeq)로 병렬 배치됨을 42회차 정산
+  // 데이터로 확인했다.
+  const voteStatusList = gameInfo.voteStatus?.homeVoteStatusList ?? [];
+
   const roundRes = await fetch(`${WORKER_BASE_URL}/api/rounds/${round.id}`);
   if (!roundRes.ok) throw new Error(`/api/rounds/${round.id} 조회 실패: ${roundRes.status}`);
   const { matches } = await roundRes.json();
   const bySig = new Map(matches.map((m) => [`${normalizeTeamName(m.home)}|${normalizeTeamName(m.away)}`, m.seq]));
 
   const votePayload = [];
-  for (const s of schedules) {
+  schedules.forEach((s, i) => {
     const seq = bySig.get(`${normalizeTeamName(s.homeName)}|${normalizeTeamName(s.awayName)}`);
-    if (!seq) continue;
-    // winAllot/drawAllot/loseAllot이 파리뮤추얼 배당(=투표 쏠림의 역수) - 발매 전에는 0.0
-    if (!s.winAllot || !s.drawAllot || !s.loseAllot) continue;
-    const inv = [1 / s.winAllot, 1 / s.drawAllot, 1 / s.loseAllot];
-    const total = inv[0] + inv[1] + inv[2];
+    if (!seq) return;
+    const counts = voteStatusList[i]?.awayVoteStatusList?.map((v) => v.voteCount) ?? [];
+    if (counts.length !== 3) return;
+    const total = counts[0] + counts[1] + counts[2];
+    if (total <= 0) return; // 아직 매수가 없음(발매 직후 등)
     votePayload.push({
       seq,
-      voteHome: (inv[0] / total) * 100,
-      voteDraw: (inv[1] / total) * 100,
-      voteAway: (inv[2] / total) * 100,
+      voteHome: (counts[0] / total) * 100,
+      voteDraw: (counts[1] / total) * 100,
+      voteAway: (counts[2] / total) * 100,
     });
-  }
+  });
 
   if (votePayload.length === 0) {
-    console.log("아직 투표(배당) 데이터가 반영되지 않았습니다(발매 전일 가능성). 저장을 건너뜁니다.");
+    console.log("아직 투표(매수) 데이터가 반영되지 않았습니다(발매 전일 가능성). 저장을 건너뜁니다.");
     return;
   }
 
