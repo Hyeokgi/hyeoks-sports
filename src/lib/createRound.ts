@@ -4,6 +4,8 @@ import { LEAGUE_IDS, fetchTeamXG, type TeamXG } from "./fotmob";
 import { computeEloAndHistory, recentForm, h2hDiff as computeH2hDiff } from "./elo";
 import { getAllMatches, getLeagueDrawRate } from "./db";
 import { sendTelegramMessage } from "./telegram";
+import { predictMatch, DEFAULT_TOGGLES } from "./prediction";
+import { calibrationNote } from "./calibration";
 import type { Env, League } from "../types";
 
 export interface RoundFixture {
@@ -58,6 +60,7 @@ export async function createRoundFromFixtures(
     .first<{ id: number }>();
   const roundId = insertedRound!.id;
 
+  const notifyLines: string[] = [];
   for (const f of fixtures) {
     const homeState = elo.get(`${f.league}|${f.homeEn}`);
     const awayState = elo.get(`${f.league}|${f.awayEn}`);
@@ -80,12 +83,21 @@ export async function createRoundFromFixtures(
     )
       .bind(roundMatchId, eloDiff, formDiff, h2h_.diff, h2h_.n, drawRates[f.league], xgDiff, new Date().toISOString())
       .run();
+
+    // 기본 토글(해외배당 없음, 등록 시점 xG만) 기준 요약 - 텔레그램은 나중에 배당이 붙기 전 스냅샷.
+    const p = predictMatch(
+      { eloDiff, formDiff, h2hDiff: h2h_.diff, leagueDrawRate: drawRates[f.league], marketOdds: null, xgDiff },
+      DEFAULT_TOGGLES,
+    );
+    const note = calibrationNote(f.league, p.confidenceGap);
+    notifyLines.push(
+      `${f.seq}. ${f.homeKr} vs ${f.awayKr} (${f.league}) - 모델추천 ${p.rankedPicks[0]}, 확신도 ${(p.confidenceGap * 100).toFixed(1)}%p${note ? ` (${note})` : ""}`,
+    );
   }
 
   if (opts.notify !== false) {
     const roundLabel = opts.roundNoConfirmed && opts.roundNo ? `${opts.roundNo}회차` : "신규 회차";
-    const summary = fixtures.map((f) => `${f.seq}. ${f.homeKr} vs ${f.awayKr} (${f.league})`).join("\n");
-    await sendTelegramMessage(env, `⚽ <b>축구토토 승무패 ${roundLabel}가 등록되었습니다</b>\n\n${summary}`);
+    await sendTelegramMessage(env, `⚽ <b>축구토토 승무패 ${roundLabel}가 등록되었습니다</b>\n\n${notifyLines.join("\n")}`);
     await env.DB.prepare("UPDATE rounds SET notified_at = ? WHERE id = ?")
       .bind(new Date().toISOString(), roundId)
       .run();

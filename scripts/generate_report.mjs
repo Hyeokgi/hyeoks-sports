@@ -11,6 +11,14 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const MODEL = "gemini-2.5-pro";
 
+// "이 확신도 구간(15~30%p) 실측 적중률 42.5%(n=831)" - src/lib/gemini.ts와 동일 유지
+// (원본 CALIBRATION 표는 calibration.ts 한 곳에만 있고, /api/rounds/:id 응답의 calibration.bucket을
+// 그대로 받아 포맷만 하므로 여기서 표를 복제하지 않는다).
+function formatCalibrationNote(bucket) {
+  if (!bucket) return "";
+  return `, 이 확신도 구간(${(bucket.minGap * 100).toFixed(0)}~${(bucket.maxGap * 100).toFixed(0)}%p) 실측 적중률 ${(bucket.accuracy * 100).toFixed(1)}%(n=${bucket.n})`;
+}
+
 export function buildPrompt(roundLabel, matches) {
   const lines = matches
     .map((m, i) => {
@@ -18,7 +26,7 @@ export function buildPrompt(roundLabel, matches) {
       return (
         `${i + 1}. ${m.league} ${m.home} vs ${m.away} - ` +
         `홈${(p.pHome * 100).toFixed(0)}% 무${(p.pDraw * 100).toFixed(0)}% 원정${(p.pAway * 100).toFixed(0)}% ` +
-        `(확신도 ${(p.confidenceGap * 100).toFixed(1)}%p, 모델추천 ${p.rankedPicks[0]})`
+        `(확신도 ${(p.confidenceGap * 100).toFixed(1)}%p, 모델추천 ${p.rankedPicks[0]}${formatCalibrationNote(m.calibration?.bucket)})`
       );
     })
     .join("\n");

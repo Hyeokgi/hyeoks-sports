@@ -1,7 +1,7 @@
 // 프론트엔드 로직: 회차 조회, 변수 토글(클라이언트 즉시 재계산), 예산별 조합, AI 리포트
 import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type PredictionInputs } from "../src/lib/prediction";
 import { generateSystemBetTiers, DEFAULT_BUDGET_TIERS, generateSystemBet, type ComboMatch } from "../src/lib/combinations";
-import { findCalibrationBucket } from "../src/lib/calibration";
+import { findCalibrationBucket, confidenceTier, TIER_EMOJI } from "../src/lib/calibration";
 
 interface MatchData {
   seq: number;
@@ -85,9 +85,10 @@ function renderMatches() {
     const card = document.createElement("div");
     card.className = "match-card";
 
+    const tier = confidenceTier(m.league, prediction.confidenceGap);
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.innerHTML = `<span class="league-badge">${m.seq}경기 · ${m.league}</span><span class="confidence-badge">확신도 ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>`;
+    meta.innerHTML = `<span class="league-badge">${m.seq}경기 · ${m.league}</span><span class="confidence-badge">${TIER_EMOJI[tier]} ${tier} · 확신도 ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>`;
     card.appendChild(meta);
 
     const teams = document.createElement("div");
@@ -113,6 +114,17 @@ function renderMatches() {
     pick.innerHTML = `모델 추천 <b>${prediction.rankedPicks[0]}</b>${marketNote}${xgNote}`;
     card.appendChild(pick);
 
+    // 작업1: 모델 원본 확률을 덮어쓰지 않고, 같은 확신도 구간의 실측 적중률을 항상 보이게 병기
+    // ("82%"만 보이면 실제보다 신뢰도가 높아 보일 수 있어서 - 근거보기를 펼쳐야만 보이면 놓치기 쉬움).
+    const bucket = findCalibrationBucket(m.league, prediction.confidenceGap);
+    const bucketNote = bucket
+      ? `이 확신도 구간(${(bucket.minGap * 100).toFixed(0)}~${(bucket.maxGap * 100).toFixed(0)}%p), 과거 실측 적중률 ${(bucket.accuracy * 100).toFixed(1)}% (표본 ${bucket.n}경기)`
+      : "이 구간에 대한 실측 데이터가 부족합니다";
+    const calibLine = document.createElement("div");
+    calibLine.className = "calib-note";
+    calibLine.textContent = `참고: ${bucketNote}`;
+    card.appendChild(calibLine);
+
     const evidenceBtn = document.createElement("button");
     evidenceBtn.className = "evidence-toggle";
     evidenceBtn.type = "button";
@@ -120,16 +132,11 @@ function renderMatches() {
     const evidenceBody = document.createElement("div");
     evidenceBody.className = "evidence-body";
     evidenceBody.hidden = true;
-    const bucket = findCalibrationBucket(m.league, prediction.confidenceGap);
-    const bucketNote = bucket
-      ? `이 확신도 구간(${(bucket.minGap * 100).toFixed(0)}~${(bucket.maxGap * 100).toFixed(0)}%p), 과거 실측 적중률 ${(bucket.accuracy * 100).toFixed(1)}% (표본 ${bucket.n}경기)`
-      : "이 구간에 대한 실측 데이터가 부족합니다";
     evidenceBody.innerHTML = `
       <div>Elo 전력차: ${m.raw.eloDiff.toFixed(0)}점 (${m.raw.eloDiff >= 0 ? m.home : m.away} 우세)</div>
       <div>최근 폼(5경기) 차이: ${m.raw.formDiff.toFixed(2)}점</div>
       <div>상대전적(H2H) 성향: ${m.raw.h2hDiff.toFixed(2)} (표본 ${m.raw.nH2h}회)</div>
       <div>리그 실측 무승부율: ${(m.raw.leagueDrawRate * 100).toFixed(1)}%</div>
-      <div>${bucketNote}</div>
     `;
     evidenceBtn.addEventListener("click", () => {
       evidenceBody.hidden = !evidenceBody.hidden;

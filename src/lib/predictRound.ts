@@ -1,11 +1,15 @@
 // round_predictions에 저장된 원본 diff 성분을 읽어 토글이 반영된 확률로 재계산
 import { getRoundMatches, getRoundPredictions, getMarketOdds } from "./db";
 import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type MatchPrediction } from "./prediction";
+import { findCalibrationBucket, confidenceTier, type CalibrationBucket, type ConfidenceTier } from "./calibration";
 import type { Env, RoundMatchRow } from "../types";
 
 export interface MatchWithPrediction {
   match: RoundMatchRow;
   prediction: MatchPrediction;
+  // predictMatch()가 낸 원본 확률은 절대 덮어쓰지 않는다 - 이 필드는 같은 확신도 구간에서
+  // 과거 실제로 얼마나 맞았는지를 "참고용"으로 병기하기 위한 것 (작업1: 확률 표시의 정직성 개선).
+  calibration: { bucket: CalibrationBucket | null; tier: ConfidenceTier };
   raw: {
     eloDiff: number;
     formDiff: number;
@@ -51,9 +55,14 @@ export async function buildRoundPredictions(
       },
       merged,
     );
+    const calibration = {
+      bucket: findCalibrationBucket(m.league, prediction.confidenceGap),
+      tier: confidenceTier(m.league, prediction.confidenceGap),
+    };
     return {
       match: m,
       prediction,
+      calibration,
       raw: {
         eloDiff: raw.elo_diff,
         formDiff: raw.form_diff,

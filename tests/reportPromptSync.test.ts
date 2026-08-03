@@ -5,19 +5,24 @@ import { buildPrompt as buildPromptWorker } from "../src/lib/gemini";
 // @ts-expect-error - .mjs는 타입 선언이 없는 순수 JS 스크립트
 import { buildPrompt as buildPromptAction } from "../scripts/generate_report.mjs";
 import { predictMatch, DEFAULT_TOGGLES } from "../src/lib/prediction";
+import { findCalibrationBucket } from "../src/lib/calibration";
 import fixture from "./fixtures/round42_prediction_v2.json";
 
 describe("generate_report.mjs buildPrompt matches src/lib/gemini.ts buildPrompt", () => {
   it("produces an identical prompt string", () => {
-    const matches = (fixture as any[]).map((row) => ({
-      league: row.league,
-      home: row.home,
-      away: row.away,
-      prediction: predictMatch(
+    const matches = (fixture as any[]).map((row) => {
+      const prediction = predictMatch(
         { eloDiff: row.elo_diff, formDiff: row.form_diff, h2hDiff: row.h2h_diff, leagueDrawRate: 0.2849 },
         DEFAULT_TOGGLES,
-      ),
-    }));
+      );
+      return {
+        league: row.league,
+        home: row.home,
+        away: row.away,
+        prediction,
+        calibration: { bucket: findCalibrationBucket(row.league, prediction.confidenceGap) },
+      };
+    });
 
     const a = buildPromptWorker("42회차", matches);
     const b = buildPromptAction("42회차", matches);

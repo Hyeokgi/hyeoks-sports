@@ -40,3 +40,24 @@ export function findCalibrationBucket(league: string, confidenceGap: number): Ca
   const buckets = CALIBRATION[league] ?? CALIBRATION["K리그1"];
   return buckets.find((b) => confidenceGap >= b.minGap && confidenceGap < b.maxGap) ?? null;
 }
+
+// 확신도 3단계 라벨 - 경계값은 CALIBRATION 버킷 정의를 그대로 재사용한다(하드코딩 금지).
+// 🟢 확신픽(마지막 버킷, 실측 우위 뚜렷) / 🟡 보통(중간 버킷들) / 🔴 불확실(첫 버킷, 거의 랜덤)
+export type ConfidenceTier = "확신픽" | "보통" | "불확실";
+export const TIER_EMOJI: Record<ConfidenceTier, string> = { "확신픽": "🟢", "보통": "🟡", "불확실": "🔴" };
+
+export function confidenceTier(league: string, confidenceGap: number): ConfidenceTier {
+  const buckets = CALIBRATION[league] ?? CALIBRATION["K리그1"];
+  const idx = buckets.findIndex((b) => confidenceGap >= b.minGap && confidenceGap < b.maxGap);
+  if (idx === buckets.length - 1) return "확신픽"; // 마지막 버킷(30%p+)
+  if (idx <= 0) return "불확실"; // 첫 버킷(0~5%p) 또는 범위 밖(그 이하)
+  return "보통";
+}
+
+// "모델 확률 82% (참고: 이 확신도 구간 실측 적중률 53.6%, n=248)" 형태의 공통 문구.
+// 원본 확률을 덮어쓰지 않고 병기하기 위한 헬퍼 - 리포트/시트/텔레그램/UI에서 공용으로 쓴다.
+export function calibrationNote(league: string, confidenceGap: number): string | null {
+  const bucket = findCalibrationBucket(league, confidenceGap);
+  if (!bucket) return null;
+  return `이 확신도 구간(${(bucket.minGap * 100).toFixed(0)}~${(bucket.maxGap * 100).toFixed(0)}%p) 실측 적중률 ${(bucket.accuracy * 100).toFixed(1)}%(n=${bucket.n})`;
+}

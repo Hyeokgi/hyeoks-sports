@@ -6,6 +6,7 @@
 import type { Env } from "../types";
 import type { MatchWithPrediction } from "./predictRound";
 import type { MatchPrediction } from "./prediction";
+import type { CalibrationBucket } from "./calibration";
 
 const MODEL = "gemini-2.5-pro";
 
@@ -14,16 +15,27 @@ export interface ReportMatch {
   home: string;
   away: string;
   prediction: MatchPrediction;
+  calibration?: { bucket: CalibrationBucket | null } | null;
+}
+
+// "이 확신도 구간(15~30%p) 실측 적중률 42.5%(n=831)" - scripts/generate_report.mjs와 동일 유지
+// (양쪽 다 이미 계산된 calibrationBucket을 입력받아 포맷만 하므로, CALIBRATION 원본 표는
+// calibration.ts 한 곳에만 존재하고 여기선 복제하지 않는다).
+function formatCalibrationNote(bucket: CalibrationBucket | null | undefined): string {
+  if (!bucket) return "";
+  return `, 이 확신도 구간(${(bucket.minGap * 100).toFixed(0)}~${(bucket.maxGap * 100).toFixed(0)}%p) 실측 적중률 ${(bucket.accuracy * 100).toFixed(1)}%(n=${bucket.n})`;
 }
 
 export function buildPrompt(roundLabel: string, matches: ReportMatch[]): string {
   const lines = matches
     .map((m, i) => {
       const p = m.prediction;
+      // 모델 원본 확률은 그대로 두고(덮어쓰지 않고), 같은 확신도 구간의 과거 실측 적중률을 병기한다
+      // (작업1: 확률 표시의 정직성 개선 - 82%라는 숫자만 보면 실제보다 신뢰도가 높아 보일 수 있어서).
       return (
         `${i + 1}. ${m.league} ${m.home} vs ${m.away} - ` +
         `홈${(p.pHome * 100).toFixed(0)}% 무${(p.pDraw * 100).toFixed(0)}% 원정${(p.pAway * 100).toFixed(0)}% ` +
-        `(확신도 ${(p.confidenceGap * 100).toFixed(1)}%p, 모델추천 ${p.rankedPicks[0]})`
+        `(확신도 ${(p.confidenceGap * 100).toFixed(1)}%p, 모델추천 ${p.rankedPicks[0]}${formatCalibrationNote(m.calibration?.bucket)})`
       );
     })
     .join("\n");
@@ -63,6 +75,7 @@ export async function generateReport(
     home: m.match.home_kr,
     away: m.match.away_kr,
     prediction: m.prediction,
+    calibration: m.calibration,
   }));
   return callGeminiApi(env.GEMINI_API_KEY, buildPrompt(roundLabel, reportMatches));
 }

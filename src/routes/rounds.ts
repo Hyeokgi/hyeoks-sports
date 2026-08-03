@@ -24,6 +24,7 @@ export async function handleGetRound(env: Env, roundId: number): Promise<Respons
       kickoff_at: p.match.kickoff_at,
       raw: p.raw,
       prediction: p.prediction,
+      calibration: p.calibration,
     })),
   });
 }
