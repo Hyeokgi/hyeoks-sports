@@ -18,6 +18,7 @@ export interface MatchWithPrediction {
     leagueDrawRate: number;
     market: { pHome: number; pDraw: number; pAway: number; nBookmakers: number } | null;
     xgDiff: number | null;
+    cornersDiff: number | null;
   };
 }
 
@@ -52,6 +53,7 @@ export async function buildRoundPredictions(
         leagueDrawRate: raw.league_draw_rate,
         marketOdds: market,
         xgDiff: raw.xg_diff,
+        cornersDiff: raw.corners_diff,
       },
       merged,
     );
@@ -71,6 +73,7 @@ export async function buildRoundPredictions(
         leagueDrawRate: raw.league_draw_rate,
         market,
         xgDiff: raw.xg_diff,
+        cornersDiff: raw.corners_diff,
       },
     };
   });

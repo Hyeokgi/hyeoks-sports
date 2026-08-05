@@ -63,6 +63,22 @@ export async function getMarketOdds(
   return map;
 }
 
+export interface K2CornersMatchRow {
+  date: string;
+  home: string;
+  away: string;
+  home_corners: number;
+  away_corners: number;
+}
+
+// K리그2 한정 실증 검증된 피처(2026-08-04 백테스트) - 코너킥 기록 있는 경기만, 날짜순.
+export async function getK2MatchesWithCorners(env: Env): Promise<K2CornersMatchRow[]> {
+  const { results } = await env.DB.prepare(
+    "SELECT date, home, away, home_corners, away_corners FROM matches WHERE league = 'K리그2' AND home_corners IS NOT NULL ORDER BY date ASC",
+  ).all<K2CornersMatchRow>();
+  return results ?? [];
+}
+
 export interface RoundResultRow {
   round_match_id: number;
   actual: "H" | "D" | "A";

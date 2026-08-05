@@ -2,7 +2,8 @@
 // detectNewRound.ts(wisetoto 기반 자동감지)에서 사용. 리그 목록에 무관하게 동작한다.
 import { LEAGUE_IDS, fetchTeamXG, type TeamXG } from "./fotmob";
 import { computeEloAndHistory, recentForm, h2hDiff as computeH2hDiff } from "./elo";
-import { getAllMatches, getLeagueDrawRate } from "./db";
+import { getAllMatches, getLeagueDrawRate, getK2MatchesWithCorners } from "./db";
+import { buildCornersHistory, recentCornersDiff } from "./cornersHistory";
 import { sendTelegramMessage } from "./telegram";
 import { predictMatch, DEFAULT_TOGGLES } from "./prediction";
 import { calibrationNote } from "./calibration";
@@ -53,6 +54,11 @@ export async function createRoundFromFixtures(
     return homeNet - awayNet;
   }
 
+  // 코너킥은 K리그2 한정 실증 검증된 피처(다른 리그는 무효/역효과) - 그 리그가 이번 회차에 있을 때만 조회.
+  const cornersHistory = leagues.includes("K리그2")
+    ? buildCornersHistory(await getK2MatchesWithCorners(env))
+    : new Map<string, number[]>();
+
   const insertedRound = await env.DB.prepare(
     "INSERT INTO rounds (round_no, round_no_confirmed, status, created_at) VALUES (?, ?, 'upcoming', ?) RETURNING id",
   )
@@ -70,6 +76,8 @@ export async function createRoundFromFixtures(
     const formDiff = formHome.avgPts - formAway.avgPts;
     const h2h_ = computeH2hDiff(h2h, f.league, f.homeEn, f.awayEn);
     const xgDiff = computeXgDiff(f.league, f.homeEn, f.awayEn);
+    const cornersDiff =
+      f.league === "K리그2" ? recentCornersDiff(cornersHistory, f.homeEn, f.awayEn) : null;
 
     const insertedMatch = await env.DB.prepare(
       "INSERT INTO round_matches (round_id, seq, league, home_kr, away_kr, kickoff_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
@@ -79,14 +87,14 @@ export async function createRoundFromFixtures(
     const roundMatchId = insertedMatch!.id;
 
     await env.DB.prepare(
-      "INSERT INTO round_predictions (round_match_id, elo_diff, form_diff, h2h_diff, n_h2h, league_draw_rate, xg_diff, computed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO round_predictions (round_match_id, elo_diff, form_diff, h2h_diff, n_h2h, league_draw_rate, xg_diff, corners_diff, computed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
-      .bind(roundMatchId, eloDiff, formDiff, h2h_.diff, h2h_.n, drawRates[f.league], xgDiff, new Date().toISOString())
+      .bind(roundMatchId, eloDiff, formDiff, h2h_.diff, h2h_.n, drawRates[f.league], xgDiff, cornersDiff, new Date().toISOString())
       .run();
 
-    // 기본 토글(해외배당 없음, 등록 시점 xG만) 기준 요약 - 텔레그램은 나중에 배당이 붙기 전 스냅샷.
+    // 기본 토글(해외배당 없음, 등록 시점 xG/코너킥만) 기준 요약 - 텔레그램은 나중에 배당이 붙기 전 스냅샷.
     const p = predictMatch(
-      { eloDiff, formDiff, h2hDiff: h2h_.diff, leagueDrawRate: drawRates[f.league], marketOdds: null, xgDiff },
+      { eloDiff, formDiff, h2hDiff: h2h_.diff, leagueDrawRate: drawRates[f.league], marketOdds: null, xgDiff, cornersDiff },
       DEFAULT_TOGGLES,
     );
     const note = calibrationNote(f.league, p.confidenceGap);

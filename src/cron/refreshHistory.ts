@@ -1,13 +1,21 @@
 // 3시간마다 실행: FotMob 종료 경기 결과 갱신 + Elo/무승부율 전체 재계산 + 진행중 회차 xG 갱신 + 정산
-import { fetchFinishedMatches, fetchTeamXG, LEAGUE_IDS, type TeamXG } from "../lib/fotmob";
+import { fetchFinishedMatches, fetchTeamXG, fetchMatchCorners, LEAGUE_IDS, type TeamXG } from "../lib/fotmob";
 import { computeEloAndHistory } from "../lib/elo";
 import { getAllMatches } from "../lib/db";
 import { NAME_MAP } from "../lib/nameMap";
 import { settleRounds } from "../lib/settlement";
 import type { Env, League } from "../types";
 
+interface NewK2Match {
+  fotmobId: number;
+  date: string;
+  home: string;
+  away: string;
+}
+
 export async function refreshHistory(env: Env): Promise<{ inserted: number; leagues: string[] }> {
   let inserted = 0;
+  const newK2Matches: NewK2Match[] = [];
 
   for (const [leagueName, leagueId] of Object.entries(LEAGUE_IDS)) {
     const finished = await fetchFinishedMatches(leagueId);
@@ -17,7 +25,13 @@ export async function refreshHistory(env: Env): Promise<{ inserted: number; leag
       )
         .bind(leagueName, m.date, m.home, m.away, m.hg, m.ag)
         .run();
-      if (result.meta.changes > 0) inserted++;
+      if (result.meta.changes > 0) {
+        inserted++;
+        // 코너킥은 K리그2 한정 실증 검증된 피처(다른 리그는 백테스트 결과 무효/역효과) - 그 리그만 수집
+        if (leagueName === "K리그2" && m.id) {
+          newK2Matches.push({ fotmobId: m.id, date: m.date, home: m.home, away: m.away });
+        }
+      }
     }
   }
 
@@ -25,10 +39,23 @@ export async function refreshHistory(env: Env): Promise<{ inserted: number; leag
     await recomputeEloAndDrawRates(env);
   }
 
+  await fetchAndStoreK2Corners(env, newK2Matches);
   await refreshXgForActiveRounds(env);
   await settleRounds(env);
 
   return { inserted, leagues: Object.keys(LEAGUE_IDS) };
+}
+
+async function fetchAndStoreK2Corners(env: Env, matches: NewK2Match[]): Promise<void> {
+  for (const m of matches) {
+    const corners = await fetchMatchCorners(m.fotmobId);
+    if (!corners) continue;
+    await env.DB.prepare(
+      "UPDATE matches SET home_corners = ?, away_corners = ? WHERE league = 'K리그2' AND date = ? AND home = ? AND away = ?",
+    )
+      .bind(corners.home, corners.away, m.date, m.home, m.away)
+      .run();
+  }
 }
 
 // round_predictions.xg_diff는 회차 생성 시점에 한 번만 계산되므로, 시즌이 진행되며 팀 xG가

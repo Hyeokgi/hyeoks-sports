@@ -13,6 +13,11 @@ export const DEFAULT_H2H_WEIGHT = 50.0;
 // 비슷한 무게를 갖는다는 축구 분석 업계 통념을 그대로 채택한 값(추후 조정 가능).
 export const DEFAULT_XG_WEIGHT = 100.0;
 
+// 2026-08-04: K리그2 한정, 최근5경기 평균 코너킥 격차 - train/test 4개 분할(50/50~80/20) 전부에서
+// 정확도+Brier 개선 확인된 실증 가중치. 다른 리그(K리그1/J1리그)는 같은 방식으로 검증했을 때
+// 무효/역효과라 corners_diff 자체를 계산해 넣지 않는다(round_predictions에서 항상 null).
+export const DEFAULT_CORNERS_WEIGHT = 30.0;
+
 export interface MarketOdds {
   pHome: number;
   pDraw: number;
@@ -27,6 +32,7 @@ export interface PredictionInputs {
   leagueDrawRate: number;
   marketOdds?: MarketOdds | null; // 해외 북메이커 배당 기반 암시확률(오버라운드 제거됨), 없으면 미반영
   xgDiff?: number | null; // 팀 시즌 xG(공격-실점) 격차. K리그2는 FotMob에 데이터가 없어 null
+  cornersDiff?: number | null; // 최근5경기 평균 코너킥 격차. K리그2 경기만 값이 있고 나머지는 null
 }
 
 export interface PredictionToggles {
@@ -40,6 +46,8 @@ export interface PredictionToggles {
   marketWeight: number; // 블렌딩 시 마켓 확률에 주는 가중치(0~1), 나머지는 모델 확률
   useXG: boolean; // true면 xG 격차 반영(xgDiff가 있는 경기에만 적용, K리그2는 자동 미적용)
   xgWeight: number;
+  useCorners: boolean; // true면 코너킥 격차 반영(cornersDiff가 있는 경기, 즉 K리그2에만 적용)
+  cornersWeight: number;
   formWeight: number;
   h2hWeight: number;
 }
@@ -61,6 +69,8 @@ export const DEFAULT_TOGGLES: PredictionToggles = {
   marketWeight: DEFAULT_MARKET_WEIGHT,
   useXG: true,
   xgWeight: DEFAULT_XG_WEIGHT,
+  useCorners: true,
+  cornersWeight: DEFAULT_CORNERS_WEIGHT,
   formWeight: DEFAULT_FORM_WEIGHT,
   h2hWeight: DEFAULT_H2H_WEIGHT,
 };
@@ -81,7 +91,8 @@ export function predictMatch(
     (toggles.useElo ? inputs.eloDiff : 0) +
     (toggles.useForm ? toggles.formWeight * inputs.formDiff : 0) +
     (toggles.useH2H ? toggles.h2hWeight * inputs.h2hDiff : 0) +
-    (toggles.useXG && inputs.xgDiff != null ? toggles.xgWeight * inputs.xgDiff : 0);
+    (toggles.useXG && inputs.xgDiff != null ? toggles.xgWeight * inputs.xgDiff : 0) +
+    (toggles.useCorners && inputs.cornersDiff != null ? toggles.cornersWeight * inputs.cornersDiff : 0);
 
   const homeAdv = toggles.useHomeAdvantage ? HOME_ADV : 0;
   const pHomeRaw = 1.0 / (1.0 + 10.0 ** (-(totalDiff + homeAdv) / 400.0));

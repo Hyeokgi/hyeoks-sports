@@ -9,6 +9,7 @@ const HEADERS = {
 };
 
 export interface FotmobFinishedMatch {
+  id: number | null; // 경기별 상세데이터(코너킥 등) 조회용 - 못 찾으면 null
   date: string; // yyyy-mm-dd
   home: string;
   away: string;
@@ -120,7 +121,8 @@ export async function fetchFinishedMatches(leagueId: string): Promise<FotmobFini
     const date = extractMatchDate(match);
     if (!date) continue;
 
-    results.push({ date, home, away, hg, ag });
+    const id = typeof match.id === "number" ? match.id : Number(match.id) || null;
+    results.push({ id, date, home, away, hg, ag });
   }
   return results;
 }
@@ -205,4 +207,22 @@ export async function fetchTeamXG(leagueId: string): Promise<Map<string, TeamXG>
     if (existing) existing.xgAgainst = e.StatValue;
   }
   return result;
+}
+
+// 경기별 코너킥 - K리그2 한정 실증 검증된 피처(2026-08-04 백테스트: train/test 4개 분할 전부에서
+// 정확도+Brier 개선). 다른 리그는 검증 결과 무효/역효과라 이 함수를 호출하지 않는다.
+export async function fetchMatchCorners(matchId: number): Promise<{ home: number; away: number } | null> {
+  const fullJson = await fetchNextData(`https://www.fotmob.com/match/${matchId}`);
+  if (!fullJson) return null;
+  try {
+    const top = fullJson.props.pageProps.content.stats.Periods.All.stats[0].stats;
+    for (const s of top) {
+      if (s.key === "corners" && Array.isArray(s.stats) && s.stats.length === 2) {
+        return { home: Number(s.stats[0]), away: Number(s.stats[1]) };
+      }
+    }
+  } catch {
+    // 통계 데이터가 없는 경기(구조 변경 등) - 조용히 스킵
+  }
+  return null;
 }

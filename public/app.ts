@@ -16,6 +16,7 @@ interface MatchData {
     leagueDrawRate: number;
     market: { pHome: number; pDraw: number; pAway: number; nBookmakers: number } | null;
     xgDiff: number | null;
+    cornersDiff: number | null;
   };
 }
 
@@ -28,6 +29,7 @@ const TOGGLE_LABELS: { key: keyof PredictionToggles; label: string; kind: "bool"
   { key: "useClosenessDrawAdjustment", label: "격차 보정 무승부율", kind: "bool" },
   { key: "useMarketOdds", label: "해외 배당 반영", kind: "bool" },
   { key: "useXG", label: "기대득점(xG, K리그1만)", kind: "bool" },
+  { key: "useCorners", label: "코너킥 반영(K리그2만)", kind: "bool" },
 ];
 
 let currentMatches: MatchData[] = [];
@@ -54,6 +56,7 @@ function toInputs(m: MatchData): PredictionInputs {
     leagueDrawRate: m.raw.leagueDrawRate,
     marketOdds: m.raw.market,
     xgDiff: m.raw.xgDiff,
+    cornersDiff: m.raw.cornersDiff,
   };
 }
 
@@ -111,7 +114,8 @@ function renderMatches() {
       ? ` <span class="market-note">해외배당 ${m.raw.market.nBookmakers}개사 반영</span>`
       : "";
     const xgNote = m.raw.xgDiff != null ? ` <span class="market-note">xG 반영</span>` : "";
-    pick.innerHTML = `모델 추천 <b>${prediction.rankedPicks[0]}</b>${marketNote}${xgNote}`;
+    const cornersNote = m.raw.cornersDiff != null ? ` <span class="market-note">코너킥 반영</span>` : "";
+    pick.innerHTML = `모델 추천 <b>${prediction.rankedPicks[0]}</b>${marketNote}${xgNote}${cornersNote}`;
     card.appendChild(pick);
 
     // 작업1: 모델 원본 확률을 덮어쓰지 않고, 같은 확신도 구간의 실측 적중률을 항상 보이게 병기
@@ -137,6 +141,7 @@ function renderMatches() {
       <div>최근 폼(5경기) 차이: ${m.raw.formDiff.toFixed(2)}점</div>
       <div>상대전적(H2H) 성향: ${m.raw.h2hDiff.toFixed(2)} (표본 ${m.raw.nH2h}회)</div>
       <div>리그 실측 무승부율: ${(m.raw.leagueDrawRate * 100).toFixed(1)}%</div>
+      ${m.raw.cornersDiff != null ? `<div>최근 폼(5경기) 코너킥 차이: ${m.raw.cornersDiff.toFixed(1)}개 (K리그2 실증 검증된 피처)</div>` : ""}
     `;
     evidenceBtn.addEventListener("click", () => {
       evidenceBody.hidden = !evidenceBody.hidden;
@@ -224,6 +229,7 @@ async function loadRound(roundId: number) {
       leagueDrawRate: m.raw.leagueDrawRate,
       market: m.raw.market ?? null,
       xgDiff: m.raw.xgDiff ?? null,
+      cornersDiff: m.raw.cornersDiff ?? null,
     },
   }));
   renderMatches();
