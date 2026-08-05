@@ -38,11 +38,17 @@ export async function createRoundFromFixtures(
   const drawRates: Record<string, number> = {};
   for (const league of leagues) drawRates[league] = await getLeagueDrawRate(env, league);
 
-  // xG는 FotMob이 일부 리그(예: K리그2)에서 아예 제공하지 않으므로(실측 확인됨) 해당 리그는 빈 Map이 온다.
+  // xG는 K리그1에서만 실제로 검증된 채로 쓰기로 확정(DEFAULT_XG_WEIGHT 자체가 K리그1 기준 업계
+  // 통념값). K리그2는 FotMob이 데이터를 아예 안 주고(실측 확인됨), J1리그는 2026-08-04 세션에서
+  // (a) 사전지표 상관관계가 무의미했고(r=0.057~0.071, 부호도 가설과 반대) (b) 사용자가 "Elo+폼+H2H
+  // 기본 모델로 유지"를 명시적으로 결정해서, 데이터 유무와 무관하게 J1리그는 항상 제외한다
+  // (FotMob이 진행중 시즌 페이지의 시즌 파라미터 이슈로 우연히 빈 Map을 주고 있었을 뿐이라
+  // 나중에 그게 고쳐져도 조용히 xG가 붙어버리지 않도록 여기서 명시적으로 막아둔다).
+  const XG_SUPPORTED_LEAGUES = new Set<League>(["K리그1"]);
   const xgByLeague: Record<string, Map<string, TeamXG>> = {};
   for (const league of leagues) {
     const leagueId = LEAGUE_IDS[league];
-    xgByLeague[league] = leagueId ? await fetchTeamXG(leagueId) : new Map();
+    xgByLeague[league] = leagueId && XG_SUPPORTED_LEAGUES.has(league) ? await fetchTeamXG(leagueId) : new Map();
   }
 
   function computeXgDiff(league: League, homeEn: string, awayEn: string): number | null {

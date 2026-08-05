@@ -65,12 +65,12 @@ export async function refreshXgForActiveRounds(env: Env): Promise<void> {
   const roundIds = (rounds.results ?? []).map((r) => r.id);
   if (roundIds.length === 0) return;
 
+  // xG는 K리그1에서만 쓴다(createRound.ts의 XG_SUPPORTED_LEAGUES와 동일 결정 - K리그2는 FotMob에
+  // 데이터가 없고, J1리그는 사전지표 검증 결과 무의미해서 사용자가 Elo+폼+H2H 기본 모델 유지를 결정함).
   const xgByLeague: Record<string, Map<string, TeamXG>> = {
     "K리그1": await fetchTeamXG(LEAGUE_IDS["K리그1"]),
-    "K리그2": await fetchTeamXG(LEAGUE_IDS["K리그2"]),
-    "J1리그": await fetchTeamXG(LEAGUE_IDS["J1리그"]),
   };
-  if (xgByLeague["K리그1"].size === 0 && xgByLeague["K리그2"].size === 0) return;
+  if (xgByLeague["K리그1"].size === 0) return;
 
   const placeholders = roundIds.map(() => "?").join(",");
   const { results: roundMatches } = await env.DB.prepare(
