@@ -2,6 +2,7 @@
 import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type PredictionInputs } from "../src/lib/prediction";
 import { generateSystemBetTiers, DEFAULT_BUDGET_TIERS, generateSystemBet, type ComboMatch } from "../src/lib/combinations";
 import { findCalibrationBucket, confidenceTier, TIER_EMOJI } from "../src/lib/calibration";
+import { computeUpsetSignal } from "../src/lib/upsetSignal";
 
 interface MatchData {
   seq: number;
@@ -128,6 +129,16 @@ function renderMatches() {
     calibLine.className = "calib-note";
     calibLine.textContent = `참고: ${bucketNote}`;
     card.appendChild(calibLine);
+
+    // 작업(2026-08-06): 모델픽-시장픽 합의여부 참고 표시. contrarian(모델 확신픽인데 시장과
+    // 불일치)은 근거(n=2)가 극히 약해 항상 그 사실을 같이 보여준다 - 픽 자체는 절대 안 바꿈.
+    const upset = computeUpsetSignal(prediction, m.raw.market, tier);
+    if (upset.hasMarket) {
+      const upsetLine = document.createElement("div");
+      upsetLine.className = upset.contrarian ? "calib-note upset-warn" : "calib-note";
+      upsetLine.textContent = upset.note;
+      card.appendChild(upsetLine);
+    }
 
     const evidenceBtn = document.createElement("button");
     evidenceBtn.className = "evidence-toggle";

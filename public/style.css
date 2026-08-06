@@ -341,6 +341,11 @@ main {
   padding: 2px 0 4px;
 }
 
+.upset-warn {
+  color: #d97706;
+  font-weight: 600;
+}
+
 .btn {
   padding: 12px 18px;
   border-radius: 12px;

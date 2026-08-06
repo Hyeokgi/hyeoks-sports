@@ -36,6 +36,7 @@ export async function handleGetRound(env: Env, roundId: number): Promise<Respons
         raw: p.raw,
         prediction: p.prediction,
         calibration: p.calibration,
+        upsetSignal: p.upsetSignal,
         // 회차가 정산되면 채워짐(round_results). 진행중이면 null.
         result: result ? { actual: result.actual, hg: result.hg, ag: result.ag } : null,
         // betman 투표율 최신 스냅샷. 아직 발매 전/미수집이면 null.
