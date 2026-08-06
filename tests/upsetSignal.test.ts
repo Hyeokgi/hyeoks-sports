@@ -31,7 +31,7 @@ describe("computeUpsetSignal", () => {
     const s = computeUpsetSignal(pred(0.6, 0.2, 0.2), { pHome: 0.2, pDraw: 0.3, pAway: 0.5 }, "확신픽");
     expect(s.agreement).toBe("불일치");
     expect(s.contrarian).toBe(true);
-    expect(s.note).toContain("n=2");
+    expect(s.note).toContain("관측 사례가 아직 없음");
   });
 
   it("불일치여도 확신픽이 아니면 contrarian=false", () => {
