@@ -1,5 +1,5 @@
 // GET /api/rounds, GET /api/rounds/:id
-import { getRound, listRounds, getRoundResults, getLatestVoteShare } from "../lib/db";
+import { getRound, listRounds, getRoundResults, getLatestVoteShare, getMarketOddsHistory } from "../lib/db";
 import { json } from "../lib/http";
 import { buildRoundPredictions } from "../lib/predictRound";
 import type { Env } from "../types";
@@ -15,9 +15,10 @@ export async function handleGetRound(env: Env, roundId: number): Promise<Respons
 
   const predictions = await buildRoundPredictions(env, roundId);
   const matchIds = predictions.map((p) => p.match.id);
-  const [results, voteShare] = await Promise.all([
+  const [results, voteShare, oddsHistory] = await Promise.all([
     getRoundResults(env, matchIds),
     getLatestVoteShare(env, matchIds),
+    getMarketOddsHistory(env, matchIds),
   ]);
 
   return json({
@@ -25,6 +26,7 @@ export async function handleGetRound(env: Env, roundId: number): Promise<Respons
     matches: predictions.map((p) => {
       const result = results.get(p.match.id) ?? null;
       const vote = voteShare.get(p.match.id) ?? null;
+      const history = oddsHistory.get(p.match.id) ?? [];
       return {
         seq: p.match.seq,
         league: p.match.league,
@@ -38,6 +40,15 @@ export async function handleGetRound(env: Env, roundId: number): Promise<Respons
         result: result ? { actual: result.actual, hg: result.hg, ag: result.ag } : null,
         // betman 투표율 최신 스냅샷. 아직 발매 전/미수집이면 null.
         voteShare: vote ? { home: vote.vote_home, draw: vote.vote_draw, away: vote.vote_away } : null,
+        // 배당 라인무브먼트(오프닝->최신) 스냅샷 목록. 아직 검증 전 원본 데이터라 예측에는
+        // 반영하지 않고 참고용으로만 노출한다(표본 축적 후 별도 백테스트 예정).
+        marketOddsHistory: history.map((h) => ({
+          pHome: h.p_home,
+          pDraw: h.p_draw,
+          pAway: h.p_away,
+          nBookmakers: h.n_bookmakers,
+          snapshotAt: h.snapshot_at,
+        })),
       };
     }),
   });

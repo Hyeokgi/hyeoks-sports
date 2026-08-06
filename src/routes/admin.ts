@@ -86,6 +86,12 @@ export async function handleWriteMarketOdds(env: Env, roundId: number, request: 
         "INSERT OR REPLACE INTO market_odds (round_match_id, p_home, p_draw, p_away, n_bookmakers, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
       ).bind(roundMatchId, o.pHome, o.pDraw, o.pAway, o.nBookmakers, now),
     );
+    // 라인무브먼트 추적용 - 위 테이블과 달리 덮어쓰지 않고 매 수집을 그대로 쌓는다.
+    stmts.push(
+      env.DB.prepare(
+        "INSERT INTO market_odds_history (round_match_id, p_home, p_draw, p_away, n_bookmakers, snapshot_at) VALUES (?, ?, ?, ?, ?, ?)",
+      ).bind(roundMatchId, o.pHome, o.pDraw, o.pAway, o.nBookmakers, now),
+    );
     written++;
   }
   if (stmts.length > 0) await env.DB.batch(stmts);

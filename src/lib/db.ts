@@ -63,6 +63,37 @@ export async function getMarketOdds(
   return map;
 }
 
+export interface MarketOddsHistoryRow {
+  round_match_id: number;
+  p_home: number;
+  p_draw: number;
+  p_away: number;
+  n_bookmakers: number;
+  snapshot_at: string;
+}
+
+// 라인무브먼트(오프닝->최신 배당 변화) 확인용 - 회차당 여러 스냅샷이 시간순으로 쌓인다.
+export async function getMarketOddsHistory(
+  env: Env,
+  roundMatchIds: number[],
+): Promise<Map<number, MarketOddsHistoryRow[]>> {
+  if (roundMatchIds.length === 0) return new Map();
+  const placeholders = roundMatchIds.map(() => "?").join(",");
+  const { results } = await env.DB.prepare(
+    `SELECT round_match_id, p_home, p_draw, p_away, n_bookmakers, snapshot_at FROM market_odds_history
+     WHERE round_match_id IN (${placeholders}) ORDER BY snapshot_at ASC`,
+  )
+    .bind(...roundMatchIds)
+    .all<MarketOddsHistoryRow>();
+  const map = new Map<number, MarketOddsHistoryRow[]>();
+  for (const row of results ?? []) {
+    const list = map.get(row.round_match_id) ?? [];
+    list.push(row);
+    map.set(row.round_match_id, list);
+  }
+  return map;
+}
+
 export interface K2CornersMatchRow {
   date: string;
   home: string;
