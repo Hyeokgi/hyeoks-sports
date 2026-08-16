@@ -28,12 +28,22 @@ export const CALIBRATION: Record<string, CalibrationBucket[]> = {
     { minGap: 0.15, maxGap: 0.3, accuracy: 0.449, n: 356 },
     { minGap: 0.3, maxGap: 1.01, accuracy: 0.527, n: 110 },
   ],
+  // MLS (2026-08-17, 2024~2026시즌 1,342경기, 팀당 15경기+ 워밍업 후 1,102경기 백테스트).
+  // 추가 피처 없이 K리그/J1과 동일한 Elo+최근폼+H2H 기본모델 - train/test 4분할 44.8~47.6%로
+  // 안정적이라 별도 피처 탐색 없이 기본모델 그대로 채택.
+  "MLS": [
+    { minGap: 0, maxGap: 0.05, accuracy: 0.366, n: 134 },
+    { minGap: 0.05, maxGap: 0.15, accuracy: 0.441, n: 261 },
+    { minGap: 0.15, maxGap: 0.3, accuracy: 0.500, n: 394 },
+    { minGap: 0.3, maxGap: 1.01, accuracy: 0.521, n: 313 },
+  ],
 };
 
 export const CALIBRATION_OVERALL: Record<string, { accuracy: number; homeBaseline: number; n: number }> = {
   "K리그1": { accuracy: 0.428, homeBaseline: 0.389, n: 1814 },
   "K리그2": { accuracy: 0.428, homeBaseline: 0.389, n: 1814 },
   "J1리그": { accuracy: 0.434, homeBaseline: 0.402, n: 723 },
+  "MLS": { accuracy: 0.475, homeBaseline: 0.456, n: 1102 },
 };
 
 export function findCalibrationBucket(league: string, confidenceGap: number): CalibrationBucket | null {

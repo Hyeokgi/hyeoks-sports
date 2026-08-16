@@ -1,5 +1,5 @@
 // 한글 팀명 <-> FotMob 영문 팀명 매핑 (predict_round42_v2.py NAME_MAP 이식)
-export type League = "K리그1" | "K리그2" | "J1리그";
+export type League = "K리그1" | "K리그2" | "J1리그" | "MLS";
 
 export interface TeamMapEntry {
   nameKr: string;
@@ -65,6 +65,38 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   { nameKr: "미토", nameEn: "Mito Hollyhock", league: "J1리그" },
   { nameKr: "우라와", nameEn: "Urawa Red Diamonds", league: "J1리그" },
   { nameKr: "요코하마M", nameEn: "Yokohama F.Marinos", league: "J1리그" },
+  // MLS (2026-08 wisetoto/betman 45회차 실데이터로 교차 확인된 28팀, FotMob 리그ID 130)
+  { nameKr: "FC신시내", nameEn: "FC Cincinnati", league: "MLS" },
+  { nameKr: "뉴욕시티", nameEn: "New York City FC", league: "MLS" },
+  { nameKr: "콜럼크루", nameEn: "Columbus Crew", league: "MLS" },
+  { nameKr: "CF몽레알", nameEn: "CF Montreal", league: "MLS" },
+  { nameKr: "DC유나이", nameEn: "DC United", league: "MLS" },
+  { nameKr: "뉴잉레벌", nameEn: "New England Revolution", league: "MLS" },
+  { nameKr: "뉴욕레드", nameEn: "Red Bull New York", league: "MLS" },
+  { nameKr: "내슈빌SC", nameEn: "Nashville SC", league: "MLS" },
+  { nameKr: "올랜시티", nameEn: "Orlando City", league: "MLS" },
+  { nameKr: "시카파이", nameEn: "Chicago Fire FC", league: "MLS" },
+  { nameKr: "토론토FC", nameEn: "Toronto FC", league: "MLS" },
+  { nameKr: "샬럿FC", nameEn: "Charlotte FC", league: "MLS" },
+  { nameKr: "스포캔자", nameEn: "Sporting Kansas City", league: "MLS" },
+  { nameKr: "세인시티", nameEn: "St. Louis City", league: "MLS" },
+  { nameKr: "미네유나", nameEn: "Minnesota United", league: "MLS" },
+  { nameKr: "애틀유나", nameEn: "Atlanta United", league: "MLS" },
+  { nameKr: "콜로래피", nameEn: "Colorado Rapids", league: "MLS" },
+  { nameKr: "LAFC", nameEn: "Los Angeles FC", league: "MLS" },
+  { nameKr: "레알솔트", nameEn: "Real Salt Lake", league: "MLS" },
+  { nameKr: "FC댈러스", nameEn: "FC Dallas", league: "MLS" },
+  { nameKr: "시애사운", nameEn: "Seattle Sounders FC", league: "MLS" },
+  { nameKr: "오스틴FC", nameEn: "Austin FC", league: "MLS" },
+  { nameKr: "LA갤럭시", nameEn: "LA Galaxy", league: "MLS" },
+  { nameKr: "새너어스", nameEn: "San Jose Earthquakes", league: "MLS" },
+  { nameKr: "포틀팀버", nameEn: "Portland Timbers", league: "MLS" },
+  { nameKr: "샌디에FC", nameEn: "San Diego FC", league: "MLS" },
+  { nameKr: "밴쿠화이", nameEn: "Vancouver Whitecaps", league: "MLS" },
+  { nameKr: "휴스다이", nameEn: "Houston Dynamo FC", league: "MLS" },
+  // MLS 나머지 2팀 - 45회차엔 결장(바이/휴식주)이라 wisetoto 실표기 미확인. 실제 노출 시 정정 필요.
+  { nameKr: "인터마이", nameEn: "Inter Miami CF", league: "MLS" },
+  { nameKr: "필라유니", nameEn: "Philadelphia Union", league: "MLS" },
 ];
 
 export const NAME_MAP: Record<string, string> = Object.fromEntries(
