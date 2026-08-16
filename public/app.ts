@@ -19,7 +19,11 @@ interface MatchData {
     xgDiff: number | null;
     cornersDiff: number | null;
   };
+  // 회차가 정산되면 채워짐(경기 전이면 null) - 적중현황 표시용.
+  result: { actual: "H" | "D" | "A"; hg: number; ag: number } | null;
 }
+
+const RESULT_LABEL: Record<"H" | "D" | "A", "홈승" | "무승부" | "원정승"> = { H: "홈승", D: "무승부", A: "원정승" };
 
 const TOGGLE_LABELS: { key: keyof PredictionToggles; label: string; kind: "bool" }[] = [
   { key: "useElo", label: "Elo 전력차", kind: "bool" },
@@ -40,6 +44,7 @@ let currentRoundId: number | null = null;
 const roundSelect = document.getElementById("round-select") as HTMLSelectElement;
 const toggleGrid = document.getElementById("toggle-grid") as HTMLDivElement;
 const matchList = document.getElementById("match-list") as HTMLDivElement;
+const roundSummaryEl = document.getElementById("round-summary") as HTMLDivElement;
 const comboTiersEl = document.getElementById("combo-tiers") as HTMLDivElement;
 const budgetInput = document.getElementById("budget-input") as HTMLInputElement;
 const budgetBtn = document.getElementById("budget-custom-btn") as HTMLButtonElement;
@@ -82,8 +87,28 @@ function renderToggles() {
   }
 }
 
+function renderRoundSummary() {
+  const settled = currentMatches.filter((m) => m.result);
+  if (settled.length === 0) {
+    roundSummaryEl.hidden = true;
+    return;
+  }
+  let correct = 0;
+  for (const m of settled) {
+    const prediction = predictMatch(toInputs(m), currentToggles);
+    if (prediction.rankedPicks[0] === RESULT_LABEL[m.result!.actual]) correct++;
+  }
+  const pct = ((correct / settled.length) * 100).toFixed(1);
+  const ongoing = currentMatches.length - settled.length;
+  roundSummaryEl.hidden = false;
+  roundSummaryEl.innerHTML =
+    `<span class="summary-stat">✅ ${correct}/${settled.length} 적중 (${pct}%)</span>` +
+    (ongoing > 0 ? `<span class="summary-note">진행중 ${ongoing}경기 제외</span>` : "");
+}
+
 function renderMatches() {
   matchList.innerHTML = "";
+  renderRoundSummary();
   for (const m of currentMatches) {
     const prediction = predictMatch(toInputs(m), currentToggles);
     const card = document.createElement("div");
@@ -92,7 +117,12 @@ function renderMatches() {
     const tier = confidenceTier(m.league, prediction.confidenceGap);
     const meta = document.createElement("div");
     meta.className = "meta";
-    meta.innerHTML = `<span class="league-badge">${m.seq}경기 · ${m.league}</span><span class="confidence-badge">${TIER_EMOJI[tier]} ${tier} · 확신도 ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>`;
+    let resultBadge = "";
+    if (m.result) {
+      const hit = prediction.rankedPicks[0] === RESULT_LABEL[m.result.actual];
+      resultBadge = `<span class="result-badge ${hit ? "hit" : "miss"}">${hit ? "✅ 적중" : "❌ 실패"} (${m.result.hg}:${m.result.ag})</span>`;
+    }
+    meta.innerHTML = `<span class="league-badge">${m.seq}경기 · ${m.league}</span><span class="confidence-badge">${TIER_EMOJI[tier]} ${tier} · 확신도 ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>${resultBadge}`;
     card.appendChild(meta);
 
     const teams = document.createElement("div");
@@ -242,6 +272,7 @@ async function loadRound(roundId: number) {
       xgDiff: m.raw.xgDiff ?? null,
       cornersDiff: m.raw.cornersDiff ?? null,
     },
+    result: m.result ?? null,
   }));
   renderMatches();
   renderCombos();

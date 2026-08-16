@@ -285,6 +285,39 @@ main {
   font-weight: 700;
 }
 
+.result-badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.result-badge.hit {
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--home);
+}
+.result-badge.miss {
+  background: rgba(239, 68, 68, 0.14);
+  color: var(--away);
+}
+
+.round-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+}
+.round-summary .summary-stat {
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--home);
+  font-weight: 800;
+}
+.round-summary .summary-note {
+  color: var(--muted-2);
+  font-size: 0.75rem;
+}
+
 .match-card .teams {
   font-weight: 800;
   font-size: 1.02rem;
