@@ -63,6 +63,7 @@ function toInputs(m: MatchData): PredictionInputs {
     marketOdds: m.raw.market,
     xgDiff: m.raw.xgDiff,
     cornersDiff: m.raw.cornersDiff,
+    league: m.league,
   };
 }
 

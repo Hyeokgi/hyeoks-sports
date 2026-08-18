@@ -100,7 +100,7 @@ export async function createRoundFromFixtures(
 
     // 기본 토글(해외배당 없음, 등록 시점 xG/코너킥만) 기준 요약 - 텔레그램은 나중에 배당이 붙기 전 스냅샷.
     const p = predictMatch(
-      { eloDiff, formDiff, h2hDiff: h2h_.diff, leagueDrawRate: drawRates[f.league], marketOdds: null, xgDiff, cornersDiff },
+      { eloDiff, formDiff, h2hDiff: h2h_.diff, leagueDrawRate: drawRates[f.league], marketOdds: null, xgDiff, cornersDiff, league: f.league },
       DEFAULT_TOGGLES,
     );
     const note = calibrationNote(f.league, p.confidenceGap);

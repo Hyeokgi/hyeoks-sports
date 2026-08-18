@@ -1,5 +1,5 @@
 // Elo/최근폼/상대전적/홈어드밴티지/리그별 무승부율을 토글 가능한 가중치로 결합해 승무패 확률을 계산
-import { HOME_ADV } from "./elo";
+import { HOME_ADV, homeAdvForLeague } from "./elo";
 import { closenessAdjustedDrawRate } from "./drawCurve";
 
 // 1~41회차 실측 전체 리그 평균 무승부율 (리그별 값을 끄면 이 값으로 대체)
@@ -33,6 +33,7 @@ export interface PredictionInputs {
   marketOdds?: MarketOdds | null; // 해외 북메이커 배당 기반 암시확률(오버라운드 제거됨), 없으면 미반영
   xgDiff?: number | null; // 팀 시즌 xG(공격-실점) 격차. K리그2는 FotMob에 데이터가 없어 null
   cornersDiff?: number | null; // 최근5경기 평균 코너킥 격차. K리그2 경기만 값이 있고 나머지는 null
+  league?: string; // 리그별 HOME_ADV 조회용(elo.ts homeAdvForLeague) - 없으면 기본값(K리그 기준) 사용
 }
 
 export interface PredictionToggles {
@@ -94,7 +95,7 @@ export function predictMatch(
     (toggles.useXG && inputs.xgDiff != null ? toggles.xgWeight * inputs.xgDiff : 0) +
     (toggles.useCorners && inputs.cornersDiff != null ? toggles.cornersWeight * inputs.cornersDiff : 0);
 
-  const homeAdv = toggles.useHomeAdvantage ? HOME_ADV : 0;
+  const homeAdv = toggles.useHomeAdvantage ? (inputs.league ? homeAdvForLeague(inputs.league) : HOME_ADV) : 0;
   const pHomeRaw = 1.0 / (1.0 + 10.0 ** (-(totalDiff + homeAdv) / 400.0));
 
   const baseDrawRate = toggles.useLeagueDrawRate ? inputs.leagueDrawRate : FALLBACK_DRAW_RATE;

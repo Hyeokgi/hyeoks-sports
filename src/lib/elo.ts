@@ -3,6 +3,16 @@ export const K_FACTOR = 32;
 export const HOME_ADV = 60.0;
 export const SEASON_REGRESSION = 0.25;
 
+// 2026-08-17: MLS는 대륙 횡단 원정(예: 밴쿠버-마이애미 약 4,500km) 빈도가 높아 실측 홈승률이
+// 45.6%로 K리그1(38.9%)보다 뚜렷이 높음. HOME_ADV 그리드서치(40~300, train/test 4분할) 결과
+// 80~90에서 안정적으로 수렴(Brier 최솟값도 경계값이 아닌 내부 90~100 부근)해 85로 채택.
+// 다른 리그는 기존 HOME_ADV=60 유지(리스트에 없으면 기본값으로 폴백).
+const HOME_ADV_BY_LEAGUE: Record<string, number> = { "MLS": 85.0 };
+
+export function homeAdvForLeague(league: string): number {
+  return HOME_ADV_BY_LEAGUE[league] ?? HOME_ADV;
+}
+
 export interface MatchRow {
   league: string;
   date: string; // ISO yyyy-mm-dd
@@ -70,7 +80,7 @@ export function computeEloAndHistory(matches: MatchRow[]): EloComputation {
     const ae = aState.elo;
 
     const sH = hg > ag ? 1.0 : hg === ag ? 0.5 : 0.0;
-    const eH = 1.0 / (1.0 + 10.0 ** ((ae - (he + HOME_ADV)) / 400.0));
+    const eH = 1.0 / (1.0 + 10.0 ** ((ae - (he + homeAdvForLeague(league))) / 400.0));
     hState.elo += K_FACTOR * (sH - eH);
     aState.elo += K_FACTOR * (1.0 - sH - (1.0 - eH));
 

@@ -57,6 +57,7 @@ export async function buildRoundPredictions(
         marketOdds: market,
         xgDiff: raw.xg_diff,
         cornersDiff: raw.corners_diff,
+        league: m.league,
       },
       merged,
     );
