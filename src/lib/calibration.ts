@@ -37,6 +37,23 @@ export const CALIBRATION: Record<string, CalibrationBucket[]> = {
     { minGap: 0.15, maxGap: 0.3, accuracy: 0.500, n: 394 },
     { minGap: 0.3, maxGap: 1.01, accuracy: 0.521, n: 313 },
   ],
+  // EPL/세리에A (2026-08-22, 46회차 편입 시 백필 2023-24~2026-27 시즌, 팀당 15경기+ 워밍업 후
+  // 워크포워드 - scripts/backtest_league.ts, 데이터 seed/backfill_epl_seriea.json).
+  // 기본모델(Elo+최근폼+H2H) 그대로: HOME_ADV 그리드서치(30~105)에서 EPL 90이 60 대비
+  // +0.4%p(4경기 수준, 노이즈 범위)라 MLS 때 같은 뚜렷한 근거가 없어 기본값 60 유지,
+  // 세리에A는 60이 최적. 두 리그 모두 K리그보다 상위권 전력차가 커서 전체 적중률이 더 높다.
+  "EPL": [
+    { minGap: 0, maxGap: 0.05, accuracy: 0.458, n: 83 },
+    { minGap: 0.05, maxGap: 0.15, accuracy: 0.423, n: 156 },
+    { minGap: 0.15, maxGap: 0.3, accuracy: 0.506, n: 237 },
+    { minGap: 0.3, maxGap: 1.01, accuracy: 0.581, n: 442 },
+  ],
+  "세리에A": [
+    { minGap: 0, maxGap: 0.05, accuracy: 0.442, n: 77 },
+    { minGap: 0.05, maxGap: 0.15, accuracy: 0.430, n: 223 },
+    { minGap: 0.15, maxGap: 0.3, accuracy: 0.510, n: 343 },
+    { minGap: 0.3, maxGap: 1.01, accuracy: 0.638, n: 276 },
+  ],
 };
 
 export const CALIBRATION_OVERALL: Record<string, { accuracy: number; homeBaseline: number; n: number }> = {
@@ -44,6 +61,8 @@ export const CALIBRATION_OVERALL: Record<string, { accuracy: number; homeBaselin
   "K리그2": { accuracy: 0.428, homeBaseline: 0.389, n: 1814 },
   "J1리그": { accuracy: 0.434, homeBaseline: 0.402, n: 723 },
   "MLS": { accuracy: 0.475, homeBaseline: 0.456, n: 1102 },
+  "EPL": { accuracy: 0.524, homeBaseline: 0.422, n: 918 },
+  "세리에A": { accuracy: 0.523, homeBaseline: 0.398, n: 919 },
 };
 
 export function findCalibrationBucket(league: string, confidenceGap: number): CalibrationBucket | null {
