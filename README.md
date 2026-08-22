@@ -60,9 +60,9 @@ python seed/export_history_to_sql.py
 - GitHub Actions: `Fetch Betman Vote Share` 워크플로우 수동 실행(task 선택) 또는 main 머지 후 `Generate Round & Exclusive Pick`(workflow_dispatch) - 회차 감지 → 배당 수집 → betman 투표율 수집 → 독식 픽 로그 출력을 한 번에 실행
   - `task=offline-pick`: Worker 배포/백필 전에도 러너에서 발매중 회차를 직접 분석해 독식픽을 로그로 출력 (`scripts/offline_round_pick.ts`)
 
-## EPL/세리에A 편입 (46회차~)
+## 유럽 리그 편입 (EPL·세리에A·라리가·분데스리가)
 
-46회차부터 EPL·세리에A 회차가 등장해 두 리그를 편입했다(MLS와 동일 절차 + 재현 가능 스크립트화). 웹앱에 46회차 이후 회차가 뜨려면 아래 순서로 반영해야 한다:
+46회차부터 EPL·세리에A 회차가 등장해 두 리그를 편입했고(MLS와 동일 절차 + 재현 가능 스크립트화), 이어서 라리가·분데스리가도 선제 편입했다. 신규 회차가 웹앱에 뜨려면 아래 순서로 반영해야 한다:
 
 1. D1 백필 적용: `npx wrangler d1 execute kleague-toto-db --remote --file=seed/backfill_leagues.sql`
    (백필 데이터 재생성은 `Fetch Betman Vote Share` 워크플로우 `task=backfill` - football-data.co.uk 3.5시즌 + FotMob 현재시즌 경기를 FotMob 팀명 기준으로 생성/커밋)
@@ -70,7 +70,11 @@ python seed/export_history_to_sql.py
 3. 결과 동기화+회차 등록: `POST /api/admin/sync` → `POST /api/admin/detect-round` (또는 크론 대기, 또는 워크플로우 `task=pipeline`)
 4. 이후 배당/투표율 크론이 평소처럼 채워진다
 
-주의: EPL/세리에A는 교차연도 시즌(8월~5월)이라 Elo 시즌 회귀 경계를 7월로 처리한다(`elo.ts seasonOf`). xG/코너킥은 기존 게이팅에 따라 자동 미적용(기본모델만).
+주의사항
+- 4개 유럽 리그 모두 교차연도 시즌(8월~5월)이라 Elo 시즌 회귀 경계를 7월로 처리한다(`elo.ts seasonOf`)
+- xG/코너킥은 기존 게이팅에 따라 자동 미적용(기본모델만)
+- 라리가만 `HOME_ADV=105`(실측 홈승률 46.0%, 그리드서치에서 기본값 60이 3시즌 전부 최악). 나머지는 60
+- football-data는 시즌마다 팀 표기를 바꾸므로(`Ath Madrid` → `Atl. Madrid` → `Atletico Madrid`) `backfill_leagues.ts`의 `FD_TO_FOTMOB`으로 FotMob 표기에 통일한다. 매핑이 빠지면 실행 로그가 "FotMob 현재 팀 X는 백필 CSV에 없음"으로 알려준다
 
 ## 저장소 통합 (hyeoks-sports-engine)
 
@@ -86,12 +90,12 @@ python seed/export_history_to_sql.py
 
 **이관하지 않은 것** (의도적)
 - `crawl_and_update.py`의 경기 단위 크롤링(`전체`/리그별/`HYEOKS_팀통계`/`HYEOKS_선수통계` 탭) — 이 앱의 `refreshHistory` 크론과 중복이라 옮기지 않았다
-- `predict_engine.py` — RandomForest 기반 `HYEOKS_예측리포트` 시트. K리그는 이미 이 앱의 예측을 가져다 쓰고 있었고, EPL/세리에A/MLS/J1도 모두 이 앱에 편입돼 사실상 중복이다
+- `predict_engine.py` — RandomForest 기반 `HYEOKS_예측리포트` 시트. K리그는 이미 이 앱의 예측을 가져다 쓰고 있었고, 2026-08-22에 라리가·분데스리가까지 편입해 **이 스크립트가 다루던 모든 리그를 앱이 커버**하게 됐다. 게다가 이 스크립트가 읽는 `전체` 탭을 채우던 `crawl_and_update.py`가 실행 목록에서 빠져 데이터가 더 이상 갱신되지 않으므로, 은퇴시키는 것이 맞다
 
 **엔진 레포를 끄기 전 확인**
 1. 이 저장소에 `GOOGLE_SERVICE_ACCOUNT_KEY` 시크릿 등록 (완료)
 2. 엔진 레포의 `hyeoks_engine.yml`에서 `build_round_analysis_sheet.py`·`crawl_and_update.py` 실행을 제거 — 안 그러면 두 레포가 같은 시트를 이중으로 쓴다
-3. `HYEOKS_예측리포트`가 더 이상 필요 없다고 판단되면 엔진 레포 아카이브
+3. `predict_engine.py` 실행 제거 후 엔진 레포 아카이브 (앱이 모든 리그를 커버하므로 기능 손실 없음)
 
 ## 알려진 제약
 
