@@ -9120,10 +9120,18 @@
   "ag": 0
  },
  {
+  "league": "EPL",
+  "date": "2026-08-21",
+  "home": "Arsenal",
+  "away": "Coventry City",
+  "hg": 3,
+  "ag": 0
+ },
+ {
   "league": "세리에A",
   "date": "2023-08-19",
   "home": "Empoli",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 1
  },
@@ -9195,7 +9203,7 @@
   "league": "세리에A",
   "date": "2023-08-21",
   "home": "Bologna",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 2
  },
@@ -9218,7 +9226,7 @@
  {
   "league": "세리에A",
   "date": "2023-08-26",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Torino",
   "hg": 4,
   "ag": 1
@@ -9226,7 +9234,7 @@
  {
   "league": "세리에A",
   "date": "2023-08-26",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Roma",
   "hg": 2,
   "ag": 1
@@ -9283,7 +9291,7 @@
   "league": "세리에A",
   "date": "2023-09-01",
   "home": "Sassuolo",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 3,
   "ag": 1
  },
@@ -9291,7 +9299,7 @@
   "league": "세리에A",
   "date": "2023-09-01",
   "home": "Roma",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 2
  },
@@ -9371,7 +9379,7 @@
   "league": "세리에A",
   "date": "2023-09-16",
   "home": "Inter",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 5,
   "ag": 1
  },
@@ -9434,7 +9442,7 @@
  {
   "league": "세리에A",
   "date": "2023-09-18",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Bologna",
   "hg": 0,
   "ag": 0
@@ -9458,8 +9466,8 @@
  {
   "league": "세리에A",
   "date": "2023-09-23",
-  "home": "AC Milan",
-  "away": "Hellas Verona",
+  "home": "Milan",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -9531,7 +9539,7 @@
   "league": "세리에A",
   "date": "2023-09-27",
   "home": "Cagliari",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 3
  },
@@ -9546,7 +9554,7 @@
  {
   "league": "세리에A",
   "date": "2023-09-27",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Atalanta",
   "hg": 0,
   "ag": 1
@@ -9610,7 +9618,7 @@
  {
   "league": "세리에A",
   "date": "2023-09-30",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Lazio",
   "hg": 2,
   "ag": 0
@@ -9667,7 +9675,7 @@
   "league": "세리에A",
   "date": "2023-10-02",
   "home": "Torino",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 0
  },
@@ -9715,7 +9723,7 @@
   "league": "세리에A",
   "date": "2023-10-07",
   "home": "Genoa",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 1
  },
@@ -9731,7 +9739,7 @@
   "league": "세리에A",
   "date": "2023-10-08",
   "home": "Frosinone",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 1
  },
@@ -9762,7 +9770,7 @@
  {
   "league": "세리에A",
   "date": "2023-10-21",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Napoli",
   "hg": 1,
   "ag": 3
@@ -9818,7 +9826,7 @@
  {
   "league": "세리에A",
   "date": "2023-10-22",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Juventus",
   "hg": 0,
   "ag": 1
@@ -9867,7 +9875,7 @@
   "league": "세리에A",
   "date": "2023-10-28",
   "home": "Juventus",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -9899,7 +9907,7 @@
   "league": "세리에A",
   "date": "2023-10-29",
   "home": "Napoli",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 2
  },
@@ -9946,7 +9954,7 @@
  {
   "league": "세리에A",
   "date": "2023-11-04",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Udinese",
   "hg": 0,
   "ag": 1
@@ -9954,7 +9962,7 @@
  {
   "league": "세리에A",
   "date": "2023-11-05",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Monza",
   "hg": 1,
   "ag": 3
@@ -10011,7 +10019,7 @@
   "league": "세리에A",
   "date": "2023-11-10",
   "home": "Genoa",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -10019,7 +10027,7 @@
   "league": "세리에A",
   "date": "2023-11-11",
   "home": "Lecce",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 2
  },
@@ -10098,7 +10106,7 @@
  {
   "league": "세리에A",
   "date": "2023-11-25",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Fiorentina",
   "hg": 1,
   "ag": 0
@@ -10146,7 +10154,7 @@
  {
   "league": "세리에A",
   "date": "2023-11-27",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Lecce",
   "hg": 2,
   "ag": 2
@@ -10186,7 +10194,7 @@
  {
   "league": "세리에A",
   "date": "2023-12-02",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Frosinone",
   "hg": 3,
   "ag": 1
@@ -10211,7 +10219,7 @@
   "league": "세리에A",
   "date": "2023-12-03",
   "home": "Udinese",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 3,
   "ag": 3
  },
@@ -10250,7 +10258,7 @@
  {
   "league": "세리에A",
   "date": "2023-12-09",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Lazio",
   "hg": 1,
   "ag": 1
@@ -10259,7 +10267,7 @@
   "league": "세리에A",
   "date": "2023-12-09",
   "home": "Atalanta",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 3,
   "ag": 2
  },
@@ -10354,7 +10362,7 @@
  {
   "league": "세리에A",
   "date": "2023-12-17",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Monza",
   "hg": 3,
   "ag": 0
@@ -10363,7 +10371,7 @@
   "league": "세리에A",
   "date": "2023-12-17",
   "home": "Fiorentina",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -10427,7 +10435,7 @@
   "league": "세리에A",
   "date": "2023-12-22",
   "home": "Salernitana",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 2
  },
@@ -10466,7 +10474,7 @@
  {
   "league": "세리에A",
   "date": "2023-12-23",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Cagliari",
   "hg": 2,
   "ag": 0
@@ -10538,7 +10546,7 @@
  {
   "league": "세리에A",
   "date": "2023-12-30",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Sassuolo",
   "hg": 1,
   "ag": 0
@@ -10546,7 +10554,7 @@
  {
   "league": "세리에A",
   "date": "2023-12-30",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Salernitana",
   "hg": 0,
   "ag": 1
@@ -10571,7 +10579,7 @@
   "league": "세리에A",
   "date": "2024-01-06",
   "home": "Inter",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 1
  },
@@ -10603,7 +10611,7 @@
   "league": "세리에A",
   "date": "2024-01-07",
   "home": "Empoli",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 3
  },
@@ -10658,7 +10666,7 @@
  {
   "league": "세리에A",
   "date": "2024-01-13",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Empoli",
   "hg": 2,
   "ag": 1
@@ -10698,7 +10706,7 @@
  {
   "league": "세리에A",
   "date": "2024-01-14",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Roma",
   "hg": 3,
   "ag": 1
@@ -10723,7 +10731,7 @@
   "league": "세리에A",
   "date": "2024-01-20",
   "home": "Roma",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 1
  },
@@ -10731,7 +10739,7 @@
   "league": "세리에A",
   "date": "2024-01-20",
   "home": "Udinese",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 3
  },
@@ -10794,7 +10802,7 @@
  {
   "league": "세리에A",
   "date": "2024-01-27",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Bologna",
   "hg": 2,
   "ag": 2
@@ -10818,7 +10826,7 @@
  {
   "league": "세리에A",
   "date": "2024-01-28",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Frosinone",
   "hg": 1,
   "ag": 1
@@ -10875,7 +10883,7 @@
   "league": "세리에A",
   "date": "2024-02-03",
   "home": "Frosinone",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 3
  },
@@ -10899,7 +10907,7 @@
   "league": "세리에A",
   "date": "2024-02-04",
   "home": "Napoli",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 1
  },
@@ -10979,7 +10987,7 @@
   "league": "세리에A",
   "date": "2024-02-11",
   "home": "Monza",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 0
  },
@@ -10994,7 +11002,7 @@
  {
   "league": "세리에A",
   "date": "2024-02-11",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Napoli",
   "hg": 1,
   "ag": 0
@@ -11042,7 +11050,7 @@
  {
   "league": "세리에A",
   "date": "2024-02-17",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Juventus",
   "hg": 2,
   "ag": 2
@@ -11091,7 +11099,7 @@
   "league": "세리에A",
   "date": "2024-02-18",
   "home": "Monza",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 4,
   "ag": 2
  },
@@ -11107,7 +11115,7 @@
   "league": "세리에A",
   "date": "2024-02-23",
   "home": "Bologna",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 0
  },
@@ -11162,7 +11170,7 @@
  {
   "league": "세리에A",
   "date": "2024-02-25",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Atalanta",
   "hg": 1,
   "ag": 1
@@ -11203,7 +11211,7 @@
   "league": "세리에A",
   "date": "2024-03-01",
   "home": "Lazio",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 1
  },
@@ -11234,7 +11242,7 @@
  {
   "league": "세리에A",
   "date": "2024-03-03",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Sassuolo",
   "hg": 1,
   "ag": 0
@@ -11323,14 +11331,14 @@
   "league": "세리에A",
   "date": "2024-03-10",
   "home": "Lecce",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 1
  },
  {
   "league": "세리에A",
   "date": "2024-03-10",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Empoli",
   "hg": 1,
   "ag": 0
@@ -11410,8 +11418,8 @@
  {
   "league": "세리에A",
   "date": "2024-03-17",
-  "home": "Hellas Verona",
-  "away": "AC Milan",
+  "home": "Verona",
+  "away": "Milan",
   "hg": 1,
   "ag": 3
  },
@@ -11467,7 +11475,7 @@
   "league": "세리에A",
   "date": "2024-03-30",
   "home": "Fiorentina",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 2
  },
@@ -11483,7 +11491,7 @@
   "league": "세리에A",
   "date": "2024-04-01",
   "home": "Cagliari",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 1
  },
@@ -11522,7 +11530,7 @@
  {
   "league": "세리에A",
   "date": "2024-04-06",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Lecce",
   "hg": 3,
   "ag": 0
@@ -11570,7 +11578,7 @@
  {
   "league": "세리에A",
   "date": "2024-04-07",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Genoa",
   "hg": 1,
   "ag": 2
@@ -11635,7 +11643,7 @@
   "league": "세리에A",
   "date": "2024-04-14",
   "home": "Sassuolo",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 3,
   "ag": 3
  },
@@ -11659,7 +11667,7 @@
   "league": "세리에A",
   "date": "2024-04-15",
   "home": "Atalanta",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 2
  },
@@ -11690,7 +11698,7 @@
  {
   "league": "세리에A",
   "date": "2024-04-20",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Udinese",
   "hg": 1,
   "ag": 0
@@ -11738,7 +11746,7 @@
  {
   "league": "세리에A",
   "date": "2024-04-22",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Inter",
   "hg": 1,
   "ag": 2
@@ -11771,7 +11779,7 @@
   "league": "세리에A",
   "date": "2024-04-27",
   "home": "Juventus",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 0
  },
@@ -11779,7 +11787,7 @@
   "league": "세리에A",
   "date": "2024-04-27",
   "home": "Lazio",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -11874,7 +11882,7 @@
  {
   "league": "세리에A",
   "date": "2024-05-05",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Fiorentina",
   "hg": 2,
   "ag": 1
@@ -11882,7 +11890,7 @@
  {
   "league": "세리에A",
   "date": "2024-05-05",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Genoa",
   "hg": 3,
   "ag": 3
@@ -11930,7 +11938,7 @@
  {
   "league": "세리에A",
   "date": "2024-05-11",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Cagliari",
   "hg": 5,
   "ag": 1
@@ -11954,7 +11962,7 @@
  {
   "league": "세리에A",
   "date": "2024-05-12",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Torino",
   "hg": 1,
   "ag": 2
@@ -12011,7 +12019,7 @@
   "league": "세리에A",
   "date": "2024-05-18",
   "home": "Torino",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 3,
   "ag": 1
  },
@@ -12059,7 +12067,7 @@
   "league": "세리에A",
   "date": "2024-05-20",
   "home": "Salernitana",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 2
  },
@@ -12098,7 +12106,7 @@
  {
   "league": "세리에A",
   "date": "2024-05-25",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Salernitana",
   "hg": 3,
   "ag": 3
@@ -12146,7 +12154,7 @@
  {
   "league": "세리에A",
   "date": "2024-05-26",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Inter",
   "hg": 2,
   "ag": 2
@@ -12186,7 +12194,7 @@
  {
   "league": "세리에A",
   "date": "2024-08-17",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Torino",
   "hg": 2,
   "ag": 2
@@ -12202,7 +12210,7 @@
  {
   "league": "세리에A",
   "date": "2024-08-18",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Napoli",
   "hg": 3,
   "ag": 0
@@ -12243,7 +12251,7 @@
   "league": "세리에A",
   "date": "2024-08-24",
   "home": "Parma",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 1
  },
@@ -12314,7 +12322,7 @@
  {
   "league": "세리에A",
   "date": "2024-08-26",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Juventus",
   "hg": 0,
   "ag": 3
@@ -12355,7 +12363,7 @@
   "league": "세리에A",
   "date": "2024-08-31",
   "home": "Lazio",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 2
  },
@@ -12379,7 +12387,7 @@
   "league": "세리에A",
   "date": "2024-09-01",
   "home": "Genoa",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 2
  },
@@ -12418,7 +12426,7 @@
  {
   "league": "세리에A",
   "date": "2024-09-14",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Venezia",
   "hg": 4,
   "ag": 0
@@ -12475,7 +12483,7 @@
   "league": "세리에A",
   "date": "2024-09-16",
   "home": "Lazio",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 1
  },
@@ -12490,7 +12498,7 @@
  {
   "league": "세리에A",
   "date": "2024-09-20",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Torino",
   "hg": 2,
   "ag": 3
@@ -12547,7 +12555,7 @@
   "league": "세리에A",
   "date": "2024-09-22",
   "home": "Inter",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 2
  },
@@ -12562,7 +12570,7 @@
  {
   "league": "세리에A",
   "date": "2024-09-27",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Lecce",
   "hg": 3,
   "ag": 0
@@ -12603,7 +12611,7 @@
   "league": "세리에A",
   "date": "2024-09-29",
   "home": "Como",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 3,
   "ag": 2
  },
@@ -12650,7 +12658,7 @@
  {
   "league": "세리에A",
   "date": "2024-10-04",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Venezia",
   "hg": 2,
   "ag": 1
@@ -12715,7 +12723,7 @@
   "league": "세리에A",
   "date": "2024-10-06",
   "home": "Fiorentina",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 1
  },
@@ -12738,7 +12746,7 @@
  {
   "league": "세리에A",
   "date": "2024-10-19",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Udinese",
   "hg": 1,
   "ag": 0
@@ -12794,7 +12802,7 @@
  {
   "league": "세리에A",
   "date": "2024-10-21",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Monza",
   "hg": 0,
   "ag": 3
@@ -12827,7 +12835,7 @@
   "league": "세리에A",
   "date": "2024-10-26",
   "home": "Atalanta",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 6,
   "ag": 1
  },
@@ -12883,14 +12891,14 @@
   "league": "세리에A",
   "date": "2024-10-29",
   "home": "Lecce",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
  {
   "league": "세리에A",
   "date": "2024-10-29",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Napoli",
   "hg": 0,
   "ag": 2
@@ -12971,7 +12979,7 @@
   "league": "세리에A",
   "date": "2024-11-02",
   "home": "Monza",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 1
  },
@@ -12994,7 +13002,7 @@
  {
   "league": "세리에A",
   "date": "2024-11-03",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Roma",
   "hg": 3,
   "ag": 2
@@ -13059,7 +13067,7 @@
   "league": "세리에A",
   "date": "2024-11-09",
   "home": "Cagliari",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 3,
   "ag": 3
  },
@@ -13083,7 +13091,7 @@
   "league": "세리에A",
   "date": "2024-11-10",
   "home": "Fiorentina",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 3,
   "ag": 1
  },
@@ -13114,7 +13122,7 @@
  {
   "league": "세리에A",
   "date": "2024-11-23",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Inter",
   "hg": 0,
   "ag": 5
@@ -13122,7 +13130,7 @@
  {
   "league": "세리에A",
   "date": "2024-11-23",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Juventus",
   "hg": 0,
   "ag": 0
@@ -13195,7 +13203,7 @@
   "league": "세리에A",
   "date": "2024-11-29",
   "home": "Cagliari",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -13210,7 +13218,7 @@
  {
   "league": "세리에A",
   "date": "2024-11-30",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Empoli",
   "hg": 3,
   "ag": 0
@@ -13275,7 +13283,7 @@
   "league": "세리에A",
   "date": "2024-12-06",
   "home": "Atalanta",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 1
  },
@@ -13314,7 +13322,7 @@
  {
   "league": "세리에A",
   "date": "2024-12-08",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Empoli",
   "hg": 1,
   "ag": 4
@@ -13395,7 +13403,7 @@
   "league": "세리에A",
   "date": "2024-12-15",
   "home": "Parma",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 3
  },
@@ -13410,7 +13418,7 @@
  {
   "league": "세리에A",
   "date": "2024-12-15",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Genoa",
   "hg": 0,
   "ag": 0
@@ -13426,8 +13434,8 @@
  {
   "league": "세리에A",
   "date": "2024-12-20",
-  "home": "Hellas Verona",
-  "away": "AC Milan",
+  "home": "Verona",
+  "away": "Milan",
   "hg": 0,
   "ag": 1
  },
@@ -13562,7 +13570,7 @@
  {
   "league": "세리에A",
   "date": "2024-12-29",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Roma",
   "hg": 1,
   "ag": 1
@@ -13579,7 +13587,7 @@
   "league": "세리에A",
   "date": "2024-12-30",
   "home": "Bologna",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 3
  },
@@ -13602,7 +13610,7 @@
  {
   "league": "세리에A",
   "date": "2025-01-04",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Udinese",
   "hg": 0,
   "ag": 0
@@ -13674,7 +13682,7 @@
  {
   "league": "세리에A",
   "date": "2025-01-11",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Cagliari",
   "hg": 1,
   "ag": 1
@@ -13707,7 +13715,7 @@
   "league": "세리에A",
   "date": "2025-01-12",
   "home": "Napoli",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 0
  },
@@ -13723,7 +13731,7 @@
   "league": "세리에A",
   "date": "2025-01-14",
   "home": "Como",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 2
  },
@@ -13763,7 +13771,7 @@
   "league": "세리에A",
   "date": "2025-01-18",
   "home": "Juventus",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 0
  },
@@ -13802,7 +13810,7 @@
  {
   "league": "세리에A",
   "date": "2025-01-19",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Lazio",
   "hg": 0,
   "ag": 3
@@ -13858,7 +13866,7 @@
  {
   "league": "세리에A",
   "date": "2025-01-26",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Parma",
   "hg": 3,
   "ag": 2
@@ -13891,7 +13899,7 @@
   "league": "세리에A",
   "date": "2025-01-27",
   "home": "Venezia",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 1
  },
@@ -13915,7 +13923,7 @@
   "league": "세리에A",
   "date": "2025-02-01",
   "home": "Monza",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 1
  },
@@ -13962,7 +13970,7 @@
  {
   "league": "세리에A",
   "date": "2025-02-02",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Inter",
   "hg": 1,
   "ag": 1
@@ -14002,7 +14010,7 @@
  {
   "league": "세리에A",
   "date": "2025-02-08",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Atalanta",
   "hg": 0,
   "ag": 5
@@ -14011,7 +14019,7 @@
   "league": "세리에A",
   "date": "2025-02-08",
   "home": "Empoli",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 2
  },
@@ -14098,8 +14106,8 @@
  {
   "league": "세리에A",
   "date": "2025-02-15",
-  "home": "AC Milan",
-  "away": "Hellas Verona",
+  "home": "Milan",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -14179,7 +14187,7 @@
   "league": "세리에A",
   "date": "2025-02-22",
   "home": "Torino",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 1
  },
@@ -14202,7 +14210,7 @@
  {
   "league": "세리에A",
   "date": "2025-02-23",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Fiorentina",
   "hg": 1,
   "ag": 0
@@ -14235,7 +14243,7 @@
   "league": "세리에A",
   "date": "2025-02-27",
   "home": "Bologna",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 1
  },
@@ -14306,7 +14314,7 @@
  {
   "league": "세리에A",
   "date": "2025-03-02",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Lazio",
   "hg": 1,
   "ag": 2
@@ -14315,7 +14323,7 @@
   "league": "세리에A",
   "date": "2025-03-03",
   "home": "Juventus",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 0
  },
@@ -14347,7 +14355,7 @@
   "league": "세리에A",
   "date": "2025-03-08",
   "home": "Lecce",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 3
  },
@@ -14362,7 +14370,7 @@
  {
   "league": "세리에A",
   "date": "2025-03-09",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Bologna",
   "hg": 1,
   "ag": 2
@@ -14419,14 +14427,14 @@
   "league": "세리에A",
   "date": "2025-03-15",
   "home": "Udinese",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 1
  },
  {
   "league": "세리에A",
   "date": "2025-03-15",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Como",
   "hg": 2,
   "ag": 1
@@ -14539,14 +14547,14 @@
   "league": "세리에A",
   "date": "2025-03-30",
   "home": "Napoli",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 1
  },
  {
   "league": "세리에A",
   "date": "2025-03-31",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Parma",
   "hg": 0,
   "ag": 0
@@ -14586,7 +14594,7 @@
  {
   "league": "세리에A",
   "date": "2025-04-05",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Fiorentina",
   "hg": 2,
   "ag": 2
@@ -14611,7 +14619,7 @@
   "league": "세리에A",
   "date": "2025-04-06",
   "home": "Torino",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 1
  },
@@ -14643,7 +14651,7 @@
   "league": "세리에A",
   "date": "2025-04-11",
   "home": "Udinese",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 4
  },
@@ -14690,7 +14698,7 @@
  {
   "league": "세리에A",
   "date": "2025-04-13",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Genoa",
   "hg": 0,
   "ag": 0
@@ -14739,7 +14747,7 @@
   "league": "세리에A",
   "date": "2025-04-19",
   "home": "Roma",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -14762,7 +14770,7 @@
  {
   "league": "세리에A",
   "date": "2025-04-20",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Atalanta",
   "hg": 0,
   "ag": 1
@@ -14811,7 +14819,7 @@
   "league": "세리에A",
   "date": "2025-04-27",
   "home": "Venezia",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 2
  },
@@ -14874,7 +14882,7 @@
  {
   "league": "세리에A",
   "date": "2025-04-28",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Cagliari",
   "hg": 0,
   "ag": 2
@@ -14915,7 +14923,7 @@
   "league": "세리에A",
   "date": "2025-05-03",
   "home": "Inter",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -14955,14 +14963,14 @@
   "league": "세리에A",
   "date": "2025-05-05",
   "home": "Genoa",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 2
  },
  {
   "league": "세리에A",
   "date": "2025-05-09",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Bologna",
   "hg": 3,
   "ag": 1
@@ -15002,7 +15010,7 @@
  {
   "league": "세리에A",
   "date": "2025-05-11",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Lecce",
   "hg": 1,
   "ag": 1
@@ -15107,14 +15115,14 @@
   "league": "세리에A",
   "date": "2025-05-18",
   "home": "Roma",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 3,
   "ag": 1
  },
  {
   "league": "세리에A",
   "date": "2025-05-18",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Como",
   "hg": 1,
   "ag": 1
@@ -15146,7 +15154,7 @@
  {
   "league": "세리에A",
   "date": "2025-05-24",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Monza",
   "hg": 2,
   "ag": 0
@@ -15163,7 +15171,7 @@
   "league": "세리에A",
   "date": "2025-05-25",
   "home": "Empoli",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 2
  },
@@ -15218,7 +15226,7 @@
  {
   "league": "세리에A",
   "date": "2025-08-23",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Cremonese",
   "hg": 1,
   "ag": 2
@@ -15267,7 +15275,7 @@
   "league": "세리에A",
   "date": "2025-08-25",
   "home": "Udinese",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 1
  },
@@ -15291,7 +15299,7 @@
   "league": "세리에A",
   "date": "2025-08-29",
   "home": "Lecce",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 2
  },
@@ -15355,7 +15363,7 @@
   "league": "세리에A",
   "date": "2025-08-31",
   "home": "Lazio",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 4,
   "ag": 0
  },
@@ -15418,7 +15426,7 @@
  {
   "league": "세리에A",
   "date": "2025-09-14",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Bologna",
   "hg": 1,
   "ag": 0
@@ -15426,7 +15434,7 @@
  {
   "league": "세리에A",
   "date": "2025-09-15",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Cremonese",
   "hg": 0,
   "ag": 0
@@ -15458,7 +15466,7 @@
  {
   "league": "세리에A",
   "date": "2025-09-20",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Juventus",
   "hg": 1,
   "ag": 1
@@ -15467,7 +15475,7 @@
   "league": "세리에A",
   "date": "2025-09-20",
   "home": "Udinese",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 3
  },
@@ -15563,7 +15571,7 @@
   "league": "세리에A",
   "date": "2025-09-28",
   "home": "Roma",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 0
  },
@@ -15578,7 +15586,7 @@
  {
   "league": "세리에A",
   "date": "2025-09-28",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Napoli",
   "hg": 2,
   "ag": 1
@@ -15602,7 +15610,7 @@
  {
   "league": "세리에A",
   "date": "2025-10-03",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Sassuolo",
   "hg": 0,
   "ag": 1
@@ -15675,7 +15683,7 @@
   "league": "세리에A",
   "date": "2025-10-05",
   "home": "Juventus",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 0
  },
@@ -15691,7 +15699,7 @@
   "league": "세리에A",
   "date": "2025-10-18",
   "home": "Pisa",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 0
  },
@@ -15746,7 +15754,7 @@
  {
   "league": "세리에A",
   "date": "2025-10-19",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Fiorentina",
   "hg": 2,
   "ag": 1
@@ -15762,7 +15770,7 @@
  {
   "league": "세리에A",
   "date": "2025-10-24",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Pisa",
   "hg": 2,
   "ag": 2
@@ -15818,7 +15826,7 @@
  {
   "league": "세리에A",
   "date": "2025-10-26",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Cagliari",
   "hg": 2,
   "ag": 2
@@ -15851,7 +15859,7 @@
   "league": "세리에A",
   "date": "2025-10-28",
   "home": "Atalanta",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 1
  },
@@ -15859,7 +15867,7 @@
   "league": "세리에A",
   "date": "2025-10-29",
   "home": "Como",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 3,
   "ag": 1
  },
@@ -15946,7 +15954,7 @@
  {
   "league": "세리에A",
   "date": "2025-11-02",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Inter",
   "hg": 1,
   "ag": 2
@@ -15978,7 +15986,7 @@
  {
   "league": "세리에A",
   "date": "2025-11-02",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Roma",
   "hg": 1,
   "ag": 0
@@ -16019,7 +16027,7 @@
   "league": "세리에A",
   "date": "2025-11-08",
   "home": "Lecce",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 0
  },
@@ -16035,7 +16043,7 @@
   "league": "세리에A",
   "date": "2025-11-08",
   "home": "Parma",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 2
  },
@@ -16114,7 +16122,7 @@
  {
   "league": "세리에A",
   "date": "2025-11-23",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Parma",
   "hg": 1,
   "ag": 2
@@ -16139,7 +16147,7 @@
   "league": "세리에A",
   "date": "2025-11-23",
   "home": "Inter",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 1
  },
@@ -16171,7 +16179,7 @@
   "league": "세리에A",
   "date": "2025-11-29",
   "home": "Genoa",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 1
  },
@@ -16194,7 +16202,7 @@
  {
   "league": "세리에A",
   "date": "2025-11-29",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Lazio",
   "hg": 1,
   "ag": 0
@@ -16258,7 +16266,7 @@
  {
   "league": "세리에A",
   "date": "2025-12-06",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Atalanta",
   "hg": 3,
   "ag": 1
@@ -16315,7 +16323,7 @@
   "league": "세리에A",
   "date": "2025-12-08",
   "home": "Torino",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 3
  },
@@ -16354,7 +16362,7 @@
  {
   "league": "세리에A",
   "date": "2025-12-14",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Sassuolo",
   "hg": 2,
   "ag": 2
@@ -16363,7 +16371,7 @@
   "league": "세리에A",
   "date": "2025-12-14",
   "home": "Fiorentina",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 2
  },
@@ -16490,8 +16498,8 @@
  {
   "league": "세리에A",
   "date": "2025-12-28",
-  "home": "AC Milan",
-  "away": "Hellas Verona",
+  "home": "Milan",
+  "away": "Verona",
   "hg": 3,
   "ag": 0
  },
@@ -16531,7 +16539,7 @@
   "league": "세리에A",
   "date": "2026-01-02",
   "home": "Cagliari",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 1
  },
@@ -16594,7 +16602,7 @@
  {
   "league": "세리에A",
   "date": "2026-01-04",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Torino",
   "hg": 0,
   "ag": 3
@@ -16643,7 +16651,7 @@
   "league": "세리에A",
   "date": "2026-01-07",
   "home": "Napoli",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 2
  },
@@ -16682,7 +16690,7 @@
  {
   "league": "세리에A",
   "date": "2026-01-08",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Genoa",
   "hg": 1,
   "ag": 1
@@ -16731,14 +16739,14 @@
   "league": "세리에A",
   "date": "2026-01-11",
   "home": "Fiorentina",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 1
  },
  {
   "league": "세리에A",
   "date": "2026-01-11",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Lazio",
   "hg": 0,
   "ag": 1
@@ -16786,7 +16794,7 @@
  {
   "league": "세리에A",
   "date": "2026-01-15",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Bologna",
   "hg": 2,
   "ag": 3
@@ -16795,7 +16803,7 @@
   "league": "세리에A",
   "date": "2026-01-15",
   "home": "Como",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 3
  },
@@ -16858,7 +16866,7 @@
  {
   "league": "세리에A",
   "date": "2026-01-18",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Lecce",
   "hg": 1,
   "ag": 0
@@ -16867,7 +16875,7 @@
   "league": "세리에A",
   "date": "2026-01-19",
   "home": "Cremonese",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 0,
   "ag": 0
  },
@@ -16947,14 +16955,14 @@
   "league": "세리에A",
   "date": "2026-01-25",
   "home": "Roma",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 1
  },
  {
   "league": "세리에A",
   "date": "2026-01-26",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Udinese",
   "hg": 1,
   "ag": 3
@@ -16987,7 +16995,7 @@
   "league": "세리에A",
   "date": "2026-01-31",
   "home": "Cagliari",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 4,
   "ag": 0
  },
@@ -17035,14 +17043,14 @@
   "league": "세리에A",
   "date": "2026-02-03",
   "home": "Bologna",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 3
  },
  {
   "league": "세리에A",
   "date": "2026-02-06",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Pisa",
   "hg": 0,
   "ag": 0
@@ -17115,7 +17123,7 @@
   "league": "세리에A",
   "date": "2026-02-13",
   "home": "Pisa",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 2
  },
@@ -17163,7 +17171,7 @@
   "league": "세리에A",
   "date": "2026-02-15",
   "home": "Parma",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 1
  },
@@ -17194,7 +17202,7 @@
  {
   "league": "세리에A",
   "date": "2026-02-18",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Como",
   "hg": 1,
   "ag": 1
@@ -17203,7 +17211,7 @@
   "league": "세리에A",
   "date": "2026-02-20",
   "home": "Sassuolo",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 3,
   "ag": 0
  },
@@ -17250,7 +17258,7 @@
  {
   "league": "세리에A",
   "date": "2026-02-22",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Parma",
   "hg": 0,
   "ag": 1
@@ -17298,7 +17306,7 @@
  {
   "league": "세리에A",
   "date": "2026-02-28",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Napoli",
   "hg": 1,
   "ag": 2
@@ -17315,7 +17323,7 @@
   "league": "세리에A",
   "date": "2026-03-01",
   "home": "Cremonese",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 0,
   "ag": 2
  },
@@ -17403,7 +17411,7 @@
   "league": "세리에A",
   "date": "2026-03-08",
   "home": "Bologna",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 2
  },
@@ -17426,7 +17434,7 @@
  {
   "league": "세리에A",
   "date": "2026-03-08",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Inter",
   "hg": 1,
   "ag": 0
@@ -17474,7 +17482,7 @@
  {
   "league": "세리에A",
   "date": "2026-03-15",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Genoa",
   "hg": 0,
   "ag": 2
@@ -17507,7 +17515,7 @@
   "league": "세리에A",
   "date": "2026-03-15",
   "home": "Lazio",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 0
  },
@@ -17546,7 +17554,7 @@
  {
   "league": "세리에A",
   "date": "2026-03-21",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Torino",
   "hg": 3,
   "ag": 2
@@ -17571,7 +17579,7 @@
   "league": "세리에A",
   "date": "2026-03-22",
   "home": "Atalanta",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 0
  },
@@ -17610,7 +17618,7 @@
  {
   "league": "세리에A",
   "date": "2026-04-04",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Fiorentina",
   "hg": 0,
   "ag": 1
@@ -17675,7 +17683,7 @@
   "league": "세리에A",
   "date": "2026-04-06",
   "home": "Napoli",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 0
  },
@@ -17699,14 +17707,14 @@
   "league": "세리에A",
   "date": "2026-04-11",
   "home": "Torino",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 2,
   "ag": 1
  },
  {
   "league": "세리에A",
   "date": "2026-04-11",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Udinese",
   "hg": 0,
   "ag": 3
@@ -17810,8 +17818,8 @@
  {
   "league": "세리에A",
   "date": "2026-04-19",
-  "home": "Hellas Verona",
-  "away": "AC Milan",
+  "home": "Verona",
+  "away": "Milan",
   "hg": 0,
   "ag": 1
  },
@@ -17866,7 +17874,7 @@
  {
   "league": "세리에A",
   "date": "2026-04-25",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Lecce",
   "hg": 0,
   "ag": 0
@@ -17898,7 +17906,7 @@
  {
   "league": "세리에A",
   "date": "2026-04-26",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Juventus",
   "hg": 0,
   "ag": 0
@@ -17963,7 +17971,7 @@
   "league": "세리에A",
   "date": "2026-05-03",
   "home": "Sassuolo",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 2,
   "ag": 0
  },
@@ -17971,7 +17979,7 @@
   "league": "세리에A",
   "date": "2026-05-03",
   "home": "Juventus",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 1
  },
@@ -18034,7 +18042,7 @@
  {
   "league": "세리에A",
   "date": "2026-05-10",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Como",
   "hg": 0,
   "ag": 1
@@ -18066,7 +18074,7 @@
  {
   "league": "세리에A",
   "date": "2026-05-10",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Atalanta",
   "hg": 2,
   "ag": 3
@@ -18091,7 +18099,7 @@
   "league": "세리에A",
   "date": "2026-05-17",
   "home": "Genoa",
-  "away": "AC Milan",
+  "away": "Milan",
   "hg": 1,
   "ag": 2
  },
@@ -18123,7 +18131,7 @@
   "league": "세리에A",
   "date": "2026-05-17",
   "home": "Inter",
-  "away": "Hellas Verona",
+  "away": "Verona",
   "hg": 1,
   "ag": 1
  },
@@ -18218,7 +18226,7 @@
  {
   "league": "세리에A",
   "date": "2026-05-24",
-  "home": "AC Milan",
+  "home": "Milan",
   "away": "Cagliari",
   "hg": 1,
   "ag": 2
@@ -18234,7 +18242,7 @@
  {
   "league": "세리에A",
   "date": "2026-05-24",
-  "home": "Hellas Verona",
+  "home": "Verona",
   "away": "Roma",
   "hg": 0,
   "ag": 2
