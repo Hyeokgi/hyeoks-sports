@@ -1,5 +1,5 @@
 // 한글 팀명 <-> FotMob 영문 팀명 매핑 (predict_round42_v2.py NAME_MAP 이식)
-export type League = "K리그1" | "K리그2" | "J1리그" | "MLS";
+export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A";
 
 export interface TeamMapEntry {
   nameKr: string;
@@ -97,6 +97,52 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   // MLS 나머지 2팀 - 45회차엔 결장(바이/휴식주)이라 wisetoto 실표기 미확인. 실제 노출 시 정정 필요.
   { nameKr: "인터마이", nameEn: "Inter Miami CF", league: "MLS" },
   { nameKr: "필라유니", nameEn: "Philadelphia Union", league: "MLS" },
+  // EPL (2026-08-22 wisetoto 46회차 실데이터로 교차 확인된 14팀, FotMob 리그ID 47).
+  // nameKr은 wisetoto 실표기. nameEn은 FotMob 현재시즌 실표기와 backfill_epl_seriea.ts의
+  // 검증 단계(seed/fotmob_current_names.json)로 교차확인한다 - 불일치 발견 시 여기 정정.
+  // 백필 데이터(football-data.co.uk)도 같은 표기로 변환해 저장한다.
+  { nameKr: "에버턴", nameEn: "Everton", league: "EPL" },
+  { nameKr: "크리스털", nameEn: "Crystal Palace", league: "EPL" },
+  { nameKr: "입스위치", nameEn: "Ipswich Town", league: "EPL" },
+  { nameKr: "선덜랜드", nameEn: "Sunderland", league: "EPL" },
+  { nameKr: "노팅엄F", nameEn: "Nottingham Forest", league: "EPL" },
+  { nameKr: "리즈U", nameEn: "Leeds United", league: "EPL" },
+  { nameKr: "브렌트퍼", nameEn: "Brentford", league: "EPL" },
+  { nameKr: "토트넘", nameEn: "Tottenham Hotspur", league: "EPL" },
+  { nameKr: "브라이턴", nameEn: "Brighton & Hove Albion", league: "EPL" },
+  { nameKr: "A빌라", nameEn: "Aston Villa", league: "EPL" },
+  { nameKr: "맨체스C", nameEn: "Manchester City", league: "EPL" },
+  { nameKr: "본머스", nameEn: "AFC Bournemouth", league: "EPL" },
+  { nameKr: "뉴캐슬U", nameEn: "Newcastle United", league: "EPL" },
+  { nameKr: "리버풀", nameEn: "Liverpool", league: "EPL" },
+  // EPL 나머지 팀 - 46회차에 노출되지 않아 wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
+  { nameKr: "아스널", nameEn: "Arsenal", league: "EPL" },
+  { nameKr: "첼시", nameEn: "Chelsea", league: "EPL" },
+  { nameKr: "맨체스U", nameEn: "Manchester United", league: "EPL" },
+  { nameKr: "웨스트햄", nameEn: "West Ham United", league: "EPL" },
+  { nameKr: "울버햄튼", nameEn: "Wolverhampton Wanderers", league: "EPL" },
+  { nameKr: "풀럼", nameEn: "Fulham", league: "EPL" },
+  // 세리에A (2026-08-22 wisetoto 46회차 실데이터로 교차 확인된 14팀, FotMob 리그ID 55)
+  { nameKr: "우디네세", nameEn: "Udinese", league: "세리에A" },
+  { nameKr: "코모1907", nameEn: "Como", league: "세리에A" },
+  { nameKr: "제노아", nameEn: "Genoa", league: "세리에A" },
+  { nameKr: "나폴리", nameEn: "Napoli", league: "세리에A" },
+  { nameKr: "파르마", nameEn: "Parma", league: "세리에A" },
+  { nameKr: "칼리아리", nameEn: "Cagliari", league: "세리에A" },
+  { nameKr: "프로시노", nameEn: "Frosinone", league: "세리에A" },
+  { nameKr: "유벤투스", nameEn: "Juventus", league: "세리에A" },
+  { nameKr: "베네치아", nameEn: "Venezia", league: "세리에A" },
+  { nameKr: "US레체", nameEn: "Lecce", league: "세리에A" },
+  { nameKr: "아탈란타", nameEn: "Atalanta", league: "세리에A" },
+  { nameKr: "사수올로", nameEn: "Sassuolo", league: "세리에A" },
+  { nameKr: "토리노", nameEn: "Torino", league: "세리에A" },
+  { nameKr: "AC밀란", nameEn: "AC Milan", league: "세리에A" },
+  // 세리에A 나머지 팀 - 46회차에 노출되지 않아 wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
+  { nameKr: "인터밀란", nameEn: "Inter", league: "세리에A" },
+  { nameKr: "AS로마", nameEn: "Roma", league: "세리에A" },
+  { nameKr: "라치오", nameEn: "Lazio", league: "세리에A" },
+  { nameKr: "피오렌티", nameEn: "Fiorentina", league: "세리에A" },
+  { nameKr: "볼로냐", nameEn: "Bologna", league: "세리에A" },
 ];
 
 export const NAME_MAP: Record<string, string> = Object.fromEntries(

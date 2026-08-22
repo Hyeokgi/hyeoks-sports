@@ -3,20 +3,29 @@ name: Fetch Betman Vote Share
 on:
   schedule:
     - cron: "0 */4 * * *" # 투표 쏠림 변화 추적용, 4시간마다
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "pipeline: 회차감지+배당+투표율+독식픽 / backfill: EPL·세리에A 백필 생성+커밋 / offline-pick: 발매중 회차 오프라인 독식픽(배포 불필요)"
+        type: choice
+        default: pipeline
+        options:
+          - pipeline
+          - backfill
+          - offline-pick
 
 jobs:
   fetch:
+    # 스케줄 실행은 기존 투표율 수집 그대로, 수동(pipeline)은 회차감지->배당->투표율->독식픽 전체.
+    # (generate_round.yml은 main에 머지되기 전까지 workflow_dispatch 등록이 안 되므로,
+    # main에 이미 등록된 이 워크플로우 경로에 dispatch 전용 단계로 얹는다.)
+    if: github.event_name == 'schedule' || inputs.task == 'pipeline'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      # 수동 실행 시에만: 새 회차 감지 + 배당 수집을 먼저 돌려 "회차 생성 -> 데이터 수집 -> 독식픽"
-      # 전체 파이프라인이 된다. (generate_round.yml은 main에 머지되기 전까지 workflow_dispatch
-      # 등록이 안 되므로, main에 이미 등록된 이 워크플로우 경로에 dispatch 전용 단계로 얹는다.
-      # 스케줄 실행 동작은 기존과 동일.)
       - name: Detect/register new round (manual run only)
         if: github.event_name == 'workflow_dispatch'
         env:
@@ -40,3 +49,41 @@ jobs:
       - name: Print exclusive pick (manual run only)
         if: github.event_name == 'workflow_dispatch'
         run: npx tsx scripts/print_exclusive_pick.ts
+
+  # EPL/세리에A 과거경기 백필 데이터를 생성해 브랜치에 커밋한다 (수동 전용).
+  backfill:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'backfill'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Generate backfill data
+        run: npx tsx scripts/backfill_epl_seriea.ts
+      - name: Commit backfill data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add seed/backfill_epl_seriea.sql seed/backfill_epl_seriea.json seed/fotmob_current_names.json
+          git diff --cached --quiet && echo "변경 없음" && exit 0
+          git commit -m "EPL/세리에A 과거경기 백필 데이터 생성 (football-data.co.uk, FotMob 현재시즌 팀명 교차검증)"
+          git push
+
+  # 발매중 회차(예: 46회차)를 Worker 배포/D1 백필 없이 러너에서 직접 분석해 독식픽을 출력한다.
+  offline-pick:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'offline-pick'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Playwright
+        run: |
+          npm install playwright@1
+          npx playwright install --with-deps chromium
+      - name: Offline round pick
+        run: npx tsx scripts/offline_round_pick.ts

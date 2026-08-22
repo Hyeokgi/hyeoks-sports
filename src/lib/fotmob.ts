@@ -1,5 +1,13 @@
 // FotMob __NEXT_DATA__ 스크래핑 (crawl_and_update.py의 pageProps 이중 방어 파싱 이식)
-export const LEAGUE_IDS: Record<string, string> = { "K리그1": "9080", "K리그2": "9116", "J1리그": "223", "MLS": "130" };
+export const LEAGUE_IDS: Record<string, string> = {
+  "K리그1": "9080",
+  "K리그2": "9116",
+  "J1리그": "223",
+  "MLS": "130",
+  // 2026-08-22 46회차(EPL 7 + 세리에A 7)로 처음 등장해 편입. FotMob 표준 리그ID.
+  "EPL": "47",
+  "세리에A": "55",
+};
 
 const HEADERS = {
   "User-Agent":

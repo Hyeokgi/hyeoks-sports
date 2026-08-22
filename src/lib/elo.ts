@@ -13,6 +13,18 @@ export function homeAdvForLeague(league: string): number {
   return HOME_ADV_BY_LEAGUE[league] ?? HOME_ADV;
 }
 
+// 시즌 경계: K리그/J1/MLS는 역년(3~11월) 시즌이라 "연도 = 시즌"이 맞지만, EPL/세리에A는
+// 8월~이듬해 5월 교차연도 시즌이라 연도로 자르면 1월 1일에 시즌 회귀(SEASON_REGRESSION)가
+// 시즌 한가운데서 잘못 발동한다. 교차연도 리그는 7월을 경계로 "시즌 시작 연도"를 시즌으로 쓴다.
+const CROSS_YEAR_SEASON_LEAGUES = new Set(["EPL", "세리에A"]);
+
+export function seasonOf(league: string, date: string): number {
+  const d = new Date(date);
+  const y = d.getUTCFullYear();
+  if (!CROSS_YEAR_SEASON_LEAGUES.has(league)) return y;
+  return d.getUTCMonth() + 1 >= 7 ? y : y - 1;
+}
+
 export interface MatchRow {
   league: string;
   date: string; // ISO yyyy-mm-dd
@@ -62,7 +74,7 @@ export function computeEloAndHistory(matches: MatchRow[]): EloComputation {
 
   for (const row of matches) {
     const { league, home, away, hg, ag } = row;
-    const season = new Date(row.date).getUTCFullYear();
+    const season = seasonOf(league, row.date);
 
     for (const t of [home, away]) {
       const k = key(league, t);
