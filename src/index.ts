@@ -4,6 +4,7 @@ import { handlePredict } from "./routes/predict";
 import { handleCombinations } from "./routes/combinations";
 import { handleExclusivePick } from "./routes/exclusivePick";
 import { handleReport } from "./routes/report";
+import { handleSettlement } from "./routes/settlement";
 import {
   handleCorrectRoundNo,
   handleSync,
@@ -32,6 +33,10 @@ export default {
     try {
       if (pathname === "/api/rounds" && request.method === "GET") {
         return await handleListRounds(env);
+      }
+
+      if (pathname === "/api/settlement" && request.method === "GET") {
+        return await handleSettlement(env);
       }
 
       const roundMatch = pathname.match(ROUND_ID_RE);

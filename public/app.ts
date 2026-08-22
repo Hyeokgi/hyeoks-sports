@@ -57,6 +57,8 @@ const drawGuaranteeSelect = document.getElementById("draw-guarantee-select") as 
 const exclusivePickEl = document.getElementById("exclusive-pick") as HTMLDivElement;
 const upsetCountSelect = document.getElementById("upset-count-select") as HTMLSelectElement;
 const drawForceSelect = document.getElementById("draw-force-select") as HTMLSelectElement;
+const settlementSummaryEl = document.getElementById("settlement-summary") as HTMLDivElement;
+const settlementRoundsEl = document.getElementById("settlement-rounds") as HTMLDivElement;
 const tabButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".tab-btn"));
 const tabPages = Array.from(document.querySelectorAll<HTMLElement>(".tab-page"));
 
@@ -295,6 +297,55 @@ function renderExclusivePick() {
   exclusivePickEl.appendChild(box);
 }
 
+// 실전 정산 기록: /api/settlement이 계산한 회차별 기본픽 vs 독식픽 실적을 그대로 보여준다.
+// 백테스트 수치와 섞이지 않도록 "실전"임을 명시하고, 표본이 적으면 그 사실도 같이 적는다.
+function fmtShare(v: number | null): string {
+  return v == null ? "-" : `${(v * 1e6).toFixed(2)}/백만`;
+}
+
+async function loadSettlement() {
+  let data: any;
+  try {
+    const res = await fetch("/api/settlement");
+    data = await res.json();
+  } catch {
+    return;
+  }
+  const s = data?.summary;
+  const rounds: any[] = data?.rounds ?? [];
+  if (!s || s.rounds === 0) {
+    settlementSummaryEl.hidden = false;
+    settlementSummaryEl.innerHTML = `<span class="summary-note">아직 정산된 회차가 없습니다. 회차가 끝나면 여기에 실전 성적이 쌓입니다.</span>`;
+    return;
+  }
+
+  settlementSummaryEl.hidden = false;
+  settlementSummaryEl.innerHTML =
+    `<span class="summary-stat">📒 정산 ${s.rounds}회차 · ${s.settledMatches}경기</span>` +
+    `<span class="summary-note">기본픽 ${(s.basePickAccuracy * 100).toFixed(1)}% · 독식픽 ${(s.exclusivePickAccuracy * 100).toFixed(1)}% · 실제 무승부 ${(s.drawRate * 100).toFixed(1)}%</span>` +
+    (s.rounds < 5 ? `<span class="summary-note">⚠️ 표본 ${s.rounds}회차 — 아직 판단 근거로 쓰기엔 부족합니다</span>` : "");
+
+  settlementRoundsEl.innerHTML = "";
+  for (const r of rounds) {
+    if (r.settledMatches === 0) continue;
+    const box = document.createElement("div");
+    box.className = "combo-tier";
+    const head = document.createElement("div");
+    head.className = "tier-head";
+    head.innerHTML =
+      `<span>${r.roundNo ?? "?"}회차</span>` +
+      `<span>기본 ${r.basePickHits}/${r.settledMatches} · 독식 ${r.exclusivePickHits}/${r.settledMatches}</span>`;
+    box.appendChild(head);
+
+    const row = document.createElement("div");
+    row.className = "pick-row";
+    row.innerHTML =
+      `<span>실제 무승부 ${r.drawsActual}경기 · 이변반영 ${r.upsetCount}<span class="vote-note">대중 구매비중 — 실제 당첨조합 ${fmtShare(r.actualCrowdShare)} / 우리 독식픽 ${fmtShare(r.exclusiveCrowdShare)}</span></span>`;
+    box.appendChild(row);
+    settlementRoundsEl.appendChild(box);
+  }
+}
+
 async function loadRounds() {
   const res = await fetch("/api/rounds");
   const data = await res.json();
@@ -397,3 +448,4 @@ reportBtn.addEventListener("click", async () => {
 
 renderToggles();
 loadRounds();
+loadSettlement();
