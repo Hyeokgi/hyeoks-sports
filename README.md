@@ -64,7 +64,7 @@ python seed/export_history_to_sql.py
 
 46회차부터 EPL·세리에A 회차가 등장해 두 리그를 편입했다(MLS와 동일 절차 + 재현 가능 스크립트화). 웹앱에 46회차 이후 회차가 뜨려면 아래 순서로 반영해야 한다:
 
-1. D1 백필 적용: `npx wrangler d1 execute kleague-toto-db --remote --file=seed/backfill_epl_seriea.sql`
+1. D1 백필 적용: `npx wrangler d1 execute kleague-toto-db --remote --file=seed/backfill_leagues.sql`
    (백필 데이터 재생성은 `Fetch Betman Vote Share` 워크플로우 `task=backfill` - football-data.co.uk 3.5시즌 + FotMob 현재시즌 경기를 FotMob 팀명 기준으로 생성/커밋)
 2. Worker 배포: `npm run deploy` (신규 리그 nameMap/캘리브레이션 포함)
 3. 결과 동기화+회차 등록: `POST /api/admin/sync` → `POST /api/admin/detect-round` (또는 크론 대기, 또는 워크플로우 `task=pipeline`)

@@ -1,5 +1,5 @@
 // 한글 팀명 <-> FotMob 영문 팀명 매핑 (predict_round42_v2.py NAME_MAP 이식)
-export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A";
+export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A" | "라리가" | "분데스리가";
 
 export interface TeamMapEntry {
   nameKr: string;
@@ -98,7 +98,7 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   { nameKr: "인터마이", nameEn: "Inter Miami CF", league: "MLS" },
   { nameKr: "필라유니", nameEn: "Philadelphia Union", league: "MLS" },
   // EPL (2026-08-22 wisetoto 46회차 실데이터로 교차 확인된 14팀, FotMob 리그ID 47).
-  // nameKr은 wisetoto 실표기. nameEn은 FotMob 현재시즌 실표기와 backfill_epl_seriea.ts의
+  // nameKr은 wisetoto 실표기. nameEn은 FotMob 현재시즌 실표기와 backfill_leagues.ts의
   // 검증 단계(seed/fotmob_current_names.json)로 교차확인한다 - 불일치 발견 시 여기 정정.
   // 백필 데이터(football-data.co.uk)도 같은 표기로 변환해 저장한다.
   { nameKr: "에버턴", nameEn: "Everton", league: "EPL" },

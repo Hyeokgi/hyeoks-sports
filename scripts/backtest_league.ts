@@ -1,7 +1,7 @@
 // EPL/세리에A 워크포워드 백테스트 (npx tsx scripts/backtest_league.ts [grid])
 // calibration.ts에 기록된 기존 리그들과 동일 프로토콜: 각 경기를 "그 경기 이전 데이터만"으로
 // 예측(팀당 15경기+ 워밍업 후), 확신도(1-2위 확률차) 구간별 실제 적중률을 집계한다.
-// 데이터: seed/backfill_epl_seriea.json (backfill 워크플로우 산출물).
+// 데이터: seed/backfill_leagues.json (backfill 워크플로우 산출물).
 //
 // grid 모드: HOME_ADV 그리드서치(MLS 편입 때와 동일한 목적). 이때는 homeAdv를 주입해야 해서
 // predictMatch의 비마켓 경로(Elo 로지스틱 + 격차보정 무승부율)를 그대로 미러링한다 -
@@ -162,7 +162,7 @@ function runBacktest(matches: MatchRow[], league: string, homeAdvOverride: numbe
 }
 
 function main() {
-  const matches: MatchRow[] = JSON.parse(readFileSync("seed/backfill_epl_seriea.json", "utf-8"));
+  const matches: MatchRow[] = JSON.parse(readFileSync("seed/backfill_leagues.json", "utf-8"));
   const leagues = [...new Set(matches.map((m) => m.league))];
   const gridMode = process.argv.includes("grid");
 

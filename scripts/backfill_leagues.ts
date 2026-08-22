@@ -1,8 +1,12 @@
-// EPL/세리에A 과거경기 백필 데이터 생성 (npx tsx scripts/backfill_epl_seriea.ts, GitHub Actions 러너용).
+// 유럽 리그 과거경기 백필 데이터 생성 (npx tsx scripts/backfill_leagues.ts, GitHub Actions 러너용).
 //
 // 46회차(2026-08-22)가 EPL 7 + 세리에A 7 경기 회차로 처음 등장했는데, 두 리그는 matches 히스토리가
 // 없어 Elo/폼/H2H를 계산할 수 없다. MLS 편입(c4dad60)과 동일 절차의 백필을 재현 가능한 스크립트로
 // 만든다(당시 원본 스크립트는 scratchpad에만 있었음).
+//
+// 2026-08-22 확장: 라리가/분데스리가 추가. 두 리그는 아직 토토 회차에 안 나왔지만 1~41회차 과거
+// 데이터에 각각 20팀/18팀이 등장한 적이 있어 언제든 회차로 편성될 수 있고, 엔진 레포의
+// predict_engine.py(그 두 리그를 다루던 유일한 경로)를 은퇴시키려면 앱이 먼저 커버해야 한다.
 //
 // - 데이터 원천: football-data.co.uk 시즌별 CSV (로그인/키 불필요, 안정 포맷)
 // - 팀명: 앞으로의 자동 동기화(refreshHistory)는 FotMob 영문명을 쓰므로, football-data 표기를
@@ -10,19 +14,21 @@
 //   현재시즌 실데이터(리그 overview의 팀명 집합)와 교차검증하고, 현재시즌에 존재하는 팀이
 //   하나라도 매칭 실패하면 실패로 종료한다(과거 시즌에만 있던 강등팀은 백필 내부에서만 일관되면
 //   되므로 검증 대상에서 제외).
-// - 산출물: seed/backfill_epl_seriea.sql (D1 백필용), seed/backfill_epl_seriea.json (로컬 백테스트용),
+// - 산출물: seed/backfill_leagues.sql (D1 백필용), seed/backfill_leagues.json (로컬 백테스트용),
 //   seed/fotmob_current_names.json (검증에 쓴 FotMob 현재시즌 팀명 스냅샷)
 import { writeFileSync, mkdirSync } from "node:fs";
 import { fetchFinishedMatches, fetchUpcomingMatches, LEAGUE_IDS } from "../src/lib/fotmob";
 
 interface BackfillLeague {
-  league: "EPL" | "세리에A";
+  league: "EPL" | "세리에A" | "라리가" | "분데스리가";
   fdCode: string; // football-data.co.uk 리그 코드
 }
 
 const LEAGUES: BackfillLeague[] = [
   { league: "EPL", fdCode: "E0" },
   { league: "세리에A", fdCode: "I1" },
+  { league: "라리가", fdCode: "SP1" },
+  { league: "분데스리가", fdCode: "D1" },
 ];
 
 // 2023-24 ~ 2026-27(진행중). MLS 백필(약 2.5시즌)보다 넉넉한 3.5시즌 - H2H(최근 5회)까지 커버.
@@ -49,6 +55,10 @@ const FD_TO_FOTMOB: Record<string, Record<string, string>> = {
   // 세리에A: FotMob은 짧은 표기("Milan", "Inter", "Roma", "Verona")를 쓴다 - 2026-08-22 실측
   // (seed/fotmob_current_names.json). football-data 표기와 동일해 변환이 필요 없다.
   "세리에A": {},
+  // 라리가/분데스리가: 아래 값은 2026-08-22 FotMob 현재시즌 실측(seed/fotmob_current_names.json)과
+  // 대조해 채운 것. 매핑이 틀리면 실행 로그가 "FotMob 현재 팀 X는 백필 CSV에 없음"으로 드러낸다.
+  "라리가": {},
+  "분데스리가": {},
 };
 
 interface BackfillMatch {
@@ -213,20 +223,20 @@ async function main() {
 
   mkdirSync("seed", { recursive: true });
   writeFileSync("seed/fotmob_current_names.json", JSON.stringify(fotmobNames, null, 2));
-  writeFileSync("seed/backfill_epl_seriea.json", JSON.stringify(all, null, 1));
+  writeFileSync("seed/backfill_leagues.json", JSON.stringify(all, null, 1));
 
   const sqlLines = [
-    "-- EPL/세리에A 과거경기 백필 (scripts/backfill_epl_seriea.ts 생성물 - 수기 편집 금지)",
-    "-- 적용: npx wrangler d1 execute kleague-toto-db --remote --file=seed/backfill_epl_seriea.sql",
+    "-- 유럽 리그 과거경기 백필 (scripts/backfill_leagues.ts 생성물 - 수기 편집 금지)",
+    "-- 적용: npx wrangler d1 execute kleague-toto-db --remote --file=seed/backfill_leagues.sql",
   ];
   for (const m of all) {
     sqlLines.push(
       `INSERT OR IGNORE INTO matches (league, date, home, away, hg, ag) VALUES ('${sqlEscape(m.league)}', '${m.date}', '${sqlEscape(m.home)}', '${sqlEscape(m.away)}', ${m.hg}, ${m.ag});`,
     );
   }
-  writeFileSync("seed/backfill_epl_seriea.sql", sqlLines.join("\n") + "\n");
+  writeFileSync("seed/backfill_leagues.sql", sqlLines.join("\n") + "\n");
 
-  console.log(`\n총 ${all.length}경기 백필 생성 완료 (seed/backfill_epl_seriea.{sql,json})`);
+  console.log(`\n총 ${all.length}경기 백필 생성 완료 (seed/backfill_leagues.{sql,json})`);
 }
 
 main().catch((err) => {

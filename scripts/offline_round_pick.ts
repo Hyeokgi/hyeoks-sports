@@ -2,7 +2,7 @@
 // (npx tsx scripts/offline_round_pick.ts, GitHub Actions offline-pick job에서 실행)
 //
 // 46회차(EPL/세리에A)처럼 "코드에는 리그가 편입됐지만 아직 배포/백필 전"인 회차를 위해:
-// - 히스토리: seed/backfill_epl_seriea.json (backfill 워크플로우가 커밋한 산출물)
+// - 히스토리: seed/backfill_leagues.json (backfill 워크플로우가 커밋한 산출물)
 // - 경기목록/배당: wisetoto (src/lib/wisetoto + fetch_market_odds.mjs와 동일 파싱)
 // - 투표율: betman (fetch_vote_share.mjs와 동일 Playwright 가로채기)
 // - 모델/픽: src/lib prediction/exclusivePick 공유 (웹앱과 동일 로직, 중복 구현 금지)
@@ -164,7 +164,7 @@ function recentDrawStats(history: MatchRow[]) {
 }
 
 async function main() {
-  const history: MatchRow[] = JSON.parse(readFileSync("seed/backfill_epl_seriea.json", "utf-8"));
+  const history: MatchRow[] = JSON.parse(readFileSync("seed/backfill_leagues.json", "utf-8"));
   const { elo, teamHistory, h2h } = computeEloAndHistory(history);
   const drawRates = new Map<string, number>();
   for (const lg of new Set(history.map((m) => m.league))) drawRates.set(lg, leagueDrawRate(history, lg));

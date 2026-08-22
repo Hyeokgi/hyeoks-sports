@@ -10,7 +10,7 @@ export interface Env {
   ADMIN_TOKEN?: string;
 }
 
-export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A";
+export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A" | "라리가" | "분데스리가";
 
 export interface RoundRow {
   id: number;

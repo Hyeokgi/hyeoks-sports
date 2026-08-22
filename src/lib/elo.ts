@@ -16,7 +16,7 @@ export function homeAdvForLeague(league: string): number {
 // 시즌 경계: K리그/J1/MLS는 역년(3~11월) 시즌이라 "연도 = 시즌"이 맞지만, EPL/세리에A는
 // 8월~이듬해 5월 교차연도 시즌이라 연도로 자르면 1월 1일에 시즌 회귀(SEASON_REGRESSION)가
 // 시즌 한가운데서 잘못 발동한다. 교차연도 리그는 7월을 경계로 "시즌 시작 연도"를 시즌으로 쓴다.
-const CROSS_YEAR_SEASON_LEAGUES = new Set(["EPL", "세리에A"]);
+const CROSS_YEAR_SEASON_LEAGUES = new Set(["EPL", "세리에A", "라리가", "분데스리가"]);
 
 export function seasonOf(league: string, date: string): number {
   const d = new Date(date);
