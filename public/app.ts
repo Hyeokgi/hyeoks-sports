@@ -3,6 +3,7 @@ import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type PredictionI
 import { generateSystemBetTiers, DEFAULT_BUDGET_TIERS, generateSystemBet, type ComboMatch } from "../src/lib/combinations";
 import { findCalibrationBucket, confidenceTier, TIER_EMOJI } from "../src/lib/calibration";
 import { computeUpsetSignal } from "../src/lib/upsetSignal";
+import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
 
 interface MatchData {
   seq: number;
@@ -21,6 +22,8 @@ interface MatchData {
   };
   // 회차가 정산되면 채워짐(경기 전이면 null) - 적중현황 표시용.
   result: { actual: "H" | "D" | "A"; hg: number; ag: number } | null;
+  // betman 투표(매수)율 최신 스냅샷 %. 발매 전/미수집이면 null - 독식 픽 계산에 사용.
+  voteShare: { home: number; draw: number; away: number } | null;
 }
 
 const RESULT_LABEL: Record<"H" | "D" | "A", "홈승" | "무승부" | "원정승"> = { H: "홈승", D: "무승부", A: "원정승" };
@@ -51,6 +54,8 @@ const budgetBtn = document.getElementById("budget-custom-btn") as HTMLButtonElem
 const reportBtn = document.getElementById("report-btn") as HTMLButtonElement;
 const reportText = document.getElementById("report-text") as HTMLParagraphElement;
 const drawGuaranteeSelect = document.getElementById("draw-guarantee-select") as HTMLSelectElement;
+const exclusivePickEl = document.getElementById("exclusive-pick") as HTMLDivElement;
+const upsetCountSelect = document.getElementById("upset-count-select") as HTMLSelectElement;
 const tabButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".tab-btn"));
 const tabPages = Array.from(document.querySelectorAll<HTMLElement>(".tab-page"));
 
@@ -184,6 +189,7 @@ function renderMatches() {
       <div>상대전적(H2H) 성향: ${m.raw.h2hDiff.toFixed(2)} (표본 ${m.raw.nH2h}회)</div>
       <div>리그 실측 무승부율: ${(m.raw.leagueDrawRate * 100).toFixed(1)}%</div>
       ${m.raw.cornersDiff != null ? `<div>최근 폼(5경기) 코너킥 차이: ${m.raw.cornersDiff.toFixed(1)}개 (K리그2 실증 검증된 피처)</div>` : ""}
+      ${m.voteShare ? `<div>betman 투표율: 홈 ${m.voteShare.home.toFixed(1)}% / 무 ${m.voteShare.draw.toFixed(1)}% / 원정 ${m.voteShare.away.toFixed(1)}%</div>` : ""}
     `;
     evidenceBtn.addEventListener("click", () => {
       evidenceBody.hidden = !evidenceBody.hidden;
@@ -234,6 +240,54 @@ function renderCombos() {
   plans.forEach((plan, i) => {
     renderComboPlan(comboTiersEl, `${DEFAULT_BUDGET_TIERS[i].toLocaleString()}원 예산`, plan);
   });
+  renderExclusivePick();
+}
+
+// 독식 지향 픽: 모델픽을 덮어쓰지 않고 별도 박스로만 보여준다(exclusivePick.ts 주석 참고).
+function renderExclusivePick() {
+  exclusivePickEl.innerHTML = "";
+  if (currentMatches.length === 0) return;
+
+  const inputs: ExclusiveMatchInput[] = currentMatches.map((m) => ({
+    seq: m.seq,
+    league: m.league,
+    home: m.home,
+    away: m.away,
+    prediction: predictMatch(toInputs(m), currentToggles),
+    voteShare: m.voteShare,
+  }));
+  const maxUpsets = Number(upsetCountSelect.value) || 0;
+  const result = generateExclusivePick(inputs, { maxUpsets });
+
+  const box = document.createElement("div");
+  box.className = "combo-tier";
+
+  const head = document.createElement("div");
+  head.className = "tier-head";
+  const edgeText =
+    result.payoutEdge != null ? `기대 배당가치 ${result.payoutEdge.toFixed(1)}배` : "투표율 수집 대기";
+  head.innerHTML = `<span>독식픽 (이변 ${result.upsetCount}경기)</span><span>${edgeText}</span>`;
+  box.appendChild(head);
+
+  for (const p of result.picks) {
+    const row = document.createElement("div");
+    row.className = "pick-row";
+    const voteText = p.votePct != null ? `투표 ${p.votePct.toFixed(1)}%` : "투표율 없음";
+    const upsetBadge = p.isUpset
+      ? ` <span class="upset-badge">이변</span> <s class="base-pick">${p.basePick}</s>`
+      : "";
+    row.innerHTML =
+      `<span>${p.seq}. ${p.home} vs ${p.away}<span class="vote-note">모델 ${(p.modelProb * 100).toFixed(0)}% · ${voteText}</span></span>` +
+      `<span class="pick-tags">${upsetBadge}<span class="${p.pick}">${p.pick}</span></span>`;
+    box.appendChild(row);
+  }
+
+  const note = document.createElement("p");
+  note.className = "hint";
+  note.textContent = result.note;
+  box.appendChild(note);
+
+  exclusivePickEl.appendChild(box);
 }
 
 async function loadRounds() {
@@ -274,6 +328,7 @@ async function loadRound(roundId: number) {
       cornersDiff: m.raw.cornersDiff ?? null,
     },
     result: m.result ?? null,
+    voteShare: m.voteShare ?? null,
   }));
   renderMatches();
   renderCombos();
@@ -297,6 +352,10 @@ budgetBtn.addEventListener("click", () => {
 
 drawGuaranteeSelect.addEventListener("change", () => {
   renderCombos();
+});
+
+upsetCountSelect.addEventListener("change", () => {
+  renderExclusivePick();
 });
 
 function switchTab(tabName: string) {

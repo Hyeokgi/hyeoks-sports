@@ -50,6 +50,15 @@ python seed/export_history_to_sql.py
 - `PATCH /api/admin/rounds/:id` - `{"round_no": 42}`로 실제 공식 회차번호 수동 보정 (betman.co.kr에서 확인 필요)
 - `POST /api/admin/notify-test` - 텔레그램 발송 테스트
 
+## 독식 지향 픽
+
+승무패는 파리뮤추얼이라 당첨금이 당첨자 수에 반비례한다. `src/lib/exclusivePick.ts`는 모델 1픽을 기준으로, 적중확률 손실이 작으면서 betman 투표가 덜 몰린 결과로만 제한적으로 뒤집어 "당첨 시 단독(독식) 가능성"을 높이는 픽을 만든다(당첨확률 자체를 높이는 게 아님 - UI/로그에 항상 병기).
+
+- 웹앱: 베팅추천 탭 상단 "👑 독식 지향 픽" (이변 반영 경기 수 조절 가능)
+- API: `POST /api/rounds/:id/exclusive-pick` (body: `{toggles?, options?}`)
+- CLI: `npx tsx scripts/print_exclusive_pick.ts` (배포된 Worker 데이터 기준)
+- GitHub Actions: `Generate Round & Exclusive Pick` 워크플로우(workflow_dispatch) - 회차 감지 → 배당 수집 → betman 투표율 수집 → 독식 픽 로그 출력을 한 번에 실행
+
 ## 알려진 제약
 
 - betman.co.kr 공식 회차 확인은 세션 게이트가 있어 Worker에서 직접 스크래핑 불가. `detectNewRound` 크론은 FotMob 예정 경기로 "다음 14경기 묶음"을 추정만 하며, 실제 회차번호는 위 관리자 API로 수동 보정해야 한다.

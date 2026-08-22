@@ -54,6 +54,26 @@
         <h2>💰 예산별 구매 조합</h2>
       </div>
 
+      <div class="info-block exclusive-block">
+        <h3>👑 독식 지향 픽 (betman 투표율 반영)</h3>
+        <p class="hint">
+          당첨금은 당첨 조합을 산 사람 수에 반비례합니다. 모델 1픽을 기준으로, 적중확률 손실이 작으면서
+          대중 투표가 덜 몰린 결과로만 제한적으로 뒤집어 <b>당첨 시 단독(독식) 가능성</b>을 높입니다.
+          당첨확률 자체를 높이는 기능이 아닙니다.
+        </p>
+        <div class="option-row">
+          <label for="upset-count-select">이변 반영 최대 경기 수</label>
+          <select id="upset-count-select">
+            <option value="0">사용 안 함</option>
+            <option value="1">1경기</option>
+            <option value="2">2경기</option>
+            <option value="3" selected>3경기</option>
+            <option value="4">4경기</option>
+          </select>
+        </div>
+        <div id="exclusive-pick" class="combo-tiers"></div>
+      </div>
+
       <div class="option-row">
         <label for="draw-guarantee-select">무승부 강제 포함</label>
         <select id="draw-guarantee-select">
