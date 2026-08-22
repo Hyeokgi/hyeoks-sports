@@ -13,11 +13,30 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      # 수동 실행 시에만: 새 회차 감지 + 배당 수집을 먼저 돌려 "회차 생성 -> 데이터 수집 -> 독식픽"
+      # 전체 파이프라인이 된다. (generate_round.yml은 main에 머지되기 전까지 workflow_dispatch
+      # 등록이 안 되므로, main에 이미 등록된 이 워크플로우 경로에 dispatch 전용 단계로 얹는다.
+      # 스케줄 실행 동작은 기존과 동일.)
+      - name: Detect/register new round (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/detect_round.mjs
+      - name: Fetch market odds (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true # 배당이 아직 없어도 이후 단계는 진행
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/fetch_market_odds.mjs
       - name: Install Playwright
         run: |
           npm install playwright@1
           npx playwright install --with-deps chromium
       - name: Run vote share fetcher
+        continue-on-error: true # 발매 전이면 투표율이 없을 수 있음 - 독식픽 출력은 계속 진행
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: node scripts/fetch_vote_share.mjs
+      - name: Print exclusive pick (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        run: npx tsx scripts/print_exclusive_pick.ts
