@@ -64,8 +64,9 @@ describe("generateExclusivePick", () => {
   });
 
   it("minAltProb보다 낮은 확률의 결과로는 절대 뒤집지 않는다(장거리 역배당 차단)", () => {
-    // 원정승 10%는 대중이 2%만 찍어 가치비가 5배지만 확률이 너무 낮다
-    const m = match(1, [0.7, 0.2, 0.1], [90, 8, 2]);
+    // 원정승 10%는 대중이 2%만 찍어 가치비가 기본픽 대비 3.9배지만, 확률이 minAltProb(0.15) 미만이라
+    // 후보에서 제외돼야 한다. 무승부는 대중이 오히려 과베팅(43%)이라 가치이득 하한에 걸려 탈락한다.
+    const m = match(1, [0.7, 0.2, 0.1], [55, 43, 2]);
     const result = generateExclusivePick([m]);
     expect(result.picks[0].pick).toBe("홈승");
     expect(result.upsetCount).toBe(0);
@@ -86,7 +87,7 @@ describe("generateExclusivePick", () => {
   });
 
   it("가치비 이득이 minValueGain 미만이면 뒤집지 않는다", () => {
-    // 무승부가 약간 저평가지만(1.1배 수준) 기본 임계값 1.3배에 못 미침
+    // 무승부가 약간 저평가지만(1.2배 수준) 기본 임계값 1.5배에 못 미침
     const m = match(1, [0.45, 0.35, 0.2], [50, 32, 18]);
     const result = generateExclusivePick(m ? [m] : []);
     expect(result.upsetCount).toBe(0);
@@ -108,10 +109,10 @@ describe("generateExclusivePick", () => {
 
   it("기본 옵션이 문서화된 값과 일치한다(가드)", () => {
     expect(DEFAULT_EXCLUSIVE_OPTIONS).toEqual({
-      maxUpsets: 3,
-      minProbRetention: 0.35,
-      minAltProb: 0.2,
-      minValueGain: 1.3,
+      maxUpsets: 5,
+      minProbRetention: 0.15,
+      minAltProb: 0.15,
+      minValueGain: 1.5,
       forceDrawCount: 0,
     });
   });

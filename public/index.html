@@ -67,8 +67,10 @@
             <option value="0">사용 안 함</option>
             <option value="1">1경기</option>
             <option value="2">2경기</option>
-            <option value="3" selected>3경기</option>
+            <option value="3">3경기</option>
             <option value="4">4경기</option>
+            <option value="5" selected>5경기 (권장)</option>
+            <option value="6">6경기</option>
           </select>
         </div>
         <div class="option-row">
@@ -84,6 +86,13 @@
         <p class="hint">
           과거 시즌 무승부율 기준 14경기당 무승부는 평균 3~4개 나옵니다(EPL 최근 2시즌 25.9%, 세리에A 27.2%).
           강제 포함 시 대중이 무승부를 가장 저평가한 경기부터 채우며, 적중확률은 그만큼 크게 낮아집니다.
+          <b>1~41회차 실측에서 이 옵션은 기대값을 개선하지 않았습니다</b> — 무승부가 몰리는 회차를 커버하는
+          분산 목적이지, 수익 최적화 수단이 아닙니다(기본값 사용 안 함).
+        </p>
+        <p class="hint">
+          이변 기본값은 1~41회차 실측 38회차에 이 코드를 그대로 돌려 정한 값입니다. 종전 기본값(3경기)은
+          우리 픽의 대중 구매비중이 실제 당첨조합보다 <b>164배 혼잡</b>해 독식이라는 목적을 달성하지
+          못했고, 현재 값(5경기)은 적중 기대치를 거의 그대로 두면서 혼잡도를 15배까지 낮춥니다.
         </p>
         <div id="exclusive-pick" class="combo-tiers"></div>
       </div>

@@ -46,16 +46,28 @@ export interface ExclusivePickOptions {
   // 무승부를 N경기 강제로 픽에 포함한다(과거 시즌 무승부율 앵커 - 예: EPL/세리에A 최근 2시즌
   // 25.9~27.2%면 14경기 기대 무승부 3.7개). 무승부는 확률 1위가 거의 없어 기본/이변 픽에
   // 잘 안 들어오므로, 역사적 빈도에 맞추고 싶을 때 쓴다. 슬롯 선정은 가치비 점수(+drawBias) 순.
+  // 2026-08-22 실측 확인: 이 옵션은 EV를 개선하지 않는다(38회차 스윕에서 강제 0~4개로 갈수록
+  // EV 6.3 -> 5.5배로 오히려 감소). 무승부가 몰리는 회차를 커버하는 "분산" 목적이지 기대값
+  // 최적화 수단이 아니므로, 기본값은 0을 유지하고 사용자가 명시적으로 켤 때만 적용한다.
   // 강제 슬롯은 minValueGain/minProbRetention/maxUpsets 제약을 우회한다 - 그만큼 적중확률이
   // 크게 깎이며, 결과 요약에 그대로 드러난다.
   forceDrawCount?: number;
 }
 
+// 2026-08-22: 1~41회차 실측(투표율+결과, 38개 완전회차)에 이 코드를 그대로 돌린 파라미터 스윕으로
+// 재조정했다(scripts/tune_exclusive.ts). 종전 기본값(이변3/유지0.35)은 적중 5.68/14를 지키는 대신
+// 우리 픽의 대중 구매비중 중앙값이 27.9/백만 — 실제 당첨조합 중앙값(0.17/백만)보다 164배 혼잡해서
+// "독식"이라는 목적 자체를 달성하지 못했다. 아래 값은 적중을 거의 그대로 두면서(5.58/14) 혼잡도를
+// 15배 수준까지 낮춘 지점이다(EV 3.8배).
+//
+// minProbRetention이 지배적 레버이고 EV는 이 값을 낮출수록 단조 증가한다(0.05까지 12.8배). 즉
+// "EV 최대화"만으로는 멈출 지점이 없어 극단 롱샷으로 폭주하므로, 실제 당첨조합 희소성과 같은
+// 자릿수에 들어가는 선에서 멈춘 판단값이다.
 export const DEFAULT_EXCLUSIVE_OPTIONS: Required<ExclusivePickOptions> = {
-  maxUpsets: 3,
-  minProbRetention: 0.35,
-  minAltProb: 0.2,
-  minValueGain: 1.3,
+  maxUpsets: 5,
+  minProbRetention: 0.15,
+  minAltProb: 0.15,
+  minValueGain: 1.5,
   forceDrawCount: 0,
 };
 
