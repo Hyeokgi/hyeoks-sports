@@ -9,7 +9,7 @@
 import { readFileSync } from "node:fs";
 import { discoverRoundMasterSeq, fetchRoundFixtures } from "../src/lib/wisetoto";
 import { NAME_MAP, leagueOfKr } from "../src/lib/nameMap";
-import { computeEloAndHistory, recentForm, h2hDiff as computeH2hDiff, leagueDrawRate, type MatchRow } from "../src/lib/elo";
+import { computeEloAndHistory, recentForm, h2hDiff as computeH2hDiff, leagueDrawRate, seasonOf, type MatchRow } from "../src/lib/elo";
 import { predictMatch, DEFAULT_TOGGLES, FALLBACK_DRAW_RATE } from "../src/lib/prediction";
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
 
@@ -134,11 +134,41 @@ async function fetchBetmanVotes(roundNo: number): Promise<Map<string, { home: nu
   return result;
 }
 
+// 최근 2개 "완료" 시즌(진행중 시즌 제외)의 리그/팀별 무승부율 - forceDrawCount 앵커와
+// 슬롯 선정용 drawBias 계산에 쓴다. 표본이 작아(팀당 38~76경기) 성향 배수로만 쓰고
+// 확률 자체는 건드리지 않는다(exclusivePick.ts drawBias 주석 참고).
+function recentDrawStats(history: MatchRow[]) {
+  const maxSeason = Math.max(...history.map((m) => seasonOf(m.league, m.date)));
+  const inRecent = (m: MatchRow) => {
+    const s = seasonOf(m.league, m.date);
+    return s >= maxSeason - 2 && s < maxSeason;
+  };
+  const league = new Map<string, { d: number; n: number }>();
+  const team = new Map<string, { d: number; n: number }>();
+  for (const m of history) {
+    if (!inRecent(m)) continue;
+    const isDraw = m.hg === m.ag ? 1 : 0;
+    const lg = league.get(m.league) ?? { d: 0, n: 0 };
+    lg.d += isDraw;
+    lg.n++;
+    league.set(m.league, lg);
+    for (const t of [m.home, m.away]) {
+      const k = `${m.league}|${t}`;
+      const ts = team.get(k) ?? { d: 0, n: 0 };
+      ts.d += isDraw;
+      ts.n++;
+      team.set(k, ts);
+    }
+  }
+  return { league, team };
+}
+
 async function main() {
   const history: MatchRow[] = JSON.parse(readFileSync("seed/backfill_epl_seriea.json", "utf-8"));
   const { elo, teamHistory, h2h } = computeEloAndHistory(history);
   const drawRates = new Map<string, number>();
   for (const lg of new Set(history.map((m) => m.league))) drawRates.set(lg, leagueDrawRate(history, lg));
+  const recentDraw = recentDrawStats(history);
 
   const { gameYear, gameRound } = process.env.ROUND_NO
     ? { gameYear: String(new Date().getUTCFullYear()), gameRound: process.env.ROUND_NO }
@@ -197,7 +227,18 @@ async function main() {
       DEFAULT_TOGGLES,
     );
     const vote = votesBySig.get(sig) ?? null;
-    inputs.push({ seq: f.seq, league, home: f.homeKr, away: f.awayKr, prediction, voteShare: vote });
+
+    // 최근 2개 완료 시즌 팀 무승부 성향 배수(무승부 강제 슬롯 선정 순서용)
+    const lgStat = recentDraw.league.get(league);
+    const hStat = recentDraw.team.get(`${league}|${homeEn}`);
+    const aStat = recentDraw.team.get(`${league}|${awayEn}`);
+    const rates = [hStat, aStat].filter((s) => s && s.n > 0).map((s) => s!.d / s!.n);
+    const drawBias =
+      lgStat && lgStat.n > 0 && rates.length > 0
+        ? rates.reduce((s, x) => s + x, 0) / rates.length / (lgStat.d / lgStat.n)
+        : 1;
+
+    inputs.push({ seq: f.seq, league, home: f.homeKr, away: f.awayKr, prediction, voteShare: vote, drawBias });
     evidence.push(
       `${String(f.seq).padStart(2)}. Elo차 ${eloDiff.toFixed(0)} / 폼차 ${(formHome.avgPts - formAway.avgPts).toFixed(2)} / H2H ${h2h_.diff.toFixed(2)}(n=${h2h_.n}) / 히스토리 ${nHome}·${nAway}경기` +
         (market ? ` / 배당(${market.nBookmakers}개사) ${(market.pHome * 100).toFixed(0)}-${(market.pDraw * 100).toFixed(0)}-${(market.pAway * 100).toFixed(0)}` : " / 배당 없음"),
@@ -205,13 +246,35 @@ async function main() {
   }
 
   const maxUpsets = process.env.MAX_UPSETS ? Number(process.env.MAX_UPSETS) : undefined;
-  const result = generateExclusivePick(inputs, maxUpsets != null ? { maxUpsets } : {});
+
+  // FORCE_DRAWS: 숫자 = 그 수만큼 무승부 강제 / "auto" = 최근 2개 완료 시즌 무승부율로 앵커
+  // (경기별 리그 무승부율 합 = 이 회차의 기대 무승부 수를 반올림) / 미설정 = 강제 없음
+  let forceDrawCount = 0;
+  if (process.env.FORCE_DRAWS === "auto") {
+    const expected = inputs.reduce((s, i) => {
+      const lg = recentDraw.league.get(i.league);
+      return s + (lg && lg.n > 0 ? lg.d / lg.n : 0.26);
+    }, 0);
+    forceDrawCount = Math.round(expected);
+    console.log(`FORCE_DRAWS=auto: 최근 2개 완료 시즌 무승부율 기준 기대 무승부 ${expected.toFixed(1)}개 → ${forceDrawCount}개 강제`);
+  } else if (process.env.FORCE_DRAWS) {
+    forceDrawCount = Number(process.env.FORCE_DRAWS) || 0;
+  }
+
+  const result = generateExclusivePick(inputs, {
+    ...(maxUpsets != null ? { maxUpsets } : {}),
+    forceDrawCount,
+  });
 
   console.log(`\n===== ${gameRound}회차 독식 지향 픽 (오프라인 분석) =====\n`);
   for (const p of result.picks) {
     const probs = inputs.find((i) => i.seq === p.seq)!.prediction;
     const vote = p.votePct != null ? `투표 ${p.votePct.toFixed(1)}%` : "투표율 없음";
-    const mark = p.isUpset ? ` ★이변 (기본픽 ${p.basePick})` : "";
+    const mark = p.isForcedDraw
+      ? ` ◆무승부 강제 (기본픽 ${p.basePick})`
+      : p.isUpset
+        ? ` ★이변 (기본픽 ${p.basePick})`
+        : "";
     console.log(
       `${String(p.seq).padStart(2)}. [${p.league}] ${p.home} vs ${p.away} → ${p.pick}${mark}\n` +
         `    모델 홈${(probs.pHome * 100).toFixed(0)}/무${(probs.pDraw * 100).toFixed(0)}/원정${(probs.pAway * 100).toFixed(0)}% · 픽확률 ${(p.modelProb * 100).toFixed(0)}% · ${vote}`,

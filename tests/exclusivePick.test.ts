@@ -112,6 +112,48 @@ describe("generateExclusivePick", () => {
       minProbRetention: 0.35,
       minAltProb: 0.2,
       minValueGain: 1.3,
+      forceDrawCount: 0,
     });
+  });
+});
+
+describe("generateExclusivePick forceDrawCount", () => {
+  it("가치비가 가장 좋은 무승부 슬롯부터 N개를 강제로 채운다", () => {
+    // 1번: 무승부 크게 저평가(모델 25% vs 투표 10%), 2번: 무승부 과대베팅(29% vs 40%)
+    const undervalued = match(1, [0.55, 0.25, 0.2], [80, 10, 10]);
+    const overbet = match(2, [0.41, 0.29, 0.3], [35, 40, 25]);
+    const result = generateExclusivePick([undervalued, overbet], { forceDrawCount: 1, maxUpsets: 0 });
+    expect(result.forcedDrawCount).toBe(1);
+    expect(result.picks[0].pick).toBe("무승부");
+    expect(result.picks[1].pick).toBe("홈승");
+  });
+
+  it("강제 무승부는 minProbRetention 하한을 우회하지만 retention에는 반영된다", () => {
+    const m = match(1, [0.6, 0.2, 0.2], [80, 10, 10]);
+    const result = generateExclusivePick([m], { forceDrawCount: 1, minProbRetention: 0.9 });
+    expect(result.picks[0].pick).toBe("무승부");
+    expect(result.probRetention).toBeCloseTo(0.2 / 0.6, 10);
+  });
+
+  it("drawBias는 선정 순서만 바꾸고 확률 집계는 원본 그대로다", () => {
+    // 가치비는 1번이 근소하게 우세하지만 2번의 최근 시즌 무승부 성향이 훨씬 높음
+    const a = { ...match(1, [0.5, 0.26, 0.24], [60, 20, 20]), drawBias: 1.0 };
+    const b = { ...match(2, [0.5, 0.25, 0.25], [60, 20, 20]), drawBias: 1.5 };
+    const result = generateExclusivePick([a, b], { forceDrawCount: 1, maxUpsets: 0 });
+    expect(result.picks[1].pick).toBe("무승부");
+    expect(result.picks[1].modelProb).toBeCloseTo(0.25, 10); // bias가 확률을 덮어쓰지 않음
+  });
+
+  it("일반 이변은 강제 무승부로 줄어든 retention 위에서 하한을 지킨다", () => {
+    const forcedTarget = match(1, [0.6, 0.2, 0.2], [85, 5, 10]); // 무승부 강제 (비용 3배, 무 가치비 4.0)
+    const flippable = match(2, [0.45, 0.25, 0.3], [70, 20, 10]); // 원정승 이변 후보(가치 4.7배)
+    const result = generateExclusivePick([forcedTarget, flippable], {
+      forceDrawCount: 1,
+      minProbRetention: 0.3, // 강제 후 retention 0.333 - 추가 이변(÷1.5 → 0.222)은 하한 미달로 차단
+    });
+    expect(result.forcedDrawCount).toBe(1);
+    expect(result.picks[0].pick).toBe("무승부");
+    expect(result.upsetCount).toBe(0);
+    expect(result.picks[1].pick).toBe("홈승");
   });
 });

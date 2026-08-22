@@ -28,12 +28,19 @@ async function main() {
   }));
 
   const maxUpsets = process.env.MAX_UPSETS ? Number(process.env.MAX_UPSETS) : undefined;
-  const result = generateExclusivePick(inputs, maxUpsets != null ? { maxUpsets } : {});
+  // FORCE_DRAWS: 무승부 강제 슬롯 수. 팀별 성향(drawBias)은 히스토리가 필요해 offline_round_pick.ts
+  // 전용이고, 여기서는 가치비 순으로만 선정된다.
+  const forceDrawCount = process.env.FORCE_DRAWS ? Number(process.env.FORCE_DRAWS) || 0 : 0;
+  const result = generateExclusivePick(inputs, { ...(maxUpsets != null ? { maxUpsets } : {}), forceDrawCount });
 
   console.log(`\n===== ${round.round_no ?? "?"}회차 독식 지향 픽 (round id=${round.id}) =====\n`);
   for (const p of result.picks) {
     const vote = p.votePct != null ? `투표 ${p.votePct.toFixed(1)}%` : "투표율 없음";
-    const mark = p.isUpset ? ` ★이변 (기본픽 ${p.basePick})` : "";
+    const mark = p.isForcedDraw
+      ? ` ◆무승부 강제 (기본픽 ${p.basePick})`
+      : p.isUpset
+        ? ` ★이변 (기본픽 ${p.basePick})`
+        : "";
     console.log(
       `${String(p.seq).padStart(2)}. [${p.league}] ${p.home} vs ${p.away} → ${p.pick} (모델 ${(p.modelProb * 100).toFixed(0)}%, ${vote})${mark}`,
     );

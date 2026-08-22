@@ -28,6 +28,10 @@ export interface ExclusiveMatchInput {
   prediction: MatchPrediction;
   // betman 투표(매수)율 %, 미수집이면 null - null인 경기는 가치비 신호가 없어 절대 뒤집지 않는다.
   voteShare: { home: number; draw: number; away: number } | null;
+  // 최근 시즌 팀별 무승부 성향 배수(양팀 무승부율 평균 ÷ 리그 무승부율, 기본 1). forceDrawCount의
+  // "어느 경기를 무승부로 채울지" 선정 순서에만 쓰고, 확률/기대값 계산은 항상 원본 모델확률을
+  // 그대로 쓴다 - 표본이 작은(팀당 38~76경기) 성향 통계로 확률 자체를 덮어쓰지 않는다(정직성 원칙).
+  drawBias?: number;
 }
 
 export interface ExclusivePickOptions {
@@ -39,6 +43,12 @@ export interface ExclusivePickOptions {
   minAltProb?: number;
   // (대안 가치비)/(기본픽 가치비) 최소 배수 - 이 배수 이상 유리할 때만 뒤집는다
   minValueGain?: number;
+  // 무승부를 N경기 강제로 픽에 포함한다(과거 시즌 무승부율 앵커 - 예: EPL/세리에A 최근 2시즌
+  // 25.9~27.2%면 14경기 기대 무승부 3.7개). 무승부는 확률 1위가 거의 없어 기본/이변 픽에
+  // 잘 안 들어오므로, 역사적 빈도에 맞추고 싶을 때 쓴다. 슬롯 선정은 가치비 점수(+drawBias) 순.
+  // 강제 슬롯은 minValueGain/minProbRetention/maxUpsets 제약을 우회한다 - 그만큼 적중확률이
+  // 크게 깎이며, 결과 요약에 그대로 드러난다.
+  forceDrawCount?: number;
 }
 
 export const DEFAULT_EXCLUSIVE_OPTIONS: Required<ExclusivePickOptions> = {
@@ -46,6 +56,7 @@ export const DEFAULT_EXCLUSIVE_OPTIONS: Required<ExclusivePickOptions> = {
   minProbRetention: 0.35,
   minAltProb: 0.2,
   minValueGain: 1.3,
+  forceDrawCount: 0,
 };
 
 export interface ExclusiveMatchPick {
@@ -56,6 +67,7 @@ export interface ExclusiveMatchPick {
   pick: Outcome;
   basePick: Outcome; // 모델 1픽(항상 병기 - 메인픽을 덮어쓰지 않는다는 원칙의 표현)
   isUpset: boolean; // basePick과 다른 결과로 뒤집었는가
+  isForcedDraw: boolean; // forceDrawCount로 강제된 무승부 슬롯인가(이변과 구분 표시용)
   modelProb: number; // pick의 모델확률
   votePct: number | null; // pick의 betman 투표율(%), 미수집이면 null
   valueRatio: number | null; // 모델확률/투표율(투표율 없으면 null) - 1보다 크면 대중이 저평가
@@ -65,6 +77,7 @@ export interface ExclusiveMatchPick {
 export interface ExclusivePickResult {
   picks: ExclusiveMatchPick[];
   upsetCount: number;
+  forcedDrawCount: number; // forceDrawCount로 강제된 무승부 슬롯 수(upsetCount와 별도)
   matchesWithVote: number; // 투표율이 있는 경기 수(없으면 기본픽과 동일해짐)
   // 모델 기준 적중확률(경기 독립 근사 곱). 둘 다 극히 작은 값이며 상대비교용이다.
   baseHitProb: number;
@@ -118,8 +131,35 @@ export function generateExclusivePick(
   const views = matches.map(outcomeViews);
   const tops = matches.map((m, i) => views[i].find((v) => v.outcome === m.prediction.rankedPicks[0])!);
 
+  // 1단계: 무승부 강제 슬롯 (forceDrawCount). 선정 점수에만 drawBias(최근 시즌 팀 무승부 성향)를
+  // 곱하고, 이후 확률/기대값 집계는 원본 모델확률로만 한다.
+  const forced = new Map<number, Candidate>();
+  if (opts.forceDrawCount > 0) {
+    const drawCands: { idx: number; alt: OutcomeView; top: OutcomeView; score: number; valueGain: number; probCost: number }[] = [];
+    matches.forEach((m, i) => {
+      const top = tops[i];
+      if (top.outcome === "무승부") return;
+      const draw = views[i].find((v) => v.outcome === "무승부")!;
+      const bias = m.drawBias ?? 1;
+      const probCost = top.p / draw.p;
+      const valueGain =
+        draw.voteFrac != null && top.voteFrac != null
+          ? (draw.p / draw.voteFrac) / (top.p / top.voteFrac)
+          : draw.p / top.p; // 투표율 없으면 확률비로만 정렬(가치 신호 없음)
+      const scoreBase = Math.log(valueGain * bias);
+      const score = probCost <= 1 ? Number.POSITIVE_INFINITY : scoreBase / Math.log(probCost);
+      drawCands.push({ idx: i, alt: draw, top, score, valueGain, probCost });
+    });
+    drawCands.sort((a, b) => b.score - a.score);
+    for (const c of drawCands.slice(0, opts.forceDrawCount)) {
+      forced.set(c.idx, { idx: c.idx, alt: c.alt, top: c.top, valueGain: c.valueGain, probCost: c.probCost, score: c.score });
+    }
+  }
+
+  // 2단계: 일반 이변(사이드 뒤집기) 후보 - 강제 무승부 슬롯은 제외
   const candidates: Candidate[] = [];
   matches.forEach((_m, i) => {
+    if (forced.has(i)) return;
     const top = tops[i];
     if (top.voteFrac == null) return; // 투표율 없으면 신호 없음
     for (const alt of views[i]) {
@@ -144,6 +184,9 @@ export function generateExclusivePick(
 
   const chosen = new Map<number, Candidate>();
   let retention = 1;
+  // 강제 무승부의 확률 비용은 하한 검사 없이 그대로 반영 - 이후 일반 이변은 그만큼 줄어든
+  // retention에서 minProbRetention 하한을 지키며 추가된다.
+  for (const c of forced.values()) retention /= c.probCost;
   for (const c of sorted) {
     if (chosen.size >= opts.maxUpsets) break;
     const newRetention = retention / c.probCost;
@@ -160,7 +203,8 @@ export function generateExclusivePick(
 
   const picks: ExclusiveMatchPick[] = matches.map((m, i) => {
     const top = tops[i];
-    const flip = chosen.get(i);
+    const forcedFlip = forced.get(i);
+    const flip = forcedFlip ?? chosen.get(i);
     const sel = flip ? flip.alt : top;
     if (top.voteFrac != null) matchesWithVote++;
 
@@ -173,7 +217,9 @@ export function generateExclusivePick(
     else pickCrowdShare = null;
 
     const valueRatio = sel.voteFrac != null ? sel.p / sel.voteFrac : null;
-    const note = flip
+    const note = forcedFlip
+      ? `무승부 강제(과거 시즌 무승부율 앵커): 모델 ${(sel.p * 100).toFixed(0)}%${sel.votePct != null ? ` vs 투표 ${sel.votePct.toFixed(1)}%` : ""}${m.drawBias != null ? `, 최근 시즌 무승부 성향 ${m.drawBias.toFixed(2)}배` : ""}`
+      : flip
       ? `이변픽: 모델 ${(sel.p * 100).toFixed(0)}% vs 투표 ${sel.votePct!.toFixed(1)}% (기본픽 대비 가치 ${flip.valueGain.toFixed(1)}배, 확률 ${(100 / flip.probCost - 100).toFixed(0)}%)`
       : sel.votePct != null
         ? `기본픽 유지: 모델 ${(sel.p * 100).toFixed(0)}% / 투표 ${sel.votePct.toFixed(1)}%`
@@ -187,6 +233,7 @@ export function generateExclusivePick(
       pick: sel.outcome,
       basePick: top.outcome,
       isUpset: Boolean(flip),
+      isForcedDraw: Boolean(forcedFlip),
       modelProb: sel.p,
       votePct: sel.votePct,
       valueRatio,
@@ -200,14 +247,17 @@ export function generateExclusivePick(
       : null;
 
   const upsetCount = chosen.size;
+  const forcedDrawCount = forced.size;
+  const forcedNote = forcedDrawCount > 0 ? `무승부 ${forcedDrawCount}경기 강제(과거 시즌 무승부율 앵커) + ` : "";
   const note =
-    matchesWithVote === 0
+    matchesWithVote === 0 && forcedDrawCount === 0
       ? "betman 투표율이 아직 한 경기도 수집되지 않아 기본 모델픽과 동일합니다. 발매 시작 후 투표율이 쌓이면 다시 생성하세요."
-      : `이변 ${upsetCount}경기 반영. 이 픽은 당첨확률을 높이는 게 아니라 "당첨됐을 때 나눠 갖는 사람"을 줄이는 최적화입니다(적중확률은 기본픽의 ${(retention * 100).toFixed(0)}% 수준). 14경기 전부 적중 확률 자체는 어떤 조합이든 극히 낮습니다.`;
+      : `${forcedNote}이변 ${upsetCount}경기 반영. 이 픽은 당첨확률을 높이는 게 아니라 "당첨됐을 때 나눠 갖는 사람"을 줄이는 최적화입니다(적중확률은 기본픽의 ${(retention * 100).toFixed(1)}% 수준). 14경기 전부 적중 확률 자체는 어떤 조합이든 극히 낮습니다.`;
 
   return {
     picks,
     upsetCount,
+    forcedDrawCount,
     matchesWithVote,
     baseHitProb,
     pickHitProb,

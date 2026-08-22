@@ -56,6 +56,7 @@ const reportText = document.getElementById("report-text") as HTMLParagraphElemen
 const drawGuaranteeSelect = document.getElementById("draw-guarantee-select") as HTMLSelectElement;
 const exclusivePickEl = document.getElementById("exclusive-pick") as HTMLDivElement;
 const upsetCountSelect = document.getElementById("upset-count-select") as HTMLSelectElement;
+const drawForceSelect = document.getElementById("draw-force-select") as HTMLSelectElement;
 const tabButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".tab-btn"));
 const tabPages = Array.from(document.querySelectorAll<HTMLElement>(".tab-page"));
 
@@ -257,7 +258,8 @@ function renderExclusivePick() {
     voteShare: m.voteShare,
   }));
   const maxUpsets = Number(upsetCountSelect.value) || 0;
-  const result = generateExclusivePick(inputs, { maxUpsets });
+  const forceDrawCount = Number(drawForceSelect.value) || 0;
+  const result = generateExclusivePick(inputs, { maxUpsets, forceDrawCount });
 
   const box = document.createElement("div");
   box.className = "combo-tier";
@@ -266,16 +268,19 @@ function renderExclusivePick() {
   head.className = "tier-head";
   const edgeText =
     result.payoutEdge != null ? `기대 배당가치 ${result.payoutEdge.toFixed(1)}배` : "투표율 수집 대기";
-  head.innerHTML = `<span>독식픽 (이변 ${result.upsetCount}경기)</span><span>${edgeText}</span>`;
+  const forcedText = result.forcedDrawCount > 0 ? ` · 무승부 강제 ${result.forcedDrawCount}` : "";
+  head.innerHTML = `<span>독식픽 (이변 ${result.upsetCount}${forcedText})</span><span>${edgeText}</span>`;
   box.appendChild(head);
 
   for (const p of result.picks) {
     const row = document.createElement("div");
     row.className = "pick-row";
     const voteText = p.votePct != null ? `투표 ${p.votePct.toFixed(1)}%` : "투표율 없음";
-    const upsetBadge = p.isUpset
-      ? ` <span class="upset-badge">이변</span> <s class="base-pick">${p.basePick}</s>`
-      : "";
+    const upsetBadge = p.isForcedDraw
+      ? ` <span class="upset-badge">무강제</span> <s class="base-pick">${p.basePick}</s>`
+      : p.isUpset
+        ? ` <span class="upset-badge">이변</span> <s class="base-pick">${p.basePick}</s>`
+        : "";
     row.innerHTML =
       `<span>${p.seq}. ${p.home} vs ${p.away}<span class="vote-note">모델 ${(p.modelProb * 100).toFixed(0)}% · ${voteText}</span></span>` +
       `<span class="pick-tags">${upsetBadge}<span class="${p.pick}">${p.pick}</span></span>`;
@@ -355,6 +360,10 @@ drawGuaranteeSelect.addEventListener("change", () => {
 });
 
 upsetCountSelect.addEventListener("change", () => {
+  renderExclusivePick();
+});
+
+drawForceSelect.addEventListener("change", () => {
   renderExclusivePick();
 });
 
