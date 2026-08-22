@@ -14,6 +14,10 @@ on:
           - backfill
           - offline-pick
           - deploy
+      force_draws:
+        description: "무승부 강제 슬롯: 숫자(0~5) 또는 auto(최근 2개 완료 시즌 무승부율 앵커). offline-pick 전용"
+        type: string
+        default: ""
 
 jobs:
   fetch:
@@ -114,4 +118,6 @@ jobs:
           npm install playwright@1
           npx playwright install --with-deps chromium
       - name: Offline round pick
+        env:
+          FORCE_DRAWS: ${{ inputs.force_draws }}
         run: npx tsx scripts/offline_round_pick.ts
