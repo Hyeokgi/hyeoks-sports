@@ -13,7 +13,8 @@ from pathlib import Path
 
 import gspread
 import requests
-from oauth2client.service_account import ServiceAccountCredentials
+
+from sheets_common import init_google_sheet
 
 ROOT = Path(__file__).resolve().parent.parent
 SEED = ROOT / "seed"
@@ -27,16 +28,6 @@ HEADERS = [
     "모델픽", "모델확신도(%p)", "모델확신도등급", "구간 실측적중률(%, 참고용)", "모델기준 이변여부",
     "데이터출처",
 ]
-
-
-def init_google_sheet():
-    secret_key = os.environ.get("GOOGLE_SERVICE_ACCOUNT_KEY")
-    if not secret_key:
-        raise SystemExit("GOOGLE_SERVICE_ACCOUNT_KEY 환경변수가 필요합니다")
-    credentials_dict = json.loads(secret_key)
-    scopes = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, scopes)
-    return gspread.authorize(creds).open("HYEOKS_Sports_Toto_Data")
 
 
 def build_historical_rows():

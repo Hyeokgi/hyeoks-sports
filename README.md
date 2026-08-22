@@ -78,14 +78,20 @@ python seed/export_history_to_sql.py
 
 **이관 완료**
 - 1~41회차 원본 데이터 → `seed/history_*.json` (엔진 레포에만 있어 앱 백테스트가 존재조차 몰랐던 자산)
-- `build_round_analysis_sheet.py` → `scripts/export_sheets.py` + `Export Google Sheets` 워크플로우
-  - ⚠️ 엔진 레포의 `GOOGLE_SERVICE_ACCOUNT_KEY` 시크릿을 이 저장소에도 등록해야 동작한다
+- `build_round_analysis_sheet.py` → `scripts/export_sheets.py` (HYEOKS_회차분석 탭)
+- `crawl_and_update.py`의 팀 DB / 선수 DB → `scripts/export_player_db.py`
+  - 선수 통계는 D1이 아니라 구글시트에만 적재한다(앱에 선수 스키마가 없고 용도가 스카우팅/열람이라 시트가 적합). 앱 예측 모델은 이 데이터를 쓰지 않는다
+  - 대상 리그에 MLS를 추가했다(엔진 시절엔 없었으나 45회차가 MLS 회차였고 앱에도 편입돼 있어서)
+- 두 스크립트는 `scripts/sheets_common.py`(인증·시트 기록 공용)를 함께 쓰고, `Export Google Sheets` 워크플로우가 매일 04:00 KST에 둘 다 실행한다
 
-**이관 남음** (엔진 레포에 계속 있음)
-- `crawl_and_update.py` — 팀 DB / 선수 DB 시트. **선수 통계는 이 앱에 없는 고유 기능**이라 D1 스키마 추가가 필요하다(경기 크롤링 부분은 이 앱과 중복이라 버려도 됨)
-- `predict_engine.py` — RandomForest 기반 `HYEOKS_예측리포트` 시트. EPL/세리에A/MLS/J1이 모두 이 앱에 편입돼 대부분 중복이 됐다
+**이관하지 않은 것** (의도적)
+- `crawl_and_update.py`의 경기 단위 크롤링(`전체`/리그별/`HYEOKS_팀통계`/`HYEOKS_선수통계` 탭) — 이 앱의 `refreshHistory` 크론과 중복이라 옮기지 않았다
+- `predict_engine.py` — RandomForest 기반 `HYEOKS_예측리포트` 시트. K리그는 이미 이 앱의 예측을 가져다 쓰고 있었고, EPL/세리에A/MLS/J1도 모두 이 앱에 편입돼 사실상 중복이다
 
-위 둘까지 옮기면 엔진 레포는 아카이브 가능하다.
+**엔진 레포를 끄기 전 확인**
+1. 이 저장소에 `GOOGLE_SERVICE_ACCOUNT_KEY` 시크릿 등록 (완료)
+2. 엔진 레포의 `hyeoks_engine.yml`에서 `build_round_analysis_sheet.py`·`crawl_and_update.py` 실행을 제거 — 안 그러면 두 레포가 같은 시트를 이중으로 쓴다
+3. `HYEOKS_예측리포트`가 더 이상 필요 없다고 판단되면 엔진 레포 아카이브
 
 ## 알려진 제약
 

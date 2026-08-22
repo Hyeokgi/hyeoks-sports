@@ -1,7 +1,9 @@
 name: Export Google Sheets
 
-# hyeoks-sports-engine 레포에서 이관한 구글시트 리포팅(HYEOKS_회차분석 탭).
-# 필요 시크릿: GOOGLE_SERVICE_ACCOUNT_KEY (엔진 레포에 있던 것과 동일한 값을 이 레포에도 등록해야 함)
+# hyeoks-sports-engine 레포에서 이관한 구글시트 리포팅.
+# - HYEOKS_회차분석 : 회차별 투표율/모델예측/실제결과 (export_sheets.py)
+# - 팀 DB / 선수 DB : FotMob 지난 시즌 성적·선수 리더보드 (export_player_db.py)
+# 필요 시크릿: GOOGLE_SERVICE_ACCOUNT_KEY
 on:
   schedule:
     - cron: "0 19 * * *" # 매일 UTC 19:00 (한국 04:00) - 엔진 레포와 동일 시각
@@ -21,3 +23,8 @@ jobs:
         env:
           GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
         run: python scripts/export_sheets.py
+      - name: Export 팀 DB / 선수 DB sheets
+        # 한쪽이 실패해도 다른 시트는 이미 갱신된 상태로 남는다(각 스크립트가 독립적으로 clear+재기록)
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        run: python scripts/export_player_db.py
