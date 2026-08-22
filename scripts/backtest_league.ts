@@ -169,7 +169,11 @@ function main() {
   for (const league of leagues) {
     console.log(`\n===== ${league} =====`);
     if (gridMode) {
-      for (const adv of [30, 45, 60, 75, 90, 105]) {
+      // grid 값은 인자로 덮어쓸 수 있다: `npx tsx scripts/backtest_league.ts grid 90,105,120,135`
+      // (경계값이 최적으로 나오면 내부 최적점이 있는지 더 넓게 봐야 하므로)
+      const custom = process.argv.find((a) => /^[\d,]+$/.test(a));
+      const advValues = custom ? custom.split(",").map(Number) : [30, 45, 60, 75, 90, 105];
+      for (const adv of advValues) {
         const r = runBacktest(matches, league, adv);
         console.log(`HOME_ADV=${adv}: 적중률 ${(r.accuracy * 100).toFixed(1)}% (n=${r.total})`);
       }

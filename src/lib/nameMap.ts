@@ -147,6 +147,59 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   { nameKr: "피오렌티", nameEn: "Fiorentina", league: "세리에A" },
   { nameKr: "볼로냐", nameEn: "Bologna", league: "세리에A" },
   { nameKr: "몬차", nameEn: "Monza", league: "세리에A" },
+  // 라리가 (2026-08-22 선제 편입). nameKr은 1~41회차 betman/wisetoto 실표기에서 확인된 20팀 -
+  // 2025-26 시즌 구성이라 그 시점 소속 기준이다. nameEn은 백필 데이터(FotMob 표기로 통일됨)와
+  // 일치해야 Elo 히스토리가 연결된다.
+  { nameKr: "레알마드", nameEn: "Real Madrid", league: "라리가" },
+  { nameKr: "바르셀로", nameEn: "Barcelona", league: "라리가" },
+  { nameKr: "AT마드", nameEn: "Atletico Madrid", league: "라리가" },
+  { nameKr: "빌바오", nameEn: "Athletic Club", league: "라리가" },
+  { nameKr: "소시에다", nameEn: "Real Sociedad", league: "라리가" },
+  { nameKr: "베티스", nameEn: "Real Betis", league: "라리가" },
+  { nameKr: "세비야", nameEn: "Sevilla", league: "라리가" },
+  { nameKr: "발렌시아", nameEn: "Valencia", league: "라리가" },
+  { nameKr: "비야레알", nameEn: "Villarreal", league: "라리가" },
+  { nameKr: "RC셀타", nameEn: "Celta Vigo", league: "라리가" },
+  { nameKr: "오사수나", nameEn: "Osasuna", league: "라리가" },
+  { nameKr: "헤타페", nameEn: "Getafe", league: "라리가" },
+  { nameKr: "라요", nameEn: "Rayo Vallecano", league: "라리가" },
+  { nameKr: "에스파뇰", nameEn: "Espanyol", league: "라리가" },
+  { nameKr: "알라베스", nameEn: "Deportivo Alaves", league: "라리가" },
+  { nameKr: "마요르카", nameEn: "Mallorca", league: "라리가" },
+  { nameKr: "지로나", nameEn: "Girona", league: "라리가" },
+  { nameKr: "레반테", nameEn: "Levante", league: "라리가" },
+  { nameKr: "엘체", nameEn: "Elche", league: "라리가" },
+  { nameKr: "오비에도", nameEn: "Oviedo", league: "라리가" },
+  // 라리가 2026-27 승격팀 - 과거 회차에 안 나와 wisetoto 실표기 미확인(추정). 표기가 다르면
+  // NAME_MAP 미스매치로 회차 등록이 보류되며(조용한 오염이 아니라 실패), 그때 정정하면 된다.
+  { nameKr: "데포르티", nameEn: "Deportivo A Coruña", league: "라리가" },
+  { nameKr: "말라가", nameEn: "Malaga", league: "라리가" },
+  { nameKr: "산탄데르", nameEn: "Racing Santander", league: "라리가" },
+  // 분데스리가 (2026-08-22 선제 편입, 1~41회차 실표기 확인된 18팀)
+  { nameKr: "바이뮌헨", nameEn: "Bayern München", league: "분데스리가" },
+  { nameKr: "도르트문", nameEn: "Borussia Dortmund", league: "분데스리가" },
+  { nameKr: "레버쿠젠", nameEn: "Bayer Leverkusen", league: "분데스리가" },
+  { nameKr: "라이프치", nameEn: "RB Leipzig", league: "분데스리가" },
+  { nameKr: "프랑크푸", nameEn: "Eintracht Frankfurt", league: "분데스리가" },
+  { nameKr: "슈투트가", nameEn: "VfB Stuttgart", league: "분데스리가" },
+  { nameKr: "묀헨글라", nameEn: "Borussia Mönchengladbach", league: "분데스리가" },
+  { nameKr: "쾰른", nameEn: "1. FC Köln", league: "분데스리가" },
+  { nameKr: "U베를린", nameEn: "Union Berlin", league: "분데스리가" },
+  { nameKr: "프라이부", nameEn: "Freiburg", league: "분데스리가" },
+  { nameKr: "호펜하임", nameEn: "Hoffenheim", league: "분데스리가" },
+  { nameKr: "마인츠05", nameEn: "Mainz 05", league: "분데스리가" },
+  { nameKr: "브레멘", nameEn: "Werder Bremen", league: "분데스리가" },
+  { nameKr: "아우크스", nameEn: "Augsburg", league: "분데스리가" },
+  { nameKr: "함부르크", nameEn: "Hamburger SV", league: "분데스리가" },
+  { nameKr: "볼프스부", nameEn: "Wolfsburg", league: "분데스리가" },
+  { nameKr: "장크트파", nameEn: "St. Pauli", league: "분데스리가" },
+  { nameKr: "하이덴하", nameEn: "Heidenheim", league: "분데스리가" },
+  // 분데스리가 2026-27 승격팀 - wisetoto 실표기 미확인(추정). 2.분데스리가 시절 경기는
+  // football-data D1(1부)에 없어 Elo 히스토리가 없다 - 첫 시즌엔 1500에서 시작하며
+  // 경기가 쌓일 때까지 예측 정확도가 낮다(승격팀 공통, EPL 코번트리/헐시티도 동일).
+  { nameKr: "샬케04", nameEn: "Schalke 04", league: "분데스리가" },
+  { nameKr: "엘버스베", nameEn: "Elversberg", league: "분데스리가" },
+  { nameKr: "파더보른", nameEn: "Paderborn", league: "분데스리가" },
 ];
 
 export const NAME_MAP: Record<string, string> = Object.fromEntries(

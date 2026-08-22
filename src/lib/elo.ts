@@ -7,7 +7,12 @@ export const SEASON_REGRESSION = 0.25;
 // 45.6%로 K리그1(38.9%)보다 뚜렷이 높음. HOME_ADV 그리드서치(40~300, train/test 4분할) 결과
 // 80~90에서 안정적으로 수렴(Brier 최솟값도 경계값이 아닌 내부 90~100 부근)해 85로 채택.
 // 다른 리그는 기존 HOME_ADV=60 유지(리스트에 없으면 기본값으로 폴백).
-const HOME_ADV_BY_LEAGUE: Record<string, number> = { "MLS": 85.0 };
+// 2026-08-22: 라리가는 실측 홈승률 46.0%로 높은데다, HOME_ADV 그리드서치에서 기본값 60이
+// 3개 시즌 전부에서 최악이었다(2023-24 51.5% / 2024-25 50.7% / 2025-26 47.9%). 105~135 구간이
+// 평평해(전체 52.0~52.1%, 0.1%p 차) 그 하단인 105를 채택 - 어느 쪽을 골라도 차이는 노이즈지만
+// "60이 아니다"는 시즌별로 일관되게 재현된다. 분데스리가는 75가 60 대비 +0.4%p로 EPL 때와
+// 같은 노이즈 범위(3시즌 중 1시즌은 오히려 열세)라 근거 불충분으로 기본값 60 유지.
+const HOME_ADV_BY_LEAGUE: Record<string, number> = { "MLS": 85.0, "라리가": 105.0 };
 
 export function homeAdvForLeague(league: string): number {
   return HOME_ADV_BY_LEAGUE[league] ?? HOME_ADV;
