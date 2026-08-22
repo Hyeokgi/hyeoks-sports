@@ -55,11 +55,40 @@ const FD_TO_FOTMOB: Record<string, Record<string, string>> = {
   // 세리에A: FotMob은 짧은 표기("Milan", "Inter", "Roma", "Verona")를 쓴다 - 2026-08-22 실측
   // (seed/fotmob_current_names.json). football-data 표기와 동일해 변환이 필요 없다.
   "세리에A": {},
-  // 라리가/분데스리가: 아래 값은 2026-08-22 FotMob 현재시즌 실측(seed/fotmob_current_names.json)과
-  // 대조해 채운 것. 매핑이 틀리면 실행 로그가 "FotMob 현재 팀 X는 백필 CSV에 없음"으로 드러낸다.
-  "라리가": {},
-  "분데스리가": {},
+  // 라리가: football-data가 시즌마다 표기를 바꿔("Ath Madrid" -> "Atl. Madrid" -> "Atletico Madrid")
+  // 같은 팀이 여러 이름으로 갈라져 있었다. 2026-08-22 FotMob 현재시즌 실측
+  // (seed/fotmob_current_names.json)의 표기로 전부 통일한다.
+  "라리가": {
+    "Alaves": "Deportivo Alaves",
+    "Ath Bilbao": "Athletic Club",
+    "Ath Madrid": "Atletico Madrid",
+    "Atl. Madrid": "Atletico Madrid",
+    "Betis": "Real Betis",
+    "Celta": "Celta Vigo",
+    "Dep. A Coruna": "Deportivo A Coruña",
+    "Espanol": "Espanyol",
+    "Santander": "Racing Santander",
+    "Sociedad": "Real Sociedad",
+    "Vallecano": "Rayo Vallecano",
+  },
+  // 분데스리가: football-data 표기가 FotMob과 대체로 다르다(정식명 vs 약칭).
+  "분데스리가": {
+    "Bayern Munich": "Bayern München",
+    "Dortmund": "Borussia Dortmund",
+    "Ein Frankfurt": "Eintracht Frankfurt",
+    "FC Koln": "1. FC Köln",
+    "M'gladbach": "Borussia Mönchengladbach",
+    "Stuttgart": "VfB Stuttgart",
+    "Hamburg": "Hamburger SV",
+    "Mainz": "Mainz 05",
+    "Leverkusen": "Bayer Leverkusen",
+    "St Pauli": "St. Pauli",
+  },
 };
+
+// 강등된 팀(Oviedo, Mallorca, Girona, Wolfsburg, Heidenheim 등)은 FotMob 현재시즌 목록에 없어
+// 표기를 교차확인할 수 없다. football-data 표기 그대로 두며, 승격해 돌아오면 다음 백필 실행이
+// "FotMob 현재 팀 X는 백필 CSV에 없음" 경고로 잡아준다(그때 매핑 추가).
 
 interface BackfillMatch {
   league: string;
