@@ -38,6 +38,19 @@ async function main() {
       `${String(p.seq).padStart(2)}. [${p.league}] ${p.home} vs ${p.away} → ${p.pick} (모델 ${(p.modelProb * 100).toFixed(0)}%, ${vote})${mark}`,
     );
   }
+
+  // 무승부 가치비 진단: 승무패에서 대중이 무승부를 과소베팅하는 경향이 있어(독식의 고전 루트),
+  // 경기별 홈/무/원정 투표율 전체와 무승부 가치비(모델확률/투표율)를 병기해 판단 근거를 남긴다.
+  console.log(`\n[무승부 진단] 모델 무승부확률 / 투표율 / 가치비(>1이면 대중이 저평가)`);
+  for (const m of matches) {
+    if (!m.voteShare) continue;
+    const pDraw = m.prediction.pDraw as number;
+    const vDraw = Math.max(m.voteShare.draw / 100, 0.005);
+    console.log(
+      `${String(m.seq).padStart(2)}. ${m.home} vs ${m.away}: 무 ${(pDraw * 100).toFixed(0)}% / 투표 ${m.voteShare.draw.toFixed(1)}% / 가치비 ${(pDraw / vDraw).toFixed(2)}` +
+        ` (투표 홈${m.voteShare.home.toFixed(1)}·무${m.voteShare.draw.toFixed(1)}·원정${m.voteShare.away.toFixed(1)}%)`,
+    );
+  }
   console.log(`\n이변 반영: ${result.upsetCount}경기 / 투표율 수집: ${result.matchesWithVote}/${result.picks.length}경기`);
   console.log(`적중확률(모델, 독립 근사): 기본픽 대비 ${(result.probRetention * 100).toFixed(0)}% 유지`);
   if (result.payoutEdge != null && result.pickCrowdShare != null && result.baseCrowdShare != null) {
