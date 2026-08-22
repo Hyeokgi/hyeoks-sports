@@ -54,6 +54,49 @@
         <h2>💰 예산별 구매 조합</h2>
       </div>
 
+      <div class="info-block exclusive-block">
+        <h3>👑 독식 지향 픽 (betman 투표율 반영)</h3>
+        <p class="hint">
+          당첨금은 당첨 조합을 산 사람 수에 반비례합니다. 모델 1픽을 기준으로, 적중확률 손실이 작으면서
+          대중 투표가 덜 몰린 결과로만 제한적으로 뒤집어 <b>당첨 시 단독(독식) 가능성</b>을 높입니다.
+          당첨확률 자체를 높이는 기능이 아닙니다.
+        </p>
+        <div class="option-row">
+          <label for="upset-count-select">이변 반영 최대 경기 수</label>
+          <select id="upset-count-select">
+            <option value="0">사용 안 함</option>
+            <option value="1">1경기</option>
+            <option value="2">2경기</option>
+            <option value="3">3경기</option>
+            <option value="4">4경기</option>
+            <option value="5" selected>5경기 (권장)</option>
+            <option value="6">6경기</option>
+          </select>
+        </div>
+        <div class="option-row">
+          <label for="draw-force-select">무승부 강제 포함</label>
+          <select id="draw-force-select">
+            <option value="0" selected>사용 안 함</option>
+            <option value="1">1경기</option>
+            <option value="2">2경기</option>
+            <option value="3">3경기</option>
+            <option value="4">4경기</option>
+          </select>
+        </div>
+        <p class="hint">
+          과거 시즌 무승부율 기준 14경기당 무승부는 평균 3~4개 나옵니다(EPL 최근 2시즌 25.9%, 세리에A 27.2%).
+          강제 포함 시 대중이 무승부를 가장 저평가한 경기부터 채우며, 적중확률은 그만큼 크게 낮아집니다.
+          <b>1~41회차 실측에서 이 옵션은 기대값을 개선하지 않았습니다</b> — 무승부가 몰리는 회차를 커버하는
+          분산 목적이지, 수익 최적화 수단이 아닙니다(기본값 사용 안 함).
+        </p>
+        <p class="hint">
+          이변 기본값은 1~41회차 실측 38회차에 이 코드를 그대로 돌려 정한 값입니다. 종전 기본값(3경기)은
+          우리 픽의 대중 구매비중이 실제 당첨조합보다 <b>164배 혼잡</b>해 독식이라는 목적을 달성하지
+          못했고, 현재 값(5경기)은 적중 기대치를 거의 그대로 두면서 혼잡도를 15배까지 낮춥니다.
+        </p>
+        <div id="exclusive-pick" class="combo-tiers"></div>
+      </div>
+
       <div class="option-row">
         <label for="draw-guarantee-select">무승부 강제 포함</label>
         <select id="draw-guarantee-select">
@@ -93,6 +136,17 @@
             <tr><td>30%p 이상</td><td><b>53.6%</b> (n=248)</td><td><b>52.7%</b> (n=110)</td></tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="info-block">
+        <h3>📒 실전 정산 기록</h3>
+        <p class="hint">아래는 백테스트가 아니라 <b>이 앱이 실제로 낸 픽</b>이 정산된 회차에서 어떻게 됐는지를 그대로 센 것입니다. 회차가 쌓일수록 정확해집니다.</p>
+        <div id="settlement-summary" class="round-summary" hidden></div>
+        <div id="settlement-rounds" class="combo-tiers"></div>
+        <p class="hint">"대중 구매비중"은 경기별 betman 투표율의 곱으로 추정한 값입니다(구매자가 독립적으로 찍는다는 가정). 1~41회차 실측에서 <b>실제 당첨조합의 중앙값은 0.17/백만</b>이었습니다 — 우리 독식픽이 그 수준에 얼마나 가까운지가 판단 기준입니다.</p>
+      </div>
+
+      <div class="info-block">
         <p class="hint">전체 top-pick 적중률은 K리그 42.8%(항상 홈승 베이스라인 38.9%), J1리그 43.4%(베이스라인 40.2%)로 무작위보다 근소하게 나은 수준입니다. <b>확신도 30%p 이상 구간에서만 뚜렷한 우위</b>가 있고, 그 아래 구간은 거의 동전던지기에 가깝다는 점을 그대로 알려드립니다 — 과장하지 않는 게 이 모델의 원칙입니다.</p>
       </div>
     </section>

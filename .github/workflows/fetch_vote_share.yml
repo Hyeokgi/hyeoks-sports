@@ -3,10 +3,111 @@ name: Fetch Betman Vote Share
 on:
   schedule:
     - cron: "0 */4 * * *" # 투표 쏠림 변화 추적용, 4시간마다
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "pipeline: 회차감지+배당+투표율+독식픽 / backfill: EPL·세리에A 백필 생성+커밋 / offline-pick: 발매중 회차 오프라인 독식픽(배포 불필요) / deploy: D1 백필 적용+Worker 배포+동기화 / sheets: 구글시트(회차분석+팀DB+선수DB) 갱신"
+        type: choice
+        default: pipeline
+        options:
+          - pipeline
+          - backfill
+          - offline-pick
+          - deploy
+          - sheets
+      force_draws:
+        description: "무승부 강제 슬롯: 숫자(0~5) 또는 auto(최근 2개 완료 시즌 무승부율 앵커). offline-pick 전용"
+        type: string
+        default: ""
 
 jobs:
   fetch:
+    # 스케줄 실행은 기존 투표율 수집 그대로, 수동(pipeline)은 회차감지->배당->투표율->독식픽 전체.
+    # (generate_round.yml은 main에 머지되기 전까지 workflow_dispatch 등록이 안 되므로,
+    # main에 이미 등록된 이 워크플로우 경로에 dispatch 전용 단계로 얹는다.)
+    if: github.event_name == 'schedule' || inputs.task == 'pipeline'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Detect/register new round (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/detect_round.mjs
+      - name: Fetch market odds (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        continue-on-error: true # 배당이 아직 없어도 이후 단계는 진행
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/fetch_market_odds.mjs
+      - name: Install Playwright
+        run: |
+          npm install playwright@1
+          npx playwright install --with-deps chromium
+      - name: Run vote share fetcher
+        continue-on-error: true # 발매 전이면 투표율이 없을 수 있음 - 독식픽 출력은 계속 진행
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/fetch_vote_share.mjs
+      - name: Print exclusive pick (manual run only)
+        if: github.event_name == 'workflow_dispatch'
+        run: npx tsx scripts/print_exclusive_pick.ts
+
+  # EPL/세리에A 과거경기 백필 데이터를 생성해 브랜치에 커밋한다 (수동 전용).
+  backfill:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'backfill'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Generate backfill data
+        run: npx tsx scripts/backfill_leagues.ts
+      - name: Commit backfill data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add seed/backfill_leagues.sql seed/backfill_leagues.json seed/fotmob_current_names.json
+          git diff --cached --quiet && echo "변경 없음" && exit 0
+          git commit -m "EPL/세리에A 과거경기 백필 데이터 생성 (football-data.co.uk, FotMob 현재시즌 팀명 교차검증)"
+          git push
+
+  # D1 백필 적용 -> Worker 배포 -> 결과 동기화(admin sync)까지. 이후 task=pipeline으로 회차 등록.
+  # 필요 시크릿: CLOUDFLARE_API_TOKEN (Workers Scripts:Edit + D1:Edit 권한), ADMIN_TOKEN.
+  deploy:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'deploy'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply D1 backfill (EPL/세리에A)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npx wrangler d1 execute kleague-toto-db --remote --file=seed/backfill_leagues.sql
+      - name: Deploy Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm run deploy
+      - name: Sync history (Elo/무승부율 재계산 트리거)
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: |
+          curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+            "${WORKER_BASE_URL:-https://kleague-toto-predictor.hyeoks.workers.dev}/api/admin/sync"
+
+  # 발매중 회차(예: 46회차)를 Worker 배포/D1 백필 없이 러너에서 직접 분석해 독식픽을 출력한다.
+  offline-pick:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'offline-pick'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,7 +118,28 @@ jobs:
         run: |
           npm install playwright@1
           npx playwright install --with-deps chromium
-      - name: Run vote share fetcher
+      - name: Offline round pick
         env:
-          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
-        run: node scripts/fetch_vote_share.mjs
+          FORCE_DRAWS: ${{ inputs.force_draws }}
+        run: npx tsx scripts/offline_round_pick.ts
+
+  # 구글시트 갱신(회차분석 + 팀 DB/선수 DB). export_sheets.yml이 main에 등록되기 전까지
+  # 이 경로로도 수동 실행할 수 있게 둔다 - 머지 후에는 export_sheets.yml 쪽을 쓰면 된다.
+  sheets:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'sheets'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install gspread oauth2client requests
+      - name: Export 회차분석 sheet
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        run: python scripts/export_sheets.py
+      - name: Export 팀 DB / 선수 DB sheets
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        run: python scripts/export_player_db.py

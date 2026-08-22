@@ -1,5 +1,18 @@
 // FotMob __NEXT_DATA__ 스크래핑 (crawl_and_update.py의 pageProps 이중 방어 파싱 이식)
-export const LEAGUE_IDS: Record<string, string> = { "K리그1": "9080", "K리그2": "9116", "J1리그": "223", "MLS": "130" };
+export const LEAGUE_IDS: Record<string, string> = {
+  "K리그1": "9080",
+  "K리그2": "9116",
+  "J1리그": "223",
+  "MLS": "130",
+  // 2026-08-22 46회차(EPL 7 + 세리에A 7)로 처음 등장해 편입. FotMob 표준 리그ID.
+  "EPL": "47",
+  "세리에A": "55",
+  // 2026-08-22 선제 편입 - 아직 토토 회차엔 안 나왔지만 1~41회차 과거 데이터에 각각 20팀/18팀이
+  // 등장한 적이 있어 언제든 편성될 수 있고, 이 두 리그를 다루던 유일한 경로(엔진 레포
+  // predict_engine.py)를 은퇴시키려면 앱이 먼저 커버해야 한다.
+  "라리가": "87",
+  "분데스리가": "54",
+};
 
 const HEADERS = {
   "User-Agent":

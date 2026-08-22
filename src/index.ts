@@ -2,7 +2,9 @@
 import { handleListRounds, handleGetRound } from "./routes/rounds";
 import { handlePredict } from "./routes/predict";
 import { handleCombinations } from "./routes/combinations";
+import { handleExclusivePick } from "./routes/exclusivePick";
 import { handleReport } from "./routes/report";
+import { handleSettlement } from "./routes/settlement";
 import {
   handleCorrectRoundNo,
   handleSync,
@@ -17,7 +19,7 @@ import { detectNewRound } from "./cron/detectNewRound";
 import { json } from "./lib/http";
 import type { Env } from "./types";
 
-const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report))?$/;
+const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report|exclusive-pick))?$/;
 const ADMIN_ROUND_RE = /^\/api\/admin\/rounds\/(\d+)$/;
 const ADMIN_ROUND_REPORT_RE = /^\/api\/admin\/rounds\/(\d+)\/report$/;
 const ADMIN_ROUND_MARKET_ODDS_RE = /^\/api\/admin\/rounds\/(\d+)\/market-odds$/;
@@ -33,6 +35,10 @@ export default {
         return await handleListRounds(env);
       }
 
+      if (pathname === "/api/settlement" && request.method === "GET") {
+        return await handleSettlement(env);
+      }
+
       const roundMatch = pathname.match(ROUND_ID_RE);
       if (roundMatch) {
         const roundId = Number(roundMatch[1]);
@@ -41,6 +47,8 @@ export default {
         if (sub === "predict" && request.method === "POST") return await handlePredict(env, roundId, request);
         if (sub === "combinations" && request.method === "POST")
           return await handleCombinations(env, roundId, request);
+        if (sub === "exclusive-pick" && request.method === "POST")
+          return await handleExclusivePick(env, roundId, request);
         if (sub === "report" && request.method === "GET") return await handleReport(env, roundId);
       }
 
