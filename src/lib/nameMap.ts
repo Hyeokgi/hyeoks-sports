@@ -115,13 +115,14 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   { nameKr: "본머스", nameEn: "AFC Bournemouth", league: "EPL" },
   { nameKr: "뉴캐슬U", nameEn: "Newcastle United", league: "EPL" },
   { nameKr: "리버풀", nameEn: "Liverpool", league: "EPL" },
-  // EPL 나머지 팀 - 46회차에 노출되지 않아 wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
+  // EPL 나머지 6팀(FotMob 2026-27 현재시즌 20팀 실측 기준) - 46회차에 노출되지 않아
+  // wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
   { nameKr: "아스널", nameEn: "Arsenal", league: "EPL" },
   { nameKr: "첼시", nameEn: "Chelsea", league: "EPL" },
   { nameKr: "맨체스U", nameEn: "Manchester United", league: "EPL" },
-  { nameKr: "웨스트햄", nameEn: "West Ham United", league: "EPL" },
-  { nameKr: "울버햄튼", nameEn: "Wolverhampton Wanderers", league: "EPL" },
   { nameKr: "풀럼", nameEn: "Fulham", league: "EPL" },
+  { nameKr: "코번트리", nameEn: "Coventry City", league: "EPL" },
+  { nameKr: "헐시티", nameEn: "Hull City", league: "EPL" },
   // 세리에A (2026-08-22 wisetoto 46회차 실데이터로 교차 확인된 14팀, FotMob 리그ID 55)
   { nameKr: "우디네세", nameEn: "Udinese", league: "세리에A" },
   { nameKr: "코모1907", nameEn: "Como", league: "세리에A" },
@@ -136,13 +137,16 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   { nameKr: "아탈란타", nameEn: "Atalanta", league: "세리에A" },
   { nameKr: "사수올로", nameEn: "Sassuolo", league: "세리에A" },
   { nameKr: "토리노", nameEn: "Torino", league: "세리에A" },
-  { nameKr: "AC밀란", nameEn: "AC Milan", league: "세리에A" },
-  // 세리에A 나머지 팀 - 46회차에 노출되지 않아 wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
+  // FotMob 세리에A는 짧은 표기 사용("Milan"/"Inter"/"Roma") - 2026-08-22 현재시즌 실측 확인
+  { nameKr: "AC밀란", nameEn: "Milan", league: "세리에A" },
+  // 세리에A 나머지 6팀(FotMob 2026-27 현재시즌 20팀 실측 기준) - 46회차에 노출되지 않아
+  // wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
   { nameKr: "인터밀란", nameEn: "Inter", league: "세리에A" },
   { nameKr: "AS로마", nameEn: "Roma", league: "세리에A" },
   { nameKr: "라치오", nameEn: "Lazio", league: "세리에A" },
   { nameKr: "피오렌티", nameEn: "Fiorentina", league: "세리에A" },
   { nameKr: "볼로냐", nameEn: "Bologna", league: "세리에A" },
+  { nameKr: "몬차", nameEn: "Monza", league: "세리에A" },
 ];
 
 export const NAME_MAP: Record<string, string> = Object.fromEntries(

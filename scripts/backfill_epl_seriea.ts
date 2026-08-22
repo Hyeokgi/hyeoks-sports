@@ -46,10 +46,9 @@ const FD_TO_FOTMOB: Record<string, Record<string, string>> = {
     "Luton": "Luton Town",
     "Bournemouth": "AFC Bournemouth",
   },
-  "세리에A": {
-    "Milan": "AC Milan",
-    "Verona": "Hellas Verona",
-  },
+  // 세리에A: FotMob은 짧은 표기("Milan", "Inter", "Roma", "Verona")를 쓴다 - 2026-08-22 실측
+  // (seed/fotmob_current_names.json). football-data 표기와 동일해 변환이 필요 없다.
+  "세리에A": {},
 };
 
 interface BackfillMatch {
@@ -131,7 +130,8 @@ async function main() {
     }
 
     const nameMap = FD_TO_FOTMOB[league] ?? {};
-    const latestSeason = SEASONS[SEASONS.length - 1];
+    const seen = new Set<string>(); // league|date|home|away 중복 방지(CSV-FotMob 겹침 대비)
+    const mappedNames = new Set<string>();
 
     for (const season of SEASONS) {
       const csv = await fetchSeasonCsv(season, fdCode);
@@ -161,19 +161,41 @@ async function main() {
 
         const home = nameMap[fdHome] ?? fdHome;
         const away = nameMap[fdAway] ?? fdAway;
-        // 현재시즌 CSV에 등장하는 팀은 FotMob 실표기와 반드시 일치해야 한다(향후 동기화 이름 분열 방지)
-        if (season === latestSeason && currentSet.size > 0) {
-          for (const t of [home, away]) {
-            if (!currentSet.has(t)) {
-              const msg = `${league}: '${t}'(football-data '${t === home ? fdHome : fdAway}')가 FotMob 현재시즌 팀명에 없음`;
-              if (!errors.includes(msg)) errors.push(msg);
-            }
-          }
-        }
+        mappedNames.add(home);
+        mappedNames.add(away);
+        const dedupKey = `${league}|${date}|${home}|${away}`;
+        if (seen.has(dedupKey)) continue;
+        seen.add(dedupKey);
         all.push({ league, date, home, away, hg, ag });
         count++;
       }
       console.log(`${league} ${season}: ${count}경기`);
+    }
+
+    // 현재시즌(2026-27)은 football-data CSV가 아직 없을 수 있어(HTTP 300 확인됨) FotMob 종료
+    // 경기를 직접 합류시킨다 - 최근 폼 신호에 필수. 이름은 FotMob 원본 그대로라 변환 불필요.
+    let fmCount = 0;
+    for (const m of finished) {
+      const dedupKey = `${league}|${m.date}|${m.home}|${m.away}`;
+      if (seen.has(dedupKey)) continue;
+      seen.add(dedupKey);
+      all.push({ league, date: m.date, home: m.home, away: m.away, hg: m.hg, ag: m.ag });
+      fmCount++;
+    }
+    console.log(`${league} 현재시즌(FotMob): ${fmCount}경기`);
+
+    // 팀명 검증(이름 분열 방지): FotMob 현재시즌 팀명이 잘못된 변환 때문에 백필과 갈라지는
+    // 경우를 잡는다 - "FD 원표기 그대로면 FotMob과 일치했을 이름"이 다른 이름으로 변환됐거나,
+    // FotMob 현재 팀이 백필 전체(3.5시즌)에 전혀 등장하지 않으면(승격팀 제외 대부분 의심) 보고.
+    for (const [fdName, mapped] of Object.entries(nameMap)) {
+      if (currentSet.has(fdName) && !currentSet.has(mapped)) {
+        errors.push(`${league}: '${fdName}'을 '${mapped}'로 변환하지만 FotMob 현재 표기는 '${fdName}'임 - 매핑 제거 필요`);
+      }
+    }
+    for (const t of currentSet) {
+      if (!mappedNames.has(t)) {
+        console.log(`  참고: FotMob 현재 팀 '${t}'는 백필 CSV에 없음(승격팀이면 정상 - FotMob 현재시즌 경기로만 편입됨)`);
+      }
     }
   }
 
