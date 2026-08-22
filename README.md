@@ -57,7 +57,20 @@ python seed/export_history_to_sql.py
 - 웹앱: 베팅추천 탭 상단 "👑 독식 지향 픽" (이변 반영 경기 수 조절 가능)
 - API: `POST /api/rounds/:id/exclusive-pick` (body: `{toggles?, options?}`)
 - CLI: `npx tsx scripts/print_exclusive_pick.ts` (배포된 Worker 데이터 기준)
-- GitHub Actions: `Generate Round & Exclusive Pick` 워크플로우(workflow_dispatch) - 회차 감지 → 배당 수집 → betman 투표율 수집 → 독식 픽 로그 출력을 한 번에 실행
+- GitHub Actions: `Fetch Betman Vote Share` 워크플로우 수동 실행(task 선택) 또는 main 머지 후 `Generate Round & Exclusive Pick`(workflow_dispatch) - 회차 감지 → 배당 수집 → betman 투표율 수집 → 독식 픽 로그 출력을 한 번에 실행
+  - `task=offline-pick`: Worker 배포/백필 전에도 러너에서 발매중 회차를 직접 분석해 독식픽을 로그로 출력 (`scripts/offline_round_pick.ts`)
+
+## EPL/세리에A 편입 (46회차~)
+
+46회차부터 EPL·세리에A 회차가 등장해 두 리그를 편입했다(MLS와 동일 절차 + 재현 가능 스크립트화). 웹앱에 46회차 이후 회차가 뜨려면 아래 순서로 반영해야 한다:
+
+1. D1 백필 적용: `npx wrangler d1 execute kleague-toto-db --remote --file=seed/backfill_epl_seriea.sql`
+   (백필 데이터 재생성은 `Fetch Betman Vote Share` 워크플로우 `task=backfill` - football-data.co.uk 3.5시즌 + FotMob 현재시즌 경기를 FotMob 팀명 기준으로 생성/커밋)
+2. Worker 배포: `npm run deploy` (신규 리그 nameMap/캘리브레이션 포함)
+3. 결과 동기화+회차 등록: `POST /api/admin/sync` → `POST /api/admin/detect-round` (또는 크론 대기, 또는 워크플로우 `task=pipeline`)
+4. 이후 배당/투표율 크론이 평소처럼 채워진다
+
+주의: EPL/세리에A는 교차연도 시즌(8월~5월)이라 Elo 시즌 회귀 경계를 7월로 처리한다(`elo.ts seasonOf`). xG/코너킥은 기존 게이팅에 따라 자동 미적용(기본모델만).
 
 ## 알려진 제약
 
