@@ -72,6 +72,21 @@ python seed/export_history_to_sql.py
 
 주의: EPL/세리에A는 교차연도 시즌(8월~5월)이라 Elo 시즌 회귀 경계를 7월로 처리한다(`elo.ts seasonOf`). xG/코너킥은 기존 게이팅에 따라 자동 미적용(기본모델만).
 
+## 저장소 통합 (hyeoks-sports-engine)
+
+`hyeoks-sports-engine`(Python/구글시트)에 있던 기능을 이 저장소로 옮기는 중이다. 엔진의 예측 역할은 이미 이 앱에 위임돼 있었고(`predict_engine.py`가 K리그 예측을 앱 API에서 가져다 씀), FotMob·football-data 크롤링도 중복이었다.
+
+**이관 완료**
+- 1~41회차 원본 데이터 → `seed/history_*.json` (엔진 레포에만 있어 앱 백테스트가 존재조차 몰랐던 자산)
+- `build_round_analysis_sheet.py` → `scripts/export_sheets.py` + `Export Google Sheets` 워크플로우
+  - ⚠️ 엔진 레포의 `GOOGLE_SERVICE_ACCOUNT_KEY` 시크릿을 이 저장소에도 등록해야 동작한다
+
+**이관 남음** (엔진 레포에 계속 있음)
+- `crawl_and_update.py` — 팀 DB / 선수 DB 시트. **선수 통계는 이 앱에 없는 고유 기능**이라 D1 스키마 추가가 필요하다(경기 크롤링 부분은 이 앱과 중복이라 버려도 됨)
+- `predict_engine.py` — RandomForest 기반 `HYEOKS_예측리포트` 시트. EPL/세리에A/MLS/J1이 모두 이 앱에 편입돼 대부분 중복이 됐다
+
+위 둘까지 옮기면 엔진 레포는 아카이브 가능하다.
+
 ## 알려진 제약
 
 - betman.co.kr 공식 회차 확인은 세션 게이트가 있어 Worker에서 직접 스크래핑 불가. `detectNewRound` 크론은 FotMob 예정 경기로 "다음 14경기 묶음"을 추정만 하며, 실제 회차번호는 위 관리자 API로 수동 보정해야 한다.

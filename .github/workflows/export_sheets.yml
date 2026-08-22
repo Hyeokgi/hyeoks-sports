@@ -1,0 +1,23 @@
+name: Export Google Sheets
+
+# hyeoks-sports-engine 레포에서 이관한 구글시트 리포팅(HYEOKS_회차분석 탭).
+# 필요 시크릿: GOOGLE_SERVICE_ACCOUNT_KEY (엔진 레포에 있던 것과 동일한 값을 이 레포에도 등록해야 함)
+on:
+  schedule:
+    - cron: "0 19 * * *" # 매일 UTC 19:00 (한국 04:00) - 엔진 레포와 동일 시각
+  workflow_dispatch: {}
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install gspread oauth2client requests
+      - name: Export 회차분석 sheet
+        env:
+          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        run: python scripts/export_sheets.py
