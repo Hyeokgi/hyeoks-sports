@@ -1,7 +1,7 @@
 // 프론트엔드 로직: 회차 조회, 변수 토글(클라이언트 즉시 재계산), 예산별 조합, AI 리포트
 import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type PredictionInputs } from "../src/lib/prediction";
 import { generateSystemBetTiers, DEFAULT_BUDGET_TIERS, generateSystemBet, type ComboMatch } from "../src/lib/combinations";
-import { findCalibrationBucket, confidenceTier, TIER_EMOJI } from "../src/lib/calibration";
+import { findCalibrationBucket, confidenceTier, TIER_EMOJI, CALIBRATION, CALIBRATION_OVERALL } from "../src/lib/calibration";
 import { computeUpsetSignal } from "../src/lib/upsetSignal";
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
 
@@ -59,6 +59,8 @@ const upsetCountSelect = document.getElementById("upset-count-select") as HTMLSe
 const drawForceSelect = document.getElementById("draw-force-select") as HTMLSelectElement;
 const settlementSummaryEl = document.getElementById("settlement-summary") as HTMLDivElement;
 const settlementRoundsEl = document.getElementById("settlement-rounds") as HTMLDivElement;
+const calibTableEl = document.getElementById("calib-table") as HTMLTableElement;
+const overallTableEl = document.getElementById("overall-table") as HTMLTableElement;
 const tabButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".tab-btn"));
 const tabPages = Array.from(document.querySelectorAll<HTMLElement>(".tab-page"));
 
@@ -297,6 +299,51 @@ function renderExclusivePick() {
   exclusivePickEl.appendChild(box);
 }
 
+// 신뢰도 표는 calibration.ts에서 자동 생성한다. 예전엔 HTML에 숫자를 손으로 박아뒀는데,
+// 리그를 4개 추가하는 동안 아무도 표를 안 고쳐서 K리그/J1 2개만 보이고 나머지 6개가 빠져 있었다.
+// 같은 수치를 두 곳에 두지 않는다(이 저장소 공통 원칙).
+function renderCalibrationTables() {
+  // 백테스트 표본이 같아 수치가 동일한 리그는 한 줄로 묶는다(K리그1·K리그2는 같은 풀).
+  const groups = new Map<string, { leagues: string[]; buckets: typeof CALIBRATION[string] }>();
+  for (const [league, buckets] of Object.entries(CALIBRATION)) {
+    const key = JSON.stringify(buckets);
+    const g = groups.get(key);
+    if (g) g.leagues.push(league);
+    else groups.set(key, { leagues: [league], buckets });
+  }
+
+  const ranges = ["0~5%p", "5~15%p", "15~30%p", "30%p 이상"];
+  const head = `<thead><tr><th>리그</th>${ranges.map((r) => `<th>${r}</th>`).join("")}</tr></thead>`;
+  const rows = [...groups.values()].map((g) => {
+    const cells = g.buckets.map((b, i) => {
+      const txt = `${(b.accuracy * 100).toFixed(1)}% <span class="calib-n">n=${b.n}</span>`;
+      // 마지막 버킷(30%p+)이 실측 우위가 뚜렷한 구간이라 강조
+      return `<td>${i === g.buckets.length - 1 ? `<b>${txt}</b>` : txt}</td>`;
+    });
+    return `<tr><td class="calib-league">${g.leagues.join("·")}</td>${cells.join("")}</tr>`;
+  });
+  calibTableEl.innerHTML = head + `<tbody>${rows.join("")}</tbody>`;
+
+  // 전체 적중률 표 - 홈승 베이스라인 대비 우위를 같이 보여줘야 의미가 읽힌다
+  const oGroups = new Map<string, { leagues: string[]; stat: typeof CALIBRATION_OVERALL[string] }>();
+  for (const [league, stat] of Object.entries(CALIBRATION_OVERALL)) {
+    const key = JSON.stringify(stat);
+    const g = oGroups.get(key);
+    if (g) g.leagues.push(league);
+    else oGroups.set(key, { leagues: [league], stat });
+  }
+  const oHead = `<thead><tr><th>리그</th><th>모델 적중률</th><th>홈승 베이스라인</th><th>우위</th><th>표본</th></tr></thead>`;
+  const oRows = [...oGroups.values()].map(({ leagues, stat }) => {
+    const edge = (stat.accuracy - stat.homeBaseline) * 100;
+    return `<tr><td class="calib-league">${leagues.join("·")}</td>` +
+      `<td>${(stat.accuracy * 100).toFixed(1)}%</td>` +
+      `<td>${(stat.homeBaseline * 100).toFixed(1)}%</td>` +
+      `<td class="${edge >= 5 ? "edge-good" : "edge-weak"}">${edge >= 0 ? "+" : ""}${edge.toFixed(1)}%p</td>` +
+      `<td><span class="calib-n">${stat.n.toLocaleString()}경기</span></td></tr>`;
+  });
+  overallTableEl.innerHTML = oHead + `<tbody>${oRows.join("")}</tbody>`;
+}
+
 // 실전 정산 기록: /api/settlement이 계산한 회차별 기본픽 vs 독식픽 실적을 그대로 보여준다.
 // 백테스트 수치와 섞이지 않도록 "실전"임을 명시하고, 표본이 적으면 그 사실도 같이 적는다.
 function fmtShare(v: number | null): string {
@@ -447,5 +494,6 @@ reportBtn.addEventListener("click", async () => {
 });
 
 renderToggles();
+renderCalibrationTables();
 loadRounds();
 loadSettlement();

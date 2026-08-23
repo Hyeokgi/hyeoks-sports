@@ -697,3 +697,30 @@ main {
     font-size: 0.86rem;
   }
 }
+
+/* 신뢰도 표는 리그가 늘면 가로로 길어져 자체 스크롤 컨테이너에 담는다(본문은 가로 스크롤 금지) */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 8px 0 14px;
+}
+
+.table-scroll .calib-table {
+  margin: 0;
+  min-width: 460px;
+}
+
+.calib-table .calib-league {
+  text-align: left;
+  white-space: nowrap;
+  font-weight: 700;
+  color: #d7dbe3;
+}
+
+.calib-n {
+  color: var(--muted-2);
+  font-size: 0.7rem;
+}
+
+.calib-table .edge-good { color: var(--home); font-weight: 700; }
+.calib-table .edge-weak { color: var(--muted-2); }

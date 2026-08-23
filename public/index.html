@@ -74,7 +74,7 @@
           </select>
         </div>
         <div class="option-row">
-          <label for="draw-force-select">무승부 강제 포함</label>
+          <label for="draw-force-select">무승부 강제 (가치 높은 순)</label>
           <select id="draw-force-select">
             <option value="0" selected>사용 안 함</option>
             <option value="1">1경기</option>
@@ -98,7 +98,7 @@
       </div>
 
       <div class="option-row">
-        <label for="draw-guarantee-select">무승부 강제 포함</label>
+        <label for="draw-guarantee-select">무승부 헤지 (확신도 낮은 순)</label>
         <select id="draw-guarantee-select">
           <option value="0">사용 안 함</option>
           <option value="1">1경기</option>
@@ -107,7 +107,7 @@
           <option value="4">4경기</option>
         </select>
       </div>
-      <p class="hint">확신도가 가장 낮은(팽팽한) 경기부터 예산이 허락하는 한 무승부를 픽에 강제로 포함합니다.</p>
+      <p class="hint">확신도가 가장 낮은(팽팽한) 경기부터 예산이 허락하는 한 무승부를 픽에 강제로 포함합니다. 위 독식픽의 "무승부 강제"와는 다른 기능입니다 — 이쪽은 복식 조합에 무승부를 <b>추가로</b> 얹어 헤지하고, 독식픽은 단일 조합에서 대중이 저평가한 무승부로 <b>바꿉니다</b>.</p>
 
       <div class="budget-row">
         <label for="budget-input">직접 입력 (원)</label>
@@ -127,15 +127,7 @@
       <div class="info-block">
         <h3>확신도 구간별 실측 적중률</h3>
         <p class="hint">"확신도"는 모델이 계산한 1위-2위 확률차입니다. 아래는 과거 경기에 같은 공식을 시점별로(그 경기 이전 데이터만 사용) 적용했을 때 실제로 얼마나 맞았는지를 보여줍니다.</p>
-        <table class="calib-table">
-          <thead><tr><th>확신도 구간</th><th>K리그 실측 적중률</th><th>J1리그 실측 적중률</th></tr></thead>
-          <tbody>
-            <tr><td>0~5%p</td><td>37.8% (n=222)</td><td>36.1% (n=83)</td></tr>
-            <tr><td>5~15%p</td><td>40.4% (n=513)</td><td>37.9% (n=174)</td></tr>
-            <tr><td>15~30%p</td><td>42.5% (n=831)</td><td>44.9% (n=356)</td></tr>
-            <tr><td>30%p 이상</td><td><b>53.6%</b> (n=248)</td><td><b>52.7%</b> (n=110)</td></tr>
-          </tbody>
-        </table>
+        <div class="table-scroll"><table class="calib-table" id="calib-table"></table></div>
       </div>
 
       <div class="info-block">
@@ -147,7 +139,9 @@
       </div>
 
       <div class="info-block">
-        <p class="hint">전체 top-pick 적중률은 K리그 42.8%(항상 홈승 베이스라인 38.9%), J1리그 43.4%(베이스라인 40.2%)로 무작위보다 근소하게 나은 수준입니다. <b>확신도 30%p 이상 구간에서만 뚜렷한 우위</b>가 있고, 그 아래 구간은 거의 동전던지기에 가깝다는 점을 그대로 알려드립니다 — 과장하지 않는 게 이 모델의 원칙입니다.</p>
+        <h3>리그별 전체 적중률</h3>
+        <div class="table-scroll"><table class="calib-table" id="overall-table"></table></div>
+        <p class="hint"><b>확신도 30%p 이상 구간에서만 뚜렷한 우위</b>가 있고, 그 아래 구간은 거의 동전던지기에 가깝다는 점을 그대로 알려드립니다 — 과장하지 않는 게 이 모델의 원칙입니다. "홈승 베이스라인"은 아무 분석 없이 항상 홈승만 찍었을 때의 적중률로, 모델이 그보다 나은지가 최소 기준입니다.</p>
       </div>
     </section>
 
@@ -159,7 +153,9 @@
       </div>
       <div class="info-block">
         <h3>모델 구성</h3>
-        <p>Elo 전력차 + 최근 폼(5경기) + 상대전적(H2H) + 홈 어드밴티지 + 격차 보정 무승부율을 결합해 승/무/패 확률을 계산합니다. K리그1·K리그2·J1리그(일본) 실측 데이터를 기반으로 합니다.</p>
+        <p>Elo 전력차 + 최근 폼(5경기) + 상대전적(H2H) + 홈 어드밴티지 + 격차 보정 무승부율을 결합해 승/무/패 확률을 계산합니다. 해외 배당이 수집되면 함께 블렌딩합니다.</p>
+        <h3>지원 리그</h3>
+        <p id="league-list">K리그1 · K리그2 · J1리그(일본) · MLS(미국) · EPL(잉글랜드) · 세리에A(이탈리아) · 라리가(스페인) · 분데스리가(독일) — 리그별로 별도 백테스트한 실측 데이터를 씁니다.</p>
         <h3>범례</h3>
         <div class="legend-row"><span class="legend-dot home"></span> 홈승 <span class="legend-dot draw"></span> 무승부 <span class="legend-dot away"></span> 원정승</div>
         <h3>구매 한도</h3>
