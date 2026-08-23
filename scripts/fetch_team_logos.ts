@@ -174,7 +174,11 @@ async function main() {
 
   const missing = TEAM_ENTRIES.filter((e) => !manifest[e.nameKr]).map((e) => `${e.league}/${e.nameKr}`);
   if (missing.length > 0) {
-    console.log(`\n엠블럼 없는 팀 ${missing.length}건 (모노그램으로 표시됨):`);
+    // 대부분 강등 등으로 현재 시즌 1부에 없는 팀이다. FotMob 리그 페이지(overview/table)는
+    // 현재 시즌만 담으므로 잡히지 않는다. 1부에 없으면 승무패 회차에 편성될 수도 없어서
+    // 실제 화면에서는 모노그램 폴백이 보이지 않는다 - 버그가 아니다.
+    // 해당 팀이 승격해 돌아오면 다음 수집 때 자동으로 채워진다.
+    console.log(`\n엠블럼 없는 팀 ${missing.length}건 (현재 시즌 1부 미소속 추정, 모노그램 폴백):`);
     console.log("  " + missing.join(", "));
   }
 

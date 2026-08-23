@@ -438,14 +438,21 @@ main {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
 
-/* 모델이 찍은 팀의 마크만 또렷하게 - 나머지는 살짝 가라앉힌다 */
-.match-card .fixture .team:not(.picked) .crest {
-  opacity: 0.55;
-  filter: saturate(0.7);
+/* 모델이 찍은 팀을 강조한다. 다만 실제 엠블럼은 탈색시키면 이미지가 깨진 것처럼 보여서
+   모노그램만 확실히 가라앉히고, 엠블럼은 투명도만 살짝 준다. */
+.match-card .fixture .team:not(.picked) .crest.mono {
+  opacity: 0.5;
+  filter: saturate(0.65);
 }
 
+.match-card .fixture .team:not(.picked) .crest.logo {
+  opacity: 0.82;
+}
+
+/* 찍은 팀에는 금색 링을 둘러 한눈에 구분되게 */
 .match-card .fixture .team.picked .crest {
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(242, 169, 59, 0.55);
+  box-shadow: 0 0 0 2px rgba(242, 169, 59, 0.18), 0 3px 10px rgba(0, 0, 0, 0.35);
 }
 
 /* 모델이 찍은 쪽만 밝게 - "누구를 찍었는지"가 카드에서 바로 읽히게 */
