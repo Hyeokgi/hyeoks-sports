@@ -1,0 +1,42 @@
+[
+  {
+    "en": "K League 1",
+    "id": 9080,
+    "league": "K리그1"
+  },
+  {
+    "en": "K League 2",
+    "id": 9116,
+    "league": "K리그2"
+  },
+  {
+    "en": "J. League",
+    "id": 223,
+    "league": "J1리그"
+  },
+  {
+    "en": "MLS",
+    "id": 130,
+    "league": "MLS"
+  },
+  {
+    "en": "Premier League",
+    "id": 47,
+    "league": "EPL"
+  },
+  {
+    "en": "Serie A",
+    "id": 55,
+    "league": "세리에A"
+  },
+  {
+    "en": "LaLiga",
+    "id": 87,
+    "league": "라리가"
+  },
+  {
+    "en": "Bundesliga",
+    "id": 54,
+    "league": "분데스리가"
+  }
+]
