@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       task:
-        description: "pipeline: 회차감지+배당+투표율+독식픽 / backfill: EPL·세리에A 백필 생성+커밋 / offline-pick: 발매중 회차 오프라인 독식픽(배포 불필요) / deploy: D1 백필 적용+Worker 배포+동기화 / sheets: 구글시트(회차분석+팀DB+선수DB) 갱신 / logos: 팀 엠블럼 수집+커밋 / compare-market: 배당 vs 모델 비교"
+        description: "pipeline: 회차감지+배당+투표율+독식픽 / backfill: EPL·세리에A 백필 생성+커밋 / offline-pick: 발매중 회차 오프라인 독식픽(배포 불필요) / deploy: D1 백필 적용+Worker 배포+동기화 / sheets: 구글시트(회차분석+팀DB+선수DB) 갱신 / logos: 팀 엠블럼 수집+커밋 / compare-market: 종가배당 vs 모델 / compare-market-d1: 앱 실제 배당 vs 모델"
         type: choice
         default: pipeline
         options:
@@ -16,6 +16,7 @@ on:
           - deploy
           - logos
           - compare-market
+          - compare-market-d1
           - sheets
       force_draws:
         description: "무승부 강제 슬롯: 숫자(0~5) 또는 auto(최근 2개 완료 시즌 무승부율 앵커). offline-pick 전용"
@@ -180,6 +181,34 @@ jobs:
             echo "변경 없음"
           else
             git commit -m "배당 vs 모델 비교 결과 갱신 (자동)"
+            git push
+          fi
+
+  # 앱이 실제로 수집한 배당(D1 market_odds)으로 같은 비교를 돌린다. compare-market은
+  # football-data 종가배당이라 서비스가 쓰는 값과 다르다 - marketWeight 조정 근거는 이쪽이다.
+  compare-market-d1:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'compare-market-d1'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Compare app odds vs model
+        run: npx tsx scripts/compare_market_d1.ts
+      - name: Commit result
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seed/market_comparison_d1.json || true
+          if git diff --staged --quiet; then
+            echo "변경 없음"
+          else
+            git commit -m "앱 실제 배당 vs 모델 비교 결과 갱신 (자동)"
             git push
           fi
 
