@@ -1,5 +1,5 @@
 // 한글 팀명 <-> FotMob 영문 팀명 매핑 (predict_round42_v2.py NAME_MAP 이식)
-export type League = "K리그1" | "K리그2" | "J1리그" | "MLS";
+export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A" | "라리가" | "분데스리가";
 
 export interface TeamMapEntry {
   nameKr: string;
@@ -97,6 +97,109 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   // MLS 나머지 2팀 - 45회차엔 결장(바이/휴식주)이라 wisetoto 실표기 미확인. 실제 노출 시 정정 필요.
   { nameKr: "인터마이", nameEn: "Inter Miami CF", league: "MLS" },
   { nameKr: "필라유니", nameEn: "Philadelphia Union", league: "MLS" },
+  // EPL (2026-08-22 wisetoto 46회차 실데이터로 교차 확인된 14팀, FotMob 리그ID 47).
+  // nameKr은 wisetoto 실표기. nameEn은 FotMob 현재시즌 실표기와 backfill_leagues.ts의
+  // 검증 단계(seed/fotmob_current_names.json)로 교차확인한다 - 불일치 발견 시 여기 정정.
+  // 백필 데이터(football-data.co.uk)도 같은 표기로 변환해 저장한다.
+  { nameKr: "에버턴", nameEn: "Everton", league: "EPL" },
+  { nameKr: "크리스털", nameEn: "Crystal Palace", league: "EPL" },
+  { nameKr: "입스위치", nameEn: "Ipswich Town", league: "EPL" },
+  { nameKr: "선덜랜드", nameEn: "Sunderland", league: "EPL" },
+  { nameKr: "노팅엄F", nameEn: "Nottingham Forest", league: "EPL" },
+  { nameKr: "리즈U", nameEn: "Leeds United", league: "EPL" },
+  { nameKr: "브렌트퍼", nameEn: "Brentford", league: "EPL" },
+  { nameKr: "토트넘", nameEn: "Tottenham Hotspur", league: "EPL" },
+  { nameKr: "브라이턴", nameEn: "Brighton & Hove Albion", league: "EPL" },
+  { nameKr: "A빌라", nameEn: "Aston Villa", league: "EPL" },
+  { nameKr: "맨체스C", nameEn: "Manchester City", league: "EPL" },
+  { nameKr: "본머스", nameEn: "AFC Bournemouth", league: "EPL" },
+  { nameKr: "뉴캐슬U", nameEn: "Newcastle United", league: "EPL" },
+  { nameKr: "리버풀", nameEn: "Liverpool", league: "EPL" },
+  // EPL 나머지 6팀(FotMob 2026-27 현재시즌 20팀 실측 기준) - 46회차에 노출되지 않아
+  // wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
+  { nameKr: "아스널", nameEn: "Arsenal", league: "EPL" },
+  { nameKr: "첼시", nameEn: "Chelsea", league: "EPL" },
+  { nameKr: "맨체스U", nameEn: "Manchester United", league: "EPL" },
+  { nameKr: "풀럼", nameEn: "Fulham", league: "EPL" },
+  { nameKr: "코번트리", nameEn: "Coventry City", league: "EPL" },
+  { nameKr: "헐시티", nameEn: "Hull City", league: "EPL" },
+  // 세리에A (2026-08-22 wisetoto 46회차 실데이터로 교차 확인된 14팀, FotMob 리그ID 55)
+  { nameKr: "우디네세", nameEn: "Udinese", league: "세리에A" },
+  { nameKr: "코모1907", nameEn: "Como", league: "세리에A" },
+  { nameKr: "제노아", nameEn: "Genoa", league: "세리에A" },
+  { nameKr: "나폴리", nameEn: "Napoli", league: "세리에A" },
+  { nameKr: "파르마", nameEn: "Parma", league: "세리에A" },
+  { nameKr: "칼리아리", nameEn: "Cagliari", league: "세리에A" },
+  { nameKr: "프로시노", nameEn: "Frosinone", league: "세리에A" },
+  { nameKr: "유벤투스", nameEn: "Juventus", league: "세리에A" },
+  { nameKr: "베네치아", nameEn: "Venezia", league: "세리에A" },
+  { nameKr: "US레체", nameEn: "Lecce", league: "세리에A" },
+  { nameKr: "아탈란타", nameEn: "Atalanta", league: "세리에A" },
+  { nameKr: "사수올로", nameEn: "Sassuolo", league: "세리에A" },
+  { nameKr: "토리노", nameEn: "Torino", league: "세리에A" },
+  // FotMob 세리에A는 짧은 표기 사용("Milan"/"Inter"/"Roma") - 2026-08-22 현재시즌 실측 확인
+  { nameKr: "AC밀란", nameEn: "Milan", league: "세리에A" },
+  // 세리에A 나머지 6팀(FotMob 2026-27 현재시즌 20팀 실측 기준) - 46회차에 노출되지 않아
+  // wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
+  { nameKr: "인터밀란", nameEn: "Inter", league: "세리에A" },
+  { nameKr: "AS로마", nameEn: "Roma", league: "세리에A" },
+  { nameKr: "라치오", nameEn: "Lazio", league: "세리에A" },
+  { nameKr: "피오렌티", nameEn: "Fiorentina", league: "세리에A" },
+  { nameKr: "볼로냐", nameEn: "Bologna", league: "세리에A" },
+  { nameKr: "몬차", nameEn: "Monza", league: "세리에A" },
+  // 라리가 (2026-08-22 선제 편입). nameKr은 1~41회차 betman/wisetoto 실표기에서 확인된 20팀 -
+  // 2025-26 시즌 구성이라 그 시점 소속 기준이다. nameEn은 백필 데이터(FotMob 표기로 통일됨)와
+  // 일치해야 Elo 히스토리가 연결된다.
+  { nameKr: "레알마드", nameEn: "Real Madrid", league: "라리가" },
+  { nameKr: "바르셀로", nameEn: "Barcelona", league: "라리가" },
+  { nameKr: "AT마드", nameEn: "Atletico Madrid", league: "라리가" },
+  { nameKr: "빌바오", nameEn: "Athletic Club", league: "라리가" },
+  { nameKr: "소시에다", nameEn: "Real Sociedad", league: "라리가" },
+  { nameKr: "베티스", nameEn: "Real Betis", league: "라리가" },
+  { nameKr: "세비야", nameEn: "Sevilla", league: "라리가" },
+  { nameKr: "발렌시아", nameEn: "Valencia", league: "라리가" },
+  { nameKr: "비야레알", nameEn: "Villarreal", league: "라리가" },
+  { nameKr: "RC셀타", nameEn: "Celta Vigo", league: "라리가" },
+  { nameKr: "오사수나", nameEn: "Osasuna", league: "라리가" },
+  { nameKr: "헤타페", nameEn: "Getafe", league: "라리가" },
+  { nameKr: "라요", nameEn: "Rayo Vallecano", league: "라리가" },
+  { nameKr: "에스파뇰", nameEn: "Espanyol", league: "라리가" },
+  { nameKr: "알라베스", nameEn: "Deportivo Alaves", league: "라리가" },
+  { nameKr: "마요르카", nameEn: "Mallorca", league: "라리가" },
+  { nameKr: "지로나", nameEn: "Girona", league: "라리가" },
+  { nameKr: "레반테", nameEn: "Levante", league: "라리가" },
+  { nameKr: "엘체", nameEn: "Elche", league: "라리가" },
+  { nameKr: "오비에도", nameEn: "Oviedo", league: "라리가" },
+  // 라리가 2026-27 승격팀 - 과거 회차에 안 나와 wisetoto 실표기 미확인(추정). 표기가 다르면
+  // NAME_MAP 미스매치로 회차 등록이 보류되며(조용한 오염이 아니라 실패), 그때 정정하면 된다.
+  { nameKr: "데포르티", nameEn: "Deportivo A Coruña", league: "라리가" },
+  { nameKr: "말라가", nameEn: "Malaga", league: "라리가" },
+  { nameKr: "산탄데르", nameEn: "Racing Santander", league: "라리가" },
+  // 분데스리가 (2026-08-22 선제 편입, 1~41회차 실표기 확인된 18팀)
+  { nameKr: "바이뮌헨", nameEn: "Bayern München", league: "분데스리가" },
+  { nameKr: "도르트문", nameEn: "Borussia Dortmund", league: "분데스리가" },
+  { nameKr: "레버쿠젠", nameEn: "Bayer Leverkusen", league: "분데스리가" },
+  { nameKr: "라이프치", nameEn: "RB Leipzig", league: "분데스리가" },
+  { nameKr: "프랑크푸", nameEn: "Eintracht Frankfurt", league: "분데스리가" },
+  { nameKr: "슈투트가", nameEn: "VfB Stuttgart", league: "분데스리가" },
+  { nameKr: "묀헨글라", nameEn: "Borussia Mönchengladbach", league: "분데스리가" },
+  { nameKr: "쾰른", nameEn: "1. FC Köln", league: "분데스리가" },
+  { nameKr: "U베를린", nameEn: "Union Berlin", league: "분데스리가" },
+  { nameKr: "프라이부", nameEn: "Freiburg", league: "분데스리가" },
+  { nameKr: "호펜하임", nameEn: "Hoffenheim", league: "분데스리가" },
+  { nameKr: "마인츠05", nameEn: "Mainz 05", league: "분데스리가" },
+  { nameKr: "브레멘", nameEn: "Werder Bremen", league: "분데스리가" },
+  { nameKr: "아우크스", nameEn: "Augsburg", league: "분데스리가" },
+  { nameKr: "함부르크", nameEn: "Hamburger SV", league: "분데스리가" },
+  { nameKr: "볼프스부", nameEn: "Wolfsburg", league: "분데스리가" },
+  { nameKr: "장크트파", nameEn: "St. Pauli", league: "분데스리가" },
+  { nameKr: "하이덴하", nameEn: "Heidenheim", league: "분데스리가" },
+  // 분데스리가 2026-27 승격팀 - wisetoto 실표기 미확인(추정). 2.분데스리가 시절 경기는
+  // football-data D1(1부)에 없어 Elo 히스토리가 없다 - 첫 시즌엔 1500에서 시작하며
+  // 경기가 쌓일 때까지 예측 정확도가 낮다(승격팀 공통, EPL 코번트리/헐시티도 동일).
+  { nameKr: "샬케04", nameEn: "Schalke 04", league: "분데스리가" },
+  { nameKr: "엘버스베", nameEn: "Elversberg", league: "분데스리가" },
+  { nameKr: "파더보른", nameEn: "Paderborn", league: "분데스리가" },
 ];
 
 export const NAME_MAP: Record<string, string> = Object.fromEntries(

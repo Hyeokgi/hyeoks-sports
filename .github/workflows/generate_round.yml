@@ -1,0 +1,35 @@
+name: Generate Round & Exclusive Pick
+
+# 새 회차(예: 46회차) 발매 직후 수동으로 실행: 회차 감지/등록 -> 해외배당 수집 ->
+# betman 투표율 수집 -> 독식 지향 픽을 로그로 출력. Worker 크론(6시간)을 기다리지 않아도 된다.
+on:
+  workflow_dispatch: {}
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Detect/register new round
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/detect_round.mjs
+      - name: Fetch market odds
+        continue-on-error: true # 배당이 아직 없어도 이후 단계는 진행
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/fetch_market_odds.mjs
+      - name: Install Playwright
+        run: |
+          npm install playwright@1
+          npx playwright install --with-deps chromium
+      - name: Fetch betman vote share
+        continue-on-error: true # 발매 전이면 투표율이 없을 수 있음
+        env:
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+        run: node scripts/fetch_vote_share.mjs
+      - name: Print exclusive pick
+        run: npx tsx scripts/print_exclusive_pick.ts

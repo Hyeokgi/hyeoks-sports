@@ -50,6 +50,53 @@ python seed/export_history_to_sql.py
 - `PATCH /api/admin/rounds/:id` - `{"round_no": 42}`로 실제 공식 회차번호 수동 보정 (betman.co.kr에서 확인 필요)
 - `POST /api/admin/notify-test` - 텔레그램 발송 테스트
 
+## 독식 지향 픽
+
+승무패는 파리뮤추얼이라 당첨금이 당첨자 수에 반비례한다. `src/lib/exclusivePick.ts`는 모델 1픽을 기준으로, 적중확률 손실이 작으면서 betman 투표가 덜 몰린 결과로만 제한적으로 뒤집어 "당첨 시 단독(독식) 가능성"을 높이는 픽을 만든다(당첨확률 자체를 높이는 게 아님 - UI/로그에 항상 병기).
+
+- 웹앱: 베팅추천 탭 상단 "👑 독식 지향 픽" (이변 반영 경기 수 조절 가능)
+- API: `POST /api/rounds/:id/exclusive-pick` (body: `{toggles?, options?}`)
+- CLI: `npx tsx scripts/print_exclusive_pick.ts` (배포된 Worker 데이터 기준)
+- GitHub Actions: `Fetch Betman Vote Share` 워크플로우 수동 실행(task 선택) 또는 main 머지 후 `Generate Round & Exclusive Pick`(workflow_dispatch) - 회차 감지 → 배당 수집 → betman 투표율 수집 → 독식 픽 로그 출력을 한 번에 실행
+  - `task=offline-pick`: Worker 배포/백필 전에도 러너에서 발매중 회차를 직접 분석해 독식픽을 로그로 출력 (`scripts/offline_round_pick.ts`)
+
+## 유럽 리그 편입 (EPL·세리에A·라리가·분데스리가)
+
+46회차부터 EPL·세리에A 회차가 등장해 두 리그를 편입했고(MLS와 동일 절차 + 재현 가능 스크립트화), 이어서 라리가·분데스리가도 선제 편입했다. 신규 회차가 웹앱에 뜨려면 아래 순서로 반영해야 한다:
+
+1. D1 백필 적용: `npx wrangler d1 execute kleague-toto-db --remote --file=seed/backfill_leagues.sql`
+   (백필 데이터 재생성은 `Fetch Betman Vote Share` 워크플로우 `task=backfill` - football-data.co.uk 3.5시즌 + FotMob 현재시즌 경기를 FotMob 팀명 기준으로 생성/커밋)
+2. Worker 배포: `npm run deploy` (신규 리그 nameMap/캘리브레이션 포함)
+3. 결과 동기화+회차 등록: `POST /api/admin/sync` → `POST /api/admin/detect-round` (또는 크론 대기, 또는 워크플로우 `task=pipeline`)
+4. 이후 배당/투표율 크론이 평소처럼 채워진다
+
+주의사항
+- 4개 유럽 리그 모두 교차연도 시즌(8월~5월)이라 Elo 시즌 회귀 경계를 7월로 처리한다(`elo.ts seasonOf`)
+- xG/코너킥은 기존 게이팅에 따라 자동 미적용(기본모델만)
+- 라리가만 `HOME_ADV=105`(실측 홈승률 46.0%, 그리드서치에서 기본값 60이 3시즌 전부 최악). 나머지는 60
+- football-data는 시즌마다 팀 표기를 바꾸므로(`Ath Madrid` → `Atl. Madrid` → `Atletico Madrid`) `backfill_leagues.ts`의 `FD_TO_FOTMOB`으로 FotMob 표기에 통일한다. 매핑이 빠지면 실행 로그가 "FotMob 현재 팀 X는 백필 CSV에 없음"으로 알려준다
+
+## 저장소 통합 (hyeoks-sports-engine)
+
+`hyeoks-sports-engine`(Python/구글시트)에 있던 기능을 이 저장소로 옮기는 중이다. 엔진의 예측 역할은 이미 이 앱에 위임돼 있었고(`predict_engine.py`가 K리그 예측을 앱 API에서 가져다 씀), FotMob·football-data 크롤링도 중복이었다.
+
+**이관 완료**
+- 1~41회차 원본 데이터 → `seed/history_*.json` (엔진 레포에만 있어 앱 백테스트가 존재조차 몰랐던 자산)
+- `build_round_analysis_sheet.py` → `scripts/export_sheets.py` (HYEOKS_회차분석 탭)
+- `crawl_and_update.py`의 팀 DB / 선수 DB → `scripts/export_player_db.py`
+  - 선수 통계는 D1이 아니라 구글시트에만 적재한다(앱에 선수 스키마가 없고 용도가 스카우팅/열람이라 시트가 적합). 앱 예측 모델은 이 데이터를 쓰지 않는다
+  - 대상 리그에 MLS를 추가했다(엔진 시절엔 없었으나 45회차가 MLS 회차였고 앱에도 편입돼 있어서)
+- 두 스크립트는 `scripts/sheets_common.py`(인증·시트 기록 공용)를 함께 쓰고, `Export Google Sheets` 워크플로우가 매일 04:00 KST에 둘 다 실행한다
+
+**이관하지 않은 것** (의도적)
+- `crawl_and_update.py`의 경기 단위 크롤링(`전체`/리그별/`HYEOKS_팀통계`/`HYEOKS_선수통계` 탭) — 이 앱의 `refreshHistory` 크론과 중복이라 옮기지 않았다
+- `predict_engine.py` — RandomForest 기반 `HYEOKS_예측리포트` 시트. K리그는 이미 이 앱의 예측을 가져다 쓰고 있었고, 2026-08-22에 라리가·분데스리가까지 편입해 **이 스크립트가 다루던 모든 리그를 앱이 커버**하게 됐다. 게다가 이 스크립트가 읽는 `전체` 탭을 채우던 `crawl_and_update.py`가 실행 목록에서 빠져 데이터가 더 이상 갱신되지 않으므로, 은퇴시키는 것이 맞다
+
+**엔진 레포를 끄기 전 확인**
+1. 이 저장소에 `GOOGLE_SERVICE_ACCOUNT_KEY` 시크릿 등록 (완료)
+2. 엔진 레포의 `hyeoks_engine.yml`에서 `build_round_analysis_sheet.py`·`crawl_and_update.py` 실행을 제거 — 안 그러면 두 레포가 같은 시트를 이중으로 쓴다
+3. `predict_engine.py` 실행 제거 후 엔진 레포 아카이브 (앱이 모든 리그를 커버하므로 기능 손실 없음)
+
 ## 알려진 제약
 
 - betman.co.kr 공식 회차 확인은 세션 게이트가 있어 Worker에서 직접 스크래핑 불가. `detectNewRound` 크론은 FotMob 예정 경기로 "다음 14경기 묶음"을 추정만 하며, 실제 회차번호는 위 관리자 API로 수동 보정해야 한다.
