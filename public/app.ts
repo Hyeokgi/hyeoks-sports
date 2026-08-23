@@ -1,7 +1,7 @@
 // 프론트엔드 로직: 회차 조회, 변수 토글(클라이언트 즉시 재계산), 예산별 조합, AI 리포트
 import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type PredictionInputs } from "../src/lib/prediction";
 import { generateSystemBetTiers, DEFAULT_BUDGET_TIERS, generateSystemBet, type ComboMatch } from "../src/lib/combinations";
-import { findCalibrationBucket, confidenceTier, TIER_EMOJI, CALIBRATION, CALIBRATION_OVERALL } from "../src/lib/calibration";
+import { findCalibrationBucket, confidenceTier, CALIBRATION, CALIBRATION_OVERALL } from "../src/lib/calibration";
 import { computeUpsetSignal } from "../src/lib/upsetSignal";
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
 
@@ -64,6 +64,16 @@ const overallTableEl = document.getElementById("overall-table") as HTMLTableElem
 const tabButtons = Array.from(document.querySelectorAll<HTMLButtonElement>(".tab-btn"));
 const tabPages = Array.from(document.querySelectorAll<HTMLElement>(".tab-page"));
 
+// 팀명·리그명은 DB에서 오는 값이라 innerHTML에 넣기 전에 이스케이프한다.
+function esc(v: string): string {
+  return v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
+
+// index.html의 SVG 스프라이트 참조(이모지 대체)
+function icon(name: string, cls = "icon"): string {
+  return `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+}
+
 function toInputs(m: MatchData): PredictionInputs {
   return {
     eloDiff: m.raw.eloDiff,
@@ -75,6 +85,23 @@ function toInputs(m: MatchData): PredictionInputs {
     cornersDiff: m.raw.cornersDiff,
     league: m.league,
   };
+}
+
+function skeletonCards(n: number): string {
+  return Array.from({ length: n })
+    .map(
+      () =>
+        `<div class="skeleton-card">` +
+        `<div class="skeleton-line w-40"></div>` +
+        `<div class="skeleton-line w-70"></div>` +
+        `<div class="skeleton-line bar"></div>` +
+        `</div>`,
+    )
+    .join("");
+}
+
+function emptyState(iconName: string, text: string): string {
+  return `<div class="empty-state">${icon(iconName, "icon")}${text}</div>`;
 }
 
 function renderToggles() {
@@ -113,13 +140,17 @@ function renderRoundSummary() {
   const ongoing = currentMatches.length - settled.length;
   roundSummaryEl.hidden = false;
   roundSummaryEl.innerHTML =
-    `<span class="summary-stat">✅ ${correct}/${settled.length} 적중 (${pct}%)</span>` +
+    `<span class="summary-stat">${icon("check")}${correct}/${settled.length} 적중 (${pct}%)</span>` +
     (ongoing > 0 ? `<span class="summary-note">진행중 ${ongoing}경기 제외</span>` : "");
 }
 
 function renderMatches() {
   matchList.innerHTML = "";
   renderRoundSummary();
+  if (currentMatches.length === 0) {
+    matchList.innerHTML = emptyState("matches", "이 회차에 등록된 경기가 없습니다.");
+    return;
+  }
   for (const m of currentMatches) {
     const prediction = predictMatch(toInputs(m), currentToggles);
     const card = document.createElement("div");
@@ -131,24 +162,49 @@ function renderMatches() {
     let resultBadge = "";
     if (m.result) {
       const hit = prediction.rankedPicks[0] === RESULT_LABEL[m.result.actual];
-      resultBadge = `<span class="result-badge ${hit ? "hit" : "miss"}">${hit ? "✅ 적중" : "❌ 실패"} (${m.result.hg}:${m.result.ag})</span>`;
+      resultBadge =
+        `<span class="result-badge ${hit ? "hit" : "miss"}">${icon(hit ? "check" : "x")}` +
+        `${hit ? "적중" : "실패"} ${m.result.hg}:${m.result.ag}</span>`;
     }
-    meta.innerHTML = `<span class="league-badge">${m.seq}경기 · ${m.league}</span><span class="confidence-badge">${TIER_EMOJI[tier]} ${tier} · 확신도 ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>${resultBadge}`;
+    meta.innerHTML =
+      `<span class="league-badge"><b>${m.seq}</b>${esc(m.league)}</span>` +
+      `<span class="confidence-badge t-${tier}"><i class="tier-dot"></i>${tier} · ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>` +
+      resultBadge;
     card.appendChild(meta);
 
-    const teams = document.createElement("div");
-    teams.className = "teams";
-    teams.textContent = `${m.home} vs ${m.away}`;
-    card.appendChild(teams);
+    // 홈/VS/원정 3분할. 모델 1픽 쪽을 강조해서 "누구를 찍었는지"가 한눈에 보이게 한다.
+    const top = prediction.rankedPicks[0];
+    const fixture = document.createElement("div");
+    fixture.className = "fixture";
+    fixture.innerHTML =
+      `<span class="team${top === "홈승" ? " picked" : ""}">${esc(m.home)}</span>` +
+      `<span class="vs${top === "무승부" ? " picked" : ""}">${top === "무승부" ? "무" : "VS"}</span>` +
+      `<span class="team${top === "원정승" ? " picked" : ""}">${esc(m.away)}</span>`;
+    card.appendChild(fixture);
 
+    // 확률 숫자를 막대 안이 아니라 밖(범례)에 둔다. 예전엔 5% 같은 좁은 구간에서 숫자가 잘렸다.
     const bar = document.createElement("div");
     bar.className = "prob-bar";
-    bar.innerHTML = `
-      <span class="home" style="width:${(prediction.pHome * 100).toFixed(1)}%">${(prediction.pHome * 100).toFixed(0)}%</span>
-      <span class="draw" style="width:${(prediction.pDraw * 100).toFixed(1)}%">${(prediction.pDraw * 100).toFixed(0)}%</span>
-      <span class="away" style="width:${(prediction.pAway * 100).toFixed(1)}%">${(prediction.pAway * 100).toFixed(0)}%</span>
-    `;
+    bar.innerHTML =
+      `<span class="home" style="width:${(prediction.pHome * 100).toFixed(1)}%"></span>` +
+      `<span class="draw" style="width:${(prediction.pDraw * 100).toFixed(1)}%"></span>` +
+      `<span class="away" style="width:${(prediction.pAway * 100).toFixed(1)}%"></span>`;
     card.appendChild(bar);
+
+    const legend = document.createElement("div");
+    legend.className = "prob-legend";
+    const legs: [string, string, number, string][] = [
+      ["home", "홈승", prediction.pHome, "홈승"],
+      ["draw", "무승부", prediction.pDraw, "무승부"],
+      ["away", "원정승", prediction.pAway, "원정승"],
+    ];
+    legend.innerHTML = legs
+      .map(
+        ([cls, label, prob, pickName]) =>
+          `<span class="leg ${cls}${top === pickName ? " picked" : ""}"><i></i>${label} <b>${(prob * 100).toFixed(0)}%</b></span>`,
+      )
+      .join("");
+    card.appendChild(legend);
 
     const pick = document.createElement("div");
     pick.className = "pick-line";
@@ -157,7 +213,7 @@ function renderMatches() {
       : "";
     const xgNote = m.raw.xgDiff != null ? ` <span class="market-note">xG 반영</span>` : "";
     const cornersNote = m.raw.cornersDiff != null ? ` <span class="market-note">코너킥 반영</span>` : "";
-    pick.innerHTML = `모델 추천 <b>${prediction.rankedPicks[0]}</b>${marketNote}${xgNote}${cornersNote}`;
+    pick.innerHTML = `모델 추천 <b>${top}</b>${marketNote}${xgNote}${cornersNote}`;
     card.appendChild(pick);
 
     // 작업1: 모델 원본 확률을 덮어쓰지 않고, 같은 확신도 구간의 실측 적중률을 항상 보이게 병기
@@ -189,7 +245,7 @@ function renderMatches() {
     evidenceBody.className = "evidence-body";
     evidenceBody.hidden = true;
     evidenceBody.innerHTML = `
-      <div>Elo 전력차: ${m.raw.eloDiff.toFixed(0)}점 (${m.raw.eloDiff >= 0 ? m.home : m.away} 우세)</div>
+      <div>Elo 전력차: ${m.raw.eloDiff.toFixed(0)}점 (${esc(m.raw.eloDiff >= 0 ? m.home : m.away)} 우세)</div>
       <div>최근 폼(5경기) 차이: ${m.raw.formDiff.toFixed(2)}점</div>
       <div>상대전적(H2H) 성향: ${m.raw.h2hDiff.toFixed(2)} (표본 ${m.raw.nH2h}회)</div>
       <div>리그 실측 무승부율: ${(m.raw.leagueDrawRate * 100).toFixed(1)}%</div>
@@ -368,7 +424,7 @@ async function loadSettlement() {
 
   settlementSummaryEl.hidden = false;
   settlementSummaryEl.innerHTML =
-    `<span class="summary-stat">📒 정산 ${s.rounds}회차 · ${s.settledMatches}경기</span>` +
+    `<span class="summary-stat">${icon("ledger")}정산 ${s.rounds}회차 · ${s.settledMatches}경기</span>` +
     `<span class="summary-note">기본픽 ${(s.basePickAccuracy * 100).toFixed(1)}% · 독식픽 ${(s.exclusivePickAccuracy * 100).toFixed(1)}% · 실제 무승부 ${(s.drawRate * 100).toFixed(1)}%</span>` +
     (s.rounds < 5 ? `<span class="summary-note">⚠️ 표본 ${s.rounds}회차 — 아직 판단 근거로 쓰기엔 부족합니다</span>` : "");
 
@@ -394,9 +450,21 @@ async function loadSettlement() {
 }
 
 async function loadRounds() {
-  const res = await fetch("/api/rounds");
-  const data = await res.json();
+  matchList.innerHTML = skeletonCards(5);
+  let data: any;
+  try {
+    const res = await fetch("/api/rounds");
+    if (!res.ok) throw new Error(String(res.status));
+    data = await res.json();
+  } catch {
+    matchList.innerHTML = emptyState("info", "회차 목록을 불러오지 못했습니다.<br />네트워크 상태를 확인해 주세요.");
+    return;
+  }
   roundSelect.innerHTML = "";
+  if (!(data.rounds?.length > 0)) {
+    matchList.innerHTML = emptyState("matches", "아직 등록된 회차가 없습니다.");
+    return;
+  }
   for (const r of data.rounds ?? []) {
     const opt = document.createElement("option");
     opt.value = String(r.id);
@@ -405,16 +473,25 @@ async function loadRounds() {
       : `${r.round_no ?? "추정"}회차 (미확정, #${r.id})`;
     roundSelect.appendChild(opt);
   }
-  if (data.rounds?.length > 0) {
-    await loadRound(data.rounds[0].id);
-  }
+  await loadRound(data.rounds[0].id);
 }
 
 async function loadRound(roundId: number) {
   currentRoundId = roundId;
   reportText.textContent = "";
-  const res = await fetch(`/api/rounds/${roundId}`);
-  const data = await res.json();
+  matchList.innerHTML = skeletonCards(5);
+  roundSummaryEl.hidden = true;
+
+  let data: any;
+  try {
+    const res = await fetch(`/api/rounds/${roundId}`);
+    if (!res.ok) throw new Error(String(res.status));
+    data = await res.json();
+  } catch {
+    matchList.innerHTML = emptyState("info", "회차 정보를 불러오지 못했습니다.<br />잠시 후 다시 시도해 주세요.");
+    return;
+  }
+
   currentMatches = (data.matches ?? []).map((m: any) => ({
     seq: m.seq,
     league: m.league,

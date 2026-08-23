@@ -3,17 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⚽ HYEOKS 축구토토 예측</title>
+  <title>HYEOKS 축구토토 예측</title>
+  <meta name="theme-color" content="#0a0c12" />
+  <meta name="description" content="Elo·최근폼·상대전적·해외배당을 결합한 승무패 예측. 실측 백테스트 적중률을 그대로 공개합니다." />
+  <!-- Pretendard: 지금까지 font-family에 선언만 돼 있고 로드를 안 해서 맑은고딕/애플고딕으로 렌더링되고 있었다 -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
   <link rel="stylesheet" href="/style.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚽</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22><rect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23f2a93b%22/><circle cx=%2216%22 cy=%2216%22 r=%228%22 fill=%22none%22 stroke=%22%232a1c05%22 stroke-width=%222%22/><path d=%22M16 10.5l4.2 3-1.6 5h-5.2l-1.6-5 4.2-3Z%22 fill=%22%232a1c05%22/></svg>" />
 </head>
 <body>
+  <!-- 아이콘 스프라이트: 이모지는 OS마다 모양이 달라 브랜드 일관성이 깨져서 전부 SVG로 교체했다 -->
+  <svg class="icon-sprite" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-matches" viewBox="0 0 24 24"><path d="M8 3v3M16 3v3M3.5 9.5h17M5 5.5h14a1.5 1.5 0 0 1 1.5 1.5v12A1.5 1.5 0 0 1 19 20.5H5A1.5 1.5 0 0 1 3.5 19V7A1.5 1.5 0 0 1 5 5.5Z"/><path d="M7.5 13h3M7.5 16.5h6"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 12h2M10 12h10M4 17h7M15 17h5"/><circle cx="16" cy="7" r="2.1"/><circle cx="8" cy="12" r="2.1"/><circle cx="13" cy="17" r="2.1"/></symbol>
+      <symbol id="i-ai" viewBox="0 0 24 24"><path d="m12 3 1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3Z"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2Z"/></symbol>
+      <symbol id="i-bets" viewBox="0 0 24 24"><path d="M3.5 8.5A2 2 0 0 1 5.5 6.5h13a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-9Z"/><path d="M3.5 10.5h17"/><path d="M16.5 15h1.5"/><path d="M6.5 6.5 15 3.8a1.4 1.4 0 0 1 1.8.9l.5 1.6"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8 20v-5.5M12.5 20V9M17 20v-8"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><path d="M12 7.8h.01"/></symbol>
+      <symbol id="i-crown" viewBox="0 0 24 24"><path d="M4 17.5h16"/><path d="m3.5 7 3.6 3.2L12 5l4.9 5.2L20.5 7l-1.4 8H4.9L3.5 7Z"/></symbol>
+      <symbol id="i-ledger" viewBox="0 0 24 24"><path d="M5.5 4.5h11a2 2 0 0 1 2 2v13H7.5a2 2 0 0 1-2-2v-13Z"/><path d="M5.5 17.5h13"/><path d="M9 8.5h6M9 12h4"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+      <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="m12 7.4 3.6 2.6-1.4 4.3H9.8L8.4 10 12 7.4Z"/><path d="M12 3.4v4M4.2 9.6l4.2 .4M19.8 9.6l-4.2 .4M7.2 20l2.6-5.7M16.8 20l-2.6-5.7"/></symbol>
+    </defs>
+  </svg>
   <header class="topbar">
     <div class="brand">
-      <span class="brand-icon">⚽</span>
-      <h1>HYEOKS 축구토토 예측</h1>
+      <span class="brand-icon"><svg class="icon brand-glyph" aria-hidden="true"><use href="#i-ball"/></svg></span>
+      <span class="brand-text">
+        <h1>HYEOKS 축구토토</h1>
+        <span class="brand-sub">승무패 예측 · 실측 검증</span>
+      </span>
     </div>
-    <select id="round-select"></select>
+    <div class="round-picker">
+      <label for="round-select">회차</label>
+      <select id="round-select"></select>
+    </div>
   </header>
 
   <main>
@@ -21,7 +48,7 @@
     <section class="tab-page" data-tab="matches">
       <div class="panel-head">
         <span class="eyebrow">일정 · 확률</span>
-        <h2>📋 경기 목록</h2>
+        <h2><svg class="icon" aria-hidden="true"><use href="#i-matches"/></svg>경기 목록</h2>
       </div>
       <div id="round-summary" class="round-summary" hidden></div>
       <div id="match-list" class="match-list"></div>
@@ -31,7 +58,7 @@
     <section class="tab-page" data-tab="settings" hidden>
       <div class="panel-head">
         <span class="eyebrow">모델 · 변수 조정</span>
-        <h2>🎛️ 반영 변수</h2>
+        <h2><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg>반영 변수</h2>
       </div>
       <div class="toggle-grid" id="toggle-grid"></div>
       <p class="hint">변수를 끄면 해당 요소를 제외하고 확률을 즉시 다시 계산합니다.</p>
@@ -41,7 +68,7 @@
     <section class="tab-page accent" data-tab="ai" hidden>
       <div class="panel-head">
         <span class="eyebrow">AI · 경기 분석</span>
-        <h2>🤖 AI 분석 리포트</h2>
+        <h2><svg class="icon" aria-hidden="true"><use href="#i-ai"/></svg>AI 분석 리포트</h2>
       </div>
       <button id="report-btn" class="btn primary">이번 회차 리포트 생성</button>
       <p id="report-text" class="report-text"></p>
@@ -51,16 +78,21 @@
     <section class="tab-page" data-tab="bets" hidden>
       <div class="panel-head">
         <span class="eyebrow">구매 전략 · 예산</span>
-        <h2>💰 예산별 구매 조합</h2>
+        <h2><svg class="icon" aria-hidden="true"><use href="#i-bets"/></svg>예산별 구매 조합</h2>
       </div>
 
       <div class="info-block exclusive-block">
-        <h3>👑 독식 지향 픽 (betman 투표율 반영)</h3>
-        <p class="hint">
-          당첨금은 당첨 조합을 산 사람 수에 반비례합니다. 모델 1픽을 기준으로, 적중확률 손실이 작으면서
-          대중 투표가 덜 몰린 결과로만 제한적으로 뒤집어 <b>당첨 시 단독(독식) 가능성</b>을 높입니다.
-          당첨확률 자체를 높이는 기능이 아닙니다.
+        <h3><svg class="icon" aria-hidden="true"><use href="#i-crown"/></svg>독식 지향 픽 (betman 투표율 반영)</h3>
+        <p class="hint lead">
+          <b>당첨 시 단독(독식) 가능성</b>을 높이는 픽입니다. 당첨확률 자체를 높이지는 않습니다.
         </p>
+        <details class="explainer">
+          <summary>왜 확률이 더 낮은 픽을 고르나요?</summary>
+          <p class="hint">
+            당첨금은 당첨 조합을 산 사람 수에 반비례합니다. 모델 1픽을 기준으로, 적중확률 손실이 작으면서
+            대중 투표가 덜 몰린 결과로만 제한적으로 뒤집어 같은 확률대에서 <b>당첨금 기대값</b>을 끌어올립니다.
+          </p>
+        </details>
         <div class="option-row">
           <label for="upset-count-select">이변 반영 최대 경기 수</label>
           <select id="upset-count-select">
@@ -83,17 +115,20 @@
             <option value="4">4경기</option>
           </select>
         </div>
-        <p class="hint">
-          과거 시즌 무승부율 기준 14경기당 무승부는 평균 3~4개 나옵니다(EPL 최근 2시즌 25.9%, 세리에A 27.2%).
-          강제 포함 시 대중이 무승부를 가장 저평가한 경기부터 채우며, 적중확률은 그만큼 크게 낮아집니다.
-          <b>1~41회차 실측에서 이 옵션은 기대값을 개선하지 않았습니다</b> — 무승부가 몰리는 회차를 커버하는
-          분산 목적이지, 수익 최적화 수단이 아닙니다(기본값 사용 안 함).
-        </p>
-        <p class="hint">
-          이변 기본값은 1~41회차 실측 38회차에 이 코드를 그대로 돌려 정한 값입니다. 종전 기본값(3경기)은
-          우리 픽의 대중 구매비중이 실제 당첨조합보다 <b>164배 혼잡</b>해 독식이라는 목적을 달성하지
-          못했고, 현재 값(5경기)은 적중 기대치를 거의 그대로 두면서 혼잡도를 15배까지 낮춥니다.
-        </p>
+        <details class="explainer">
+          <summary>이 기본값을 어떻게 정했나요?</summary>
+          <p class="hint">
+            과거 시즌 무승부율 기준 14경기당 무승부는 평균 3~4개 나옵니다(EPL 최근 2시즌 25.9%, 세리에A 27.2%).
+            강제 포함 시 대중이 무승부를 가장 저평가한 경기부터 채우며, 적중확률은 그만큼 크게 낮아집니다.
+            <b>1~41회차 실측에서 이 옵션은 기대값을 개선하지 않았습니다</b> — 무승부가 몰리는 회차를 커버하는
+            분산 목적이지, 수익 최적화 수단이 아닙니다(기본값 사용 안 함).
+          </p>
+          <p class="hint">
+            이변 기본값은 1~41회차 실측 38회차에 이 코드를 그대로 돌려 정한 값입니다. 종전 기본값(3경기)은
+            우리 픽의 대중 구매비중이 실제 당첨조합보다 <b>164배 혼잡</b>해 독식이라는 목적을 달성하지
+            못했고, 현재 값(5경기)은 적중 기대치를 거의 그대로 두면서 혼잡도를 15배까지 낮춥니다.
+          </p>
+        </details>
         <div id="exclusive-pick" class="combo-tiers"></div>
       </div>
 
@@ -107,7 +142,10 @@
           <option value="4">4경기</option>
         </select>
       </div>
-      <p class="hint">확신도가 가장 낮은(팽팽한) 경기부터 예산이 허락하는 한 무승부를 픽에 강제로 포함합니다. 위 독식픽의 "무승부 강제"와는 다른 기능입니다 — 이쪽은 복식 조합에 무승부를 <b>추가로</b> 얹어 헤지하고, 독식픽은 단일 조합에서 대중이 저평가한 무승부로 <b>바꿉니다</b>.</p>
+      <details class="explainer">
+        <summary>독식픽의 "무승부 강제"와 뭐가 다른가요?</summary>
+        <p class="hint">확신도가 가장 낮은(팽팽한) 경기부터 예산이 허락하는 한 무승부를 픽에 강제로 포함합니다. 이쪽은 복식 조합에 무승부를 <b>추가로</b> 얹어 헤지하고, 독식픽은 단일 조합에서 대중이 저평가한 무승부로 <b>바꿉니다</b>.</p>
+      </details>
 
       <div class="budget-row">
         <label for="budget-input">직접 입력 (원)</label>
@@ -122,7 +160,7 @@
     <section class="tab-page" data-tab="calibration" hidden>
       <div class="panel-head">
         <span class="eyebrow">백테스트 · 실측 검증</span>
-        <h2>📊 신뢰도</h2>
+        <h2><svg class="icon" aria-hidden="true"><use href="#i-chart"/></svg>신뢰도</h2>
       </div>
       <div class="info-block">
         <h3>확신도 구간별 실측 적중률</h3>
@@ -131,7 +169,7 @@
       </div>
 
       <div class="info-block">
-        <h3>📒 실전 정산 기록</h3>
+        <h3><svg class="icon" aria-hidden="true"><use href="#i-ledger"/></svg>실전 정산 기록</h3>
         <p class="hint">아래는 백테스트가 아니라 <b>이 앱이 실제로 낸 픽</b>이 정산된 회차에서 어떻게 됐는지를 그대로 센 것입니다. 회차가 쌓일수록 정확해집니다.</p>
         <div id="settlement-summary" class="round-summary" hidden></div>
         <div id="settlement-rounds" class="combo-tiers"></div>
@@ -149,7 +187,7 @@
     <section class="tab-page" data-tab="info" hidden>
       <div class="panel-head">
         <span class="eyebrow">가이드 · 안내</span>
-        <h2>ℹ️ 정보</h2>
+        <h2><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg>정보</h2>
       </div>
       <div class="info-block">
         <h3>모델 구성</h3>
@@ -168,12 +206,12 @@
   </main>
 
   <nav class="tabbar">
-    <button class="tab-btn active" data-tab="matches"><span class="tab-icon">📋</span><span>경기</span></button>
-    <button class="tab-btn" data-tab="settings"><span class="tab-icon">🎛️</span><span>변수</span></button>
-    <button class="tab-btn" data-tab="ai"><span class="tab-icon">🤖</span><span>AI분석</span></button>
-    <button class="tab-btn" data-tab="bets"><span class="tab-icon">💰</span><span>베팅추천</span></button>
-    <button class="tab-btn" data-tab="calibration"><span class="tab-icon">📊</span><span>신뢰도</span></button>
-    <button class="tab-btn" data-tab="info"><span class="tab-icon">ℹ️</span><span>정보</span></button>
+    <button class="tab-btn active" data-tab="matches"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-matches"/></svg></span><span>경기</span></button>
+    <button class="tab-btn" data-tab="settings"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg></span><span>변수</span></button>
+    <button class="tab-btn" data-tab="ai"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-ai"/></svg></span><span>AI분석</span></button>
+    <button class="tab-btn" data-tab="bets"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-bets"/></svg></span><span>베팅추천</span></button>
+    <button class="tab-btn" data-tab="calibration"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-chart"/></svg></span><span>신뢰도</span></button>
+    <button class="tab-btn" data-tab="info"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg></span><span>정보</span></button>
   </nav>
 
   <script src="/app.js"></script>
