@@ -57,8 +57,17 @@ function collectTeams(node: any, out: Map<number, string>, depth = 0): void {
   if (typeof name === "string" && name.length > 0 && (typeof id === "number" || /^\d+$/.test(String(id ?? "")))) {
     const nid = Number(id);
     if (Number.isFinite(nid) && nid > 0) {
+      // 경기 카드의 home/away, 순위표 행 등 팀 객체가 가질 법한 필드를 폭넓게 본다.
+      // (리그 개요만 보면 경기 창 밖의 팀이 누락돼 실제로 6팀이 빠졌다)
       const looksLikeTeam =
-        "shortName" in node || "teamColor" in node || "score" in node || "imageUrl" in node;
+        "shortName" in node ||
+        "teamColor" in node ||
+        "score" in node ||
+        "imageUrl" in node ||
+        "played" in node ||
+        "pts" in node ||
+        "goalConDiff" in node ||
+        (typeof node.pageUrl === "string" && node.pageUrl.includes("/teams/"));
       if (looksLikeTeam) out.set(nid, name);
     }
   }
@@ -99,11 +108,17 @@ async function main() {
 
   for (const [league, leagueId] of Object.entries(LEAGUE_IDS)) {
     console.log(`\n[${league}] leagueId=${leagueId}`);
-    const json = await fetchNextData(`https://www.fotmob.com/ko/leagues/${leagueId}/overview/`);
-    if (!json) continue;
     const teams = new Map<number, string>();
-    collectTeams(json?.props?.pageProps, teams);
-    console.log(`  팀 후보 ${teams.size}건`);
+    // overview는 경기 창에 걸린 팀만 나온다. table 페이지에 리그 전체 팀이 있으므로 둘 다 본다.
+    for (const sub of ["overview", "table"]) {
+      const json = await fetchNextData(`https://www.fotmob.com/ko/leagues/${leagueId}/${sub}/`);
+      if (!json) continue;
+      const before = teams.size;
+      collectTeams(json?.props?.pageProps, teams);
+      console.log(`  ${sub}: +${teams.size - before} (누적 ${teams.size})`);
+      await new Promise((r) => setTimeout(r, 800));
+    }
+    if (teams.size === 0) continue;
 
     for (const [id, en] of teams) {
       const hit = enToKr.get(norm(en));
