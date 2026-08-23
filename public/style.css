@@ -422,6 +422,13 @@ main {
   object-fit: contain;
 }
 
+/* 정식 엠블럼은 밝은 원판 위에 올린다. 구단 엠블럼 중엔 남색/검정 계열이 많아
+   어두운 배경에 그대로 얹으면 형체가 사라진다. */
+.crest.logo {
+  background: rgba(255, 255, 255, 0.92);
+  padding: 3px;
+}
+
 .crest.mono {
   background: linear-gradient(140deg, var(--crest-a), var(--crest-b));
   color: #fff;

@@ -4,6 +4,7 @@ import { generateSystemBetTiers, DEFAULT_BUDGET_TIERS, generateSystemBet, type C
 import { findCalibrationBucket, confidenceTier, CALIBRATION, CALIBRATION_OVERALL } from "../src/lib/calibration";
 import { computeUpsetSignal } from "../src/lib/upsetSignal";
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
+import { TEAM_LOGOS } from "../src/lib/teamLogos";
 
 interface MatchData {
   seq: number;
@@ -74,12 +75,11 @@ function esc(v: string): string {
 
 // ---------------------------------------------------------------------------
 // 팀 마크
-// 실제 구단 엠블럼은 등록상표라 상용 서비스에서 무단 사용하면 위험이 있고, FotMob 같은
-// 외부 CDN 핫링크는 차단되면 그대로 깨진다. 그래서 기본은 팀명에서 결정적으로 생성하는
-// 모노그램 마크를 쓴다(외부 요청 0, 오프라인 동작, 라이선스 위험 없음).
-// 나중에 정식 엠블럼을 확보하면 TEAM_LOGO_URL에 팀명->URL만 채우면 그대로 대체된다.
+// 정식 엠블럼(public/logos/, scripts/fetch_team_logos.ts가 수집)을 우선 쓰고,
+// 없는 팀은 팀명에서 결정적으로 생성하는 모노그램으로 폴백한다.
+// 엠블럼은 외부 CDN 핫링크가 아니라 자체 호스팅이다 - 핫링크는 상대가 리퍼러를 막으면
+// 전 경기 마크가 한꺼번에 깨지고, 사용자 브라우저가 제3자 서버에 요청을 보내게 된다.
 // ---------------------------------------------------------------------------
-const TEAM_LOGO_URL: Record<string, string> = {};
 
 function teamHue(name: string): number {
   let h = 2166136261;
@@ -100,12 +100,22 @@ function teamInitials(name: string): string {
   return t.slice(0, 2).toUpperCase();
 }
 
-function teamCrest(name: string): string {
-  const url = TEAM_LOGO_URL[name];
-  if (url) return `<span class="crest"><img src="${esc(url)}" alt="" loading="lazy" /></span>`;
+function monoCrest(name: string): string {
   const hue = teamHue(name);
   const style = `--crest-a:hsl(${hue} 62% 46%);--crest-b:hsl(${(hue + 28) % 360} 58% 30%)`;
   return `<span class="crest mono" style="${style}" aria-hidden="true">${esc(teamInitials(name))}</span>`;
+}
+
+function teamCrest(name: string): string {
+  const url = TEAM_LOGOS[name];
+  if (!url) return monoCrest(name);
+  // 이미지가 404여도 빈 칸이 남지 않도록, 실패하면 모노그램으로 갈아끼운다.
+  return (
+    `<span class="crest logo">` +
+    `<img src="${esc(url)}" alt="" loading="lazy" decoding="async" ` +
+    `onerror="this.closest('.crest').outerHTML=this.dataset.fb" ` +
+    `data-fb="${esc(monoCrest(name))}" /></span>`
+  );
 }
 
 // 킥오프를 항상 한국시간으로 표기한다. 브라우저 로컬 타임존을 쓰면 해외 사용자에게
