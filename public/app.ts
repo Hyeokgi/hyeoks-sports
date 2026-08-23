@@ -10,6 +10,9 @@ interface MatchData {
   league: string;
   home: string;
   away: string;
+  // 킥오프 UTC ISO. wisetoto가 KST로 주는 걸 저장 시 UTC로 변환해둔 값이라
+  // 표시할 때 다시 KST로 되돌린다(사용자가 해외에 있어도 한국시간 고정).
+  kickoff_at: string | null;
   raw: {
     eloDiff: number;
     formDiff: number;
@@ -67,6 +70,74 @@ const tabPages = Array.from(document.querySelectorAll<HTMLElement>(".tab-page"))
 // 팀명·리그명은 DB에서 오는 값이라 innerHTML에 넣기 전에 이스케이프한다.
 function esc(v: string): string {
   return v.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
+
+// ---------------------------------------------------------------------------
+// 팀 마크
+// 실제 구단 엠블럼은 등록상표라 상용 서비스에서 무단 사용하면 위험이 있고, FotMob 같은
+// 외부 CDN 핫링크는 차단되면 그대로 깨진다. 그래서 기본은 팀명에서 결정적으로 생성하는
+// 모노그램 마크를 쓴다(외부 요청 0, 오프라인 동작, 라이선스 위험 없음).
+// 나중에 정식 엠블럼을 확보하면 TEAM_LOGO_URL에 팀명->URL만 채우면 그대로 대체된다.
+// ---------------------------------------------------------------------------
+const TEAM_LOGO_URL: Record<string, string> = {};
+
+function teamHue(name: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < name.length; i++) {
+    h ^= name.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h) % 360;
+}
+
+// 한글은 첫 글자 한 자, 라틴 문자는 최대 두 자가 가장 읽기 좋다.
+function teamInitials(name: string): string {
+  const t = name.trim();
+  if (!t) return "?";
+  if (/[가-힣]/.test(t[0])) return t[0];
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+  return t.slice(0, 2).toUpperCase();
+}
+
+function teamCrest(name: string): string {
+  const url = TEAM_LOGO_URL[name];
+  if (url) return `<span class="crest"><img src="${esc(url)}" alt="" loading="lazy" /></span>`;
+  const hue = teamHue(name);
+  const style = `--crest-a:hsl(${hue} 62% 46%);--crest-b:hsl(${(hue + 28) % 360} 58% 30%)`;
+  return `<span class="crest mono" style="${style}" aria-hidden="true">${esc(teamInitials(name))}</span>`;
+}
+
+// 킥오프를 항상 한국시간으로 표기한다. 브라우저 로컬 타임존을 쓰면 해외 사용자에게
+// 다른 시각이 보여 회차 마감을 착각할 수 있어서 Asia/Seoul로 못박는다.
+const KST_DATE = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  month: "numeric",
+  day: "numeric",
+  weekday: "short",
+});
+const KST_TIME = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+// 같은 날인지 KST 기준으로 비교(로컬 타임존 영향 없이)
+function kstDayKey(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
+function formatKickoff(iso: string): { text: string; past: boolean } | null {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  const today = kstDayKey(now);
+  const day = kstDayKey(d);
+  const tomorrow = kstDayKey(new Date(now.getTime() + 86400000));
+  const time = KST_TIME.format(d);
+  const label = day === today ? `오늘 ${time}` : day === tomorrow ? `내일 ${time}` : `${KST_DATE.format(d)} ${time}`;
+  return { text: label, past: d.getTime() < now.getTime() };
 }
 
 // index.html의 SVG 스프라이트 참조(이모지 대체)
@@ -160,6 +231,15 @@ function renderMatches() {
     const meta = document.createElement("div");
     meta.className = "meta";
     let resultBadge = "";
+    // 아직 결과가 없는 경기는 결과 배지 자리에 킥오프 시각(KST)을 보여준다.
+    if (!m.result && m.kickoff_at) {
+      const k = formatKickoff(m.kickoff_at);
+      if (k) {
+        resultBadge = k.past
+          ? `<span class="kickoff-badge pending">결과 집계 중</span>`
+          : `<span class="kickoff-badge">${k.text} <em>KST</em></span>`;
+      }
+    }
     if (m.result) {
       const hit = prediction.rankedPicks[0] === RESULT_LABEL[m.result.actual];
       resultBadge =
@@ -177,9 +257,9 @@ function renderMatches() {
     const fixture = document.createElement("div");
     fixture.className = "fixture";
     fixture.innerHTML =
-      `<span class="team${top === "홈승" ? " picked" : ""}">${esc(m.home)}</span>` +
+      `<span class="team${top === "홈승" ? " picked" : ""}">${teamCrest(m.home)}<span class="team-name">${esc(m.home)}</span></span>` +
       `<span class="vs${top === "무승부" ? " picked" : ""}">${top === "무승부" ? "무" : "VS"}</span>` +
-      `<span class="team${top === "원정승" ? " picked" : ""}">${esc(m.away)}</span>`;
+      `<span class="team${top === "원정승" ? " picked" : ""}">${teamCrest(m.away)}<span class="team-name">${esc(m.away)}</span></span>`;
     card.appendChild(fixture);
 
     // 확률 숫자를 막대 안이 아니라 밖(범례)에 둔다. 예전엔 5% 같은 좁은 구간에서 숫자가 잘렸다.
@@ -497,6 +577,7 @@ async function loadRound(roundId: number) {
     league: m.league,
     home: m.home,
     away: m.away,
+    kickoff_at: m.kickoff_at ?? null,
     raw: {
       eloDiff: m.raw.eloDiff,
       formDiff: m.raw.formDiff,
