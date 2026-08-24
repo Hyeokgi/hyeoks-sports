@@ -69,3 +69,62 @@ export async function fetchRoundFixtures(
   }
   return fixtures;
 }
+
+export interface WisetotoResult {
+  seq: number;
+  hg: number;
+  ag: number;
+  actual: "H" | "D" | "A";
+}
+
+// 종료된 회차의 실제 스코어. 같은 get_toto_list HTML에 결과가 함께 들어 있다(2026-08-24 실측):
+//   <div id="home_team_info_1"> ... <span class="or1201b win">2</span>   (승자는 win 클래스)
+//   <div id="away_team_info_1"> <span class="dgray1201b">0</span> ...
+//   <div id="result_info_1"><li><span class="tag ...">홈승</span></li></div>
+//
+// 왜 필요한가: settlement.ts는 NAME_MAP + matches(FotMob 백필)로만 정산하는데, UCL/UEL은 둘 다
+// 없어서 회차가 영원히 upcoming으로 남는다. 이 경로가 그 회차들의 유일한 정산 근거다.
+// 승패 판정은 스코어로 직접 계산하고, 결과 태그는 "경기가 끝났다"는 신호로만 쓴다
+// (태그 문구가 바뀌어도 오정산되지 않게 - 문구에 판정을 의존하지 않는다).
+export async function fetchRoundResults(
+  gameYear: string,
+  gameRound: string,
+  masterSeq: string,
+): Promise<WisetotoResult[]> {
+  const url = new URL("https://www.wisetoto.com/util/gameinfo/get_toto_list.htm");
+  url.searchParams.set("game_category", "sc1");
+  url.searchParams.set("game_year", gameYear);
+  url.searchParams.set("game_round", gameRound);
+  url.searchParams.set("game_month", "");
+  url.searchParams.set("game_day", "");
+  url.searchParams.set("game_info_master_seq", masterSeq);
+  url.searchParams.set("sports", "");
+  url.searchParams.set("sort", "");
+  url.searchParams.set("tab_type", "toto");
+  const html = await fetchText(url.toString());
+
+  const out: WisetotoResult[] = [];
+  for (const chunk of html.split('<div class="sub1_1">').slice(1)) {
+    const seqM = chunk.match(/^\s*(\d+)\s*<\/div>/);
+    if (!seqM) continue;
+    const seq = Number(seqM[1]);
+
+    const homeBlock = chunk.match(new RegExp(`id="home_team_info_${seq}"([\\s\\S]*?)</div>`));
+    const awayBlock = chunk.match(new RegExp(`id="away_team_info_${seq}"([\\s\\S]*?)</div>`));
+    const resultBlock = chunk.match(new RegExp(`id="result_info_${seq}"([\\s\\S]*?)</div>`));
+    if (!homeBlock || !awayBlock || !resultBlock) continue;
+
+    // 결과 태그가 비어 있으면(미종료) 정산하지 않는다.
+    const tag = resultBlock[1].match(/<span class="tag[^"]*">\s*([^<\s][^<]*?)\s*<\/span>/);
+    if (!tag) continue;
+
+    const hgM = homeBlock[1].match(/<span class="[^"]*1201b[^"]*">\s*(\d+)\s*<\/span>/);
+    const agM = awayBlock[1].match(/<span class="[^"]*1201b[^"]*">\s*(\d+)\s*<\/span>/);
+    if (!hgM || !agM) continue;
+
+    const hg = Number(hgM[1]);
+    const ag = Number(agM[1]);
+    out.push({ seq, hg, ag, actual: hg > ag ? "H" : hg === ag ? "D" : "A" });
+  }
+  return out;
+}

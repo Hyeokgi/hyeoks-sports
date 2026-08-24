@@ -32,6 +32,17 @@ export function computeUpsetSignal(
   if (!market) {
     return { hasMarket: false, marketPick: null, agreement: null, contrarian: false, note: "" };
   }
+  // 배당 그대로가 곧 예측인 경기(UCL/UEL 등)는 모델픽과 시장픽이 정의상 항상 같다.
+  // 여기서 "합의"라고 표시하면 두 독립적인 근거가 일치한 것처럼 읽히므로 신호를 내지 않는다.
+  if (prediction.basis !== "model") {
+    return {
+      hasMarket: true,
+      marketPick: pickFromProbs(market.pHome, market.pDraw, market.pAway),
+      agreement: null,
+      contrarian: false,
+      note: "이 경기는 예측 자체가 배당이라 모델픽과 시장픽을 비교할 수 없습니다.",
+    };
+  }
   const modelPick = prediction.rankedPicks[0];
   const marketPick = pickFromProbs(market.pHome, market.pDraw, market.pAway);
   const agreement = modelPick === marketPick ? "합의" : "불일치";

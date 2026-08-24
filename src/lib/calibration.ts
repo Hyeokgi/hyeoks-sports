@@ -84,18 +84,30 @@ export const CALIBRATION_OVERALL: Record<string, { accuracy: number; homeBaselin
   "분데스리가": { accuracy: 0.514, homeBaseline: 0.407, n: 738 },
 };
 
+// 백테스트한 적 없는 대회(UCL/UEL 등)는 반드시 null을 돌려준다. 예전엔 모르는 리그를
+// K리그1 버킷으로 대체했는데, 그러면 UCL 경기에 K리그 실측 적중률이 붙어 근거가 있는 것처럼
+// 보인다 - 근거 없음은 없다고 말해야 한다.
 export function findCalibrationBucket(league: string, confidenceGap: number): CalibrationBucket | null {
-  const buckets = CALIBRATION[league] ?? CALIBRATION["K리그1"];
+  const buckets = CALIBRATION[league];
+  if (!buckets) return null;
   return buckets.find((b) => confidenceGap >= b.minGap && confidenceGap < b.maxGap) ?? null;
 }
 
 // 확신도 3단계 라벨 - 경계값은 CALIBRATION 버킷 정의를 그대로 재사용한다(하드코딩 금지).
 // 🟢 확신픽(마지막 버킷, 실측 우위 뚜렷) / 🟡 보통(중간 버킷들) / 🔴 불확실(첫 버킷, 거의 랜덤)
-export type ConfidenceTier = "확신픽" | "보통" | "불확실";
-export const TIER_EMOJI: Record<ConfidenceTier, string> = { "확신픽": "🟢", "보통": "🟡", "불확실": "🔴" };
+// ⚪ 근거없음: 그 대회의 백테스트 자체가 없는 경우(확신도 수치는 배당에서 나왔을 뿐,
+// "이 확신도면 과거에 몇 % 맞았다"를 말할 근거가 없다).
+export type ConfidenceTier = "확신픽" | "보통" | "불확실" | "근거없음";
+export const TIER_EMOJI: Record<ConfidenceTier, string> = {
+  "확신픽": "🟢",
+  "보통": "🟡",
+  "불확실": "🔴",
+  "근거없음": "⚪",
+};
 
 export function confidenceTier(league: string, confidenceGap: number): ConfidenceTier {
-  const buckets = CALIBRATION[league] ?? CALIBRATION["K리그1"];
+  const buckets = CALIBRATION[league];
+  if (!buckets) return "근거없음";
   const idx = buckets.findIndex((b) => confidenceGap >= b.minGap && confidenceGap < b.maxGap);
   if (idx === buckets.length - 1) return "확신픽"; // 마지막 버킷(30%p+)
   if (idx <= 0) return "불확실"; // 첫 버킷(0~5%p) 또는 범위 밖(그 이하)

@@ -10,7 +10,10 @@ export interface Env {
   ADMIN_TOKEN?: string;
 }
 
-export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A" | "라리가" | "분데스리가";
+// 리그 정의는 nameMap.ts 한 곳에만 둔다(예전엔 두 파일에 같은 유니온이 복사돼 있었다).
+export type { ModelLeague, League } from "./lib/nameMap";
+export { MODEL_LEAGUES, isModelLeague } from "./lib/nameMap";
+import type { League } from "./lib/nameMap";
 
 export interface RoundRow {
   id: number;

@@ -7,6 +7,7 @@ import { buildCornersHistory, recentCornersDiff } from "./cornersHistory";
 import { sendTelegramMessage } from "./telegram";
 import { predictMatch, DEFAULT_TOGGLES } from "./prediction";
 import { calibrationNote } from "./calibration";
+import { isModelLeague } from "./nameMap";
 import type { Env, League } from "../types";
 
 export interface RoundFixture {
@@ -14,8 +15,10 @@ export interface RoundFixture {
   league: League;
   homeKr: string;
   awayKr: string;
-  homeEn: string;
-  awayEn: string;
+  // NAME_MAP에 없는 팀(UCL/UEL 등 미지원 대회)은 null. 이 경우 Elo/폼/H2H를 계산하지 않고
+  // 배당만으로 예측한다(prediction.ts marketOnly).
+  homeEn: string | null;
+  awayEn: string | null;
   kickoffAt: string | null;
 }
 
@@ -74,16 +77,21 @@ export async function createRoundFromFixtures(
 
   const notifyLines: string[] = [];
   for (const f of fixtures) {
-    const homeState = elo.get(`${f.league}|${f.homeEn}`);
-    const awayState = elo.get(`${f.league}|${f.awayEn}`);
-    const eloDiff = (homeState?.elo ?? 1500) - (awayState?.elo ?? 1500);
-    const formHome = recentForm(teamHistory, f.league, f.homeEn);
-    const formAway = recentForm(teamHistory, f.league, f.awayEn);
-    const formDiff = formHome.avgPts - formAway.avgPts;
-    const h2h_ = computeH2hDiff(h2h, f.league, f.homeEn, f.awayEn);
-    const xgDiff = computeXgDiff(f.league, f.homeEn, f.awayEn);
+    // 모델 지원 리그가 아니거나 팀 매핑이 없으면 피처를 계산하지 않는다. 예전처럼 Elo를
+    // 1500 기본값으로 채우면 "격차 0 + 홈어드밴티지"라는 가짜 신호가 만들어지고, 그게
+    // 배당과 블렌딩되면서 배당을 60% 희석시킨다. 성분은 0으로 두고 marketOnly로 표시한다.
+    const marketOnly = !isModelLeague(f.league) || !f.homeEn || !f.awayEn;
+
+    const homeState = marketOnly ? undefined : elo.get(`${f.league}|${f.homeEn}`);
+    const awayState = marketOnly ? undefined : elo.get(`${f.league}|${f.awayEn}`);
+    const eloDiff = marketOnly ? 0 : (homeState?.elo ?? 1500) - (awayState?.elo ?? 1500);
+    const formDiff = marketOnly
+      ? 0
+      : recentForm(teamHistory, f.league, f.homeEn!).avgPts - recentForm(teamHistory, f.league, f.awayEn!).avgPts;
+    const h2h_ = marketOnly ? { diff: 0, n: 0 } : computeH2hDiff(h2h, f.league, f.homeEn!, f.awayEn!);
+    const xgDiff = marketOnly ? null : computeXgDiff(f.league, f.homeEn!, f.awayEn!);
     const cornersDiff =
-      f.league === "K리그2" ? recentCornersDiff(cornersHistory, f.homeEn, f.awayEn) : null;
+      !marketOnly && f.league === "K리그2" ? recentCornersDiff(cornersHistory, f.homeEn!, f.awayEn!) : null;
 
     const insertedMatch = await env.DB.prepare(
       "INSERT INTO round_matches (round_id, seq, league, home_kr, away_kr, kickoff_at) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
@@ -100,13 +108,19 @@ export async function createRoundFromFixtures(
 
     // 기본 토글(해외배당 없음, 등록 시점 xG/코너킥만) 기준 요약 - 텔레그램은 나중에 배당이 붙기 전 스냅샷.
     const p = predictMatch(
-      { eloDiff, formDiff, h2hDiff: h2h_.diff, leagueDrawRate: drawRates[f.league], marketOdds: null, xgDiff, cornersDiff, league: f.league },
+      { eloDiff, formDiff, h2hDiff: h2h_.diff, leagueDrawRate: drawRates[f.league], marketOdds: null, xgDiff, cornersDiff, league: f.league, marketOnly },
       DEFAULT_TOGGLES,
     );
-    const note = calibrationNote(f.league, p.confidenceGap);
-    notifyLines.push(
-      `${f.seq}. ${f.homeKr} vs ${f.awayKr} (${f.league}) - 모델추천 ${p.rankedPicks[0]}, 확신도 ${(p.confidenceGap * 100).toFixed(1)}%p${note ? ` (${note})` : ""}`,
-    );
+    if (marketOnly) {
+      // 이 시점엔 배당이 아직 없다(배당 수집은 GitHub Actions가 회차 등록 후 채운다).
+      // 그러니 추천픽을 지어내지 않고 "배당 수집 대기"라고만 알린다.
+      notifyLines.push(`${f.seq}. ${f.homeKr} vs ${f.awayKr} (${f.league}) - 배당 기반 예측 대기(모델 미지원 대회)`);
+    } else {
+      const note = calibrationNote(f.league, p.confidenceGap);
+      notifyLines.push(
+        `${f.seq}. ${f.homeKr} vs ${f.awayKr} (${f.league}) - 모델추천 ${p.rankedPicks[0]}, 확신도 ${(p.confidenceGap * 100).toFixed(1)}%p${note ? ` (${note})` : ""}`,
+      );
+    }
   }
 
   if (opts.notify !== false) {

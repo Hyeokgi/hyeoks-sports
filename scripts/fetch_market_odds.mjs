@@ -12,7 +12,19 @@ async function fetchText(url) {
   return new TextDecoder("utf-8").decode(buf);
 }
 
-// game_round 파라미터 없이 요청하면 현재 발매중인 회차로 자동 응답한다.
+// 앱에 등록된 회차번호를 명시해 그 회차를 조회한다. game_round 없이 index.htm을 부르면
+// wisetoto의 "기본 회차"가 나오는데, 이월(1등 미배출) 등의 사정으로 최신 발매회차보다
+// 뒤처질 수 있음이 실측됐다(src/lib/wisetoto.ts 주석 참고). 그러면 팀명 대조가 전부
+// 실패해 "매칭된 배당 없음"으로 조용히 끝나서, 배당이 없는 건지 엉뚱한 회차를 본 건지
+// 구분되지 않는다. 그래서 우리가 아는 회차번호를 그대로 물어본다.
+async function findRoundMasterSeq(gameYear, gameRound) {
+  const url = `https://www.wisetoto.com/index.htm?tab_type=toto&game_type=sc&game_category=sc1&game_year=${gameYear}&game_round=${gameRound}`;
+  const html = await fetchText(url);
+  const m = html.match(/'toto','sc1','(\d+)','(\d+)','','','(\d+)',now_sports/);
+  return m && m[3] ? m[3] : null;
+}
+
+// round_no를 모르는 회차(수동 생성 등)를 위한 폴백.
 async function discoverCurrentRound() {
   const url = "https://www.wisetoto.com/index.htm?tab_type=toto&game_type=sc&game_category=sc1";
   const html = await fetchText(url);
@@ -79,17 +91,28 @@ function normalizeTeamName(name) {
 async function main() {
   if (!ADMIN_TOKEN) throw new Error("ADMIN_TOKEN 환경변수가 필요합니다");
 
-  const { gameYear, gameRound, masterSeq } = await discoverCurrentRound();
-  console.log(`wisetoto 현재 회차: ${gameRound} (${gameYear}년, master_seq=${masterSeq})`);
-
-  const games = await fetchGameList(gameYear, gameRound, masterSeq);
-  console.log(`${games.length}경기 발견`);
-
   const roundsRes = await fetch(`${WORKER_BASE_URL}/api/rounds`);
   if (!roundsRes.ok) throw new Error(`/api/rounds 조회 실패: ${roundsRes.status}`);
   const { rounds } = await roundsRes.json();
   if (!rounds || rounds.length === 0) throw new Error("등록된 회차가 없습니다");
   const round = rounds[0];
+
+  let gameYear = String(new Date().getUTCFullYear());
+  let gameRound = round.round_no != null ? String(round.round_no) : null;
+  let masterSeq = gameRound ? await findRoundMasterSeq(gameYear, gameRound) : null;
+  if (masterSeq) {
+    console.log(`wisetoto ${gameRound}회차 조회 (${gameYear}년, master_seq=${masterSeq})`);
+  } else {
+    const cur = await discoverCurrentRound();
+    ({ gameYear, gameRound, masterSeq } = cur);
+    console.log(
+      `앱 회차(${round.round_no ?? "번호없음"})를 wisetoto에서 못 찾아 현재 회차로 폴백: ` +
+        `${gameRound} (${gameYear}년, master_seq=${masterSeq})`,
+    );
+  }
+
+  const games = await fetchGameList(gameYear, gameRound, masterSeq);
+  console.log(`${games.length}경기 발견`);
 
   const roundRes = await fetch(`${WORKER_BASE_URL}/api/rounds/${round.id}`);
   if (!roundRes.ok) throw new Error(`/api/rounds/${round.id} 조회 실패: ${roundRes.status}`);

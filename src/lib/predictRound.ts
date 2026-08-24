@@ -3,6 +3,7 @@ import { getRoundMatches, getRoundPredictions, getMarketOdds } from "./db";
 import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type MatchPrediction } from "./prediction";
 import { findCalibrationBucket, confidenceTier, type CalibrationBucket, type ConfidenceTier } from "./calibration";
 import { computeUpsetSignal, type UpsetSignal } from "./upsetSignal";
+import { isModelLeague } from "./nameMap";
 import type { Env, RoundMatchRow } from "../types";
 
 export interface MatchWithPrediction {
@@ -58,6 +59,9 @@ export async function buildRoundPredictions(
         xgDiff: raw.xg_diff,
         cornersDiff: raw.corners_diff,
         league: m.league,
+        // 모델(Elo/폼/H2H)이 검증된 리그가 아니면 배당만 쓴다. round_predictions에 저장된
+        // 성분은 이 경우 전부 0이라, 섞으면 가짜 신호가 배당을 희석시킨다.
+        marketOnly: !isModelLeague(m.league),
       },
       merged,
     );

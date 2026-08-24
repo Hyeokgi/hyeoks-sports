@@ -1,5 +1,29 @@
 // 한글 팀명 <-> FotMob 영문 팀명 매핑 (predict_round42_v2.py NAME_MAP 이식)
-export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A" | "라리가" | "분데스리가";
+// 모델(Elo+최근폼+H2H)이 실제로 백테스트된 리그 목록. 이 목록에 없는 대회(UCL/UEL 등)는
+// 리그 내 상대평가인 Elo를 쓸 수 없어 배당만으로 예측한다(isModelLeague 참고).
+export const MODEL_LEAGUES = [
+  "K리그1",
+  "K리그2",
+  "J1리그",
+  "MLS",
+  "EPL",
+  "세리에A",
+  "라리가",
+  "분데스리가",
+] as const;
+export type ModelLeague = (typeof MODEL_LEAGUES)[number];
+
+// 리그명은 wisetoto 원문을 그대로 담는다("UCL", "UEL", ...). 알려진 8개는 자동완성이 되고
+// 그 밖의 대회명도 값으로 들어올 수 있게 열어둔다 - 새 대회가 조용히 K리그2로 오분류되는
+// 사고(예전 leagueOfKr 기본값)를 막기 위해 타입에서부터 "모르는 리그가 있을 수 있음"을 인정한다.
+export type League = ModelLeague | (string & {});
+
+const MODEL_LEAGUE_SET: ReadonlySet<string> = new Set(MODEL_LEAGUES);
+
+/** Elo/폼/H2H 모델이 검증된 리그인가. false면 배당 기반(marketOnly) 경로로 간다. */
+export function isModelLeague(league: string): boolean {
+  return MODEL_LEAGUE_SET.has(league);
+}
 
 export interface TeamMapEntry {
   nameKr: string;
@@ -210,8 +234,11 @@ const LEAGUE_BY_KR: Record<string, League> = Object.fromEntries(
   TEAM_ENTRIES.map((e) => [e.nameKr, e.league]),
 );
 
-export function leagueOfKr(nameKr: string): League {
-  return LEAGUE_BY_KR[nameKr] ?? "K리그2";
+// NAME_MAP에 없는 팀은 우리가 리그를 모르는 팀이다. 예전엔 무조건 "K리그2"로 떨어뜨렸는데,
+// 그러면 UCL/UEL 클럽이 K리그2 팀으로 등록돼 Elo가 조용히 오염된다. 호출자가 아는 리그명
+// (wisetoto가 알려준 원문)을 fallback으로 넘기게 해서 그 사고를 막는다.
+export function leagueOfKr(nameKr: string, fallback: League = "K리그2"): League {
+  return LEAGUE_BY_KR[nameKr] ?? fallback;
 }
 
 export function allTeamMapEntries(): TeamMapEntry[] {

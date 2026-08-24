@@ -34,6 +34,11 @@ export interface PredictionInputs {
   xgDiff?: number | null; // 팀 시즌 xG(공격-실점) 격차. K리그2는 FotMob에 데이터가 없어 null
   cornersDiff?: number | null; // 최근5경기 평균 코너킥 격차. K리그2 경기만 값이 있고 나머지는 null
   league?: string; // 리그별 HOME_ADV 조회용(elo.ts homeAdvForLeague) - 없으면 기본값(K리그 기준) 사용
+  // true면 Elo/폼/H2H를 아예 쓰지 않고 배당 암시확률만 쓴다(가중치 1.0).
+  // UCL/UEL처럼 서로 다른 리그 클럽이 붙는 대회는 Elo가 리그 내 상대평가라 비교 자체가
+  // 성립하지 않는다 - 이때 eloDiff=0으로 두고 블렌딩하면 "홈어드밴티지만 반영된 가짜 모델"이
+  // 배당을 60% 희석시킨다. 그래서 섞지 않고 배당을 그대로 쓴다.
+  marketOnly?: boolean;
 }
 
 export interface PredictionToggles {
@@ -76,18 +81,53 @@ export const DEFAULT_TOGGLES: PredictionToggles = {
   h2hWeight: DEFAULT_H2H_WEIGHT,
 };
 
+// 이 확률이 무엇에서 나왔는지. UI/리포트가 "모델 분석"과 "배당 그대로"를 구분해 표시하기 위한 것 -
+// 백테스트 근거가 없는 확률을 있는 것처럼 보이게 하지 않는다.
+//   model  : Elo+폼+H2H(+배당 블렌딩). 리그별 실측 캘리브레이션이 존재한다.
+//   market : 배당 암시확률 그대로. 캘리브레이션 없음.
+//   none   : 배당도 아직 없음. 아래 확률은 리그 평균 사전확률일 뿐 예측이 아니다.
+export type PredictionBasis = "model" | "market" | "none";
+
 export interface MatchPrediction {
   pHome: number;
   pDraw: number;
   pAway: number;
   rankedPicks: ("홈승" | "무승부" | "원정승")[];
   confidenceGap: number;
+  basis: PredictionBasis;
+}
+
+function rank(pHome: number, pDraw: number, pAway: number, basis: PredictionBasis): MatchPrediction {
+  const probs: [MatchPrediction["rankedPicks"][number], number][] = [
+    ["홈승", pHome],
+    ["무승부", pDraw],
+    ["원정승", pAway],
+  ];
+  const ranked = [...probs].sort((a, b) => b[1] - a[1]);
+  return {
+    pHome,
+    pDraw,
+    pAway,
+    rankedPicks: ranked.map((r) => r[0]),
+    confidenceGap: ranked[0][1] - ranked[1][1],
+    basis,
+  };
 }
 
 export function predictMatch(
   inputs: PredictionInputs,
   toggles: PredictionToggles = DEFAULT_TOGGLES,
 ): MatchPrediction {
+  // 모델 피처가 없는 대회: 배당이 있으면 그대로, 없으면 리그 평균 사전확률(예측 아님).
+  if (inputs.marketOnly) {
+    if (inputs.marketOdds) {
+      const m = inputs.marketOdds;
+      return rank(m.pHome, m.pDraw, m.pAway, "market");
+    }
+    const d = inputs.leagueDrawRate || FALLBACK_DRAW_RATE;
+    return rank((1 - d) / 2, d, (1 - d) / 2, "none");
+  }
+
   const totalDiff =
     (toggles.useElo ? inputs.eloDiff : 0) +
     (toggles.useForm ? toggles.formWeight * inputs.formDiff : 0) +
@@ -116,18 +156,5 @@ export function predictMatch(
     pAway = w * inputs.marketOdds.pAway + (1 - w) * pAway0;
   }
 
-  const probs: [MatchPrediction["rankedPicks"][number], number][] = [
-    ["홈승", pHome],
-    ["무승부", pDraw],
-    ["원정승", pAway],
-  ];
-  const ranked = [...probs].sort((a, b) => b[1] - a[1]);
-
-  return {
-    pHome,
-    pDraw,
-    pAway,
-    rankedPicks: ranked.map((r) => r[0]),
-    confidenceGap: ranked[0][1] - ranked[1][1],
-  };
+  return rank(pHome, pDraw, pAway, "model");
 }
