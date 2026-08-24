@@ -225,6 +225,23 @@ function renderRoundSummary() {
     (ongoing > 0 ? `<span class="summary-note">진행중 ${ongoing}경기 제외</span>` : "");
 }
 
+// 헤지(복식/삼복식)는 확신도가 낮은 경기부터 넣는 게 확률상 최적이다(combinations.ts와 동일 기준).
+// 46회차에서 확신도 0.6%p짜리를 단식으로 두고 27%p짜리에 헤지를 건 일이 있어,
+// 어느 경기를 덮어야 하는지 경기 목록에서 바로 보이게 한다.
+const HEDGE_BADGE_COUNT = 4;
+const CIRCLED = ["①", "②", "③", "④", "⑤", "⑥"];
+
+function hedgeRanks(): Map<number, number> {
+  const scored = currentMatches.map((m) => ({
+    seq: m.seq,
+    gap: predictMatch(toInputs(m), currentToggles).confidenceGap,
+  }));
+  scored.sort((a, b) => a.gap - b.gap);
+  const out = new Map<number, number>();
+  scored.slice(0, HEDGE_BADGE_COUNT).forEach((x, i) => out.set(x.seq, i));
+  return out;
+}
+
 function renderMatches() {
   matchList.innerHTML = "";
   renderRoundSummary();
@@ -232,6 +249,7 @@ function renderMatches() {
     matchList.innerHTML = emptyState("matches", "이 회차에 등록된 경기가 없습니다.");
     return;
   }
+  const ranks = hedgeRanks();
   for (const m of currentMatches) {
     const prediction = predictMatch(toInputs(m), currentToggles);
     const card = document.createElement("div");
@@ -256,8 +274,14 @@ function renderMatches() {
         `<span class="result-badge ${hit ? "hit" : "miss"}">${icon(hit ? "check" : "x")}` +
         `${hit ? "적중" : "실패"} ${m.result.hg}:${m.result.ag}</span>`;
     }
+    const rank = ranks.get(m.seq);
+    const hedgeBadge =
+      rank != null && !m.result
+        ? `<span class="hedge-badge" title="확신도가 낮아 복식/삼복식으로 덮을 우선순위">헤지 ${CIRCLED[rank]}</span>`
+        : "";
     meta.innerHTML =
       `<span class="league-badge"><b>${m.seq}</b>${esc(m.league)}</span>` +
+      hedgeBadge +
       `<span class="confidence-badge t-${tier}"><i class="tier-dot"></i>${tier} · ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>` +
       resultBadge;
     card.appendChild(meta);
@@ -376,10 +400,75 @@ function renderComboPlan(container: HTMLElement, title: string, plan: ReturnType
     const row = document.createElement("div");
     row.className = "pick-row";
     const tags = p.picks.map((pk) => `<span class="${pk}">${pk}</span>`).join("");
-    row.innerHTML = `<span>${p.seq}. ${p.home} vs ${p.away}</span><span class="pick-tags">${tags}</span>`;
+    row.innerHTML = `<span>${esc(p.seq + ". " + p.home + " vs " + p.away)}</span><span class="pick-tags">${tags}</span>`;
     box.appendChild(row);
   }
+
+  // 위 목록은 "헤지한 경기"만 보여준다. 실제 구매는 14경기를 전부 찍어야 하는데
+  // 나머지를 화면에서 확인할 수 없어 손으로 재구성하다 실수가 나기 쉬웠다(46회차 실제 사례).
+  // betman 입력 순서 그대로의 전체 구매표를 접이식으로 함께 제공한다.
+  box.appendChild(buildPurchaseSheet(title, plan));
   container.appendChild(box);
+}
+
+// betman은 승/무/패로 표기한다(앱 내부는 홈승/무승부/원정승).
+const BETMAN_LABEL: Record<string, string> = { "홈승": "승", "무승부": "무", "원정승": "패" };
+// 구매표는 확률순이 아니라 betman 화면과 같은 승→무→패 순으로 늘어놓는다.
+// 눈으로 대조하며 찍는 용도라 순서가 다르면 오히려 실수를 부른다.
+const BETMAN_ORDER = ["홈승", "무승부", "원정승"];
+function inBetmanOrder(picks: readonly string[]): string[] {
+  return BETMAN_ORDER.filter((o) => picks.includes(o));
+}
+
+function planToText(title: string, plan: ReturnType<typeof generateSystemBet>): string {
+  const lines = plan.picks.map((p) => {
+    const marks = inBetmanOrder(p.picks).map((k) => BETMAN_LABEL[k] ?? k).join("·");
+    return `${String(p.seq).padStart(2)}. ${p.home} vs ${p.away}  ${marks}`;
+  });
+  return (
+    `${title} · ${plan.totalCombinations}조합 · ${plan.totalCostWon.toLocaleString()}원\n` +
+    lines.join("\n")
+  );
+}
+
+function buildPurchaseSheet(title: string, plan: ReturnType<typeof generateSystemBet>): HTMLElement {
+  const det = document.createElement("details");
+  det.className = "explainer purchase-sheet";
+  const sum = document.createElement("summary");
+  sum.textContent = `구매표 보기 (${plan.picks.length}경기 전체)`;
+  det.appendChild(sum);
+
+  const table = document.createElement("div");
+  table.className = "sheet-rows";
+  for (const p of plan.picks) {
+    const r = document.createElement("div");
+    r.className = "sheet-row" + (p.picks.length > 1 ? " hedged" : "");
+    const marks = inBetmanOrder(p.picks)
+      .map((k) => `<span class="mark ${k}">${BETMAN_LABEL[k] ?? k}</span>`)
+      .join("");
+    r.innerHTML =
+      `<span class="sheet-seq">${p.seq}</span>` +
+      `<span class="sheet-teams">${esc(p.home)} <em>vs</em> ${esc(p.away)}</span>` +
+      `<span class="sheet-marks">${marks}</span>`;
+    table.appendChild(r);
+  }
+  det.appendChild(table);
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "btn copy-btn";
+  btn.textContent = "구매표 복사";
+  btn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(planToText(title, plan));
+      btn.textContent = "복사됨";
+    } catch {
+      btn.textContent = "복사 실패 - 길게 눌러 선택하세요";
+    }
+    setTimeout(() => (btn.textContent = "구매표 복사"), 1800);
+  });
+  det.appendChild(btn);
+  return det;
 }
 
 function renderCombos() {
