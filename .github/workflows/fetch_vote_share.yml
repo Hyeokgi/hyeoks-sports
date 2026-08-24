@@ -18,6 +18,7 @@ on:
           - compare-market
           - compare-market-d1
           - compare-bookmakers
+          - diagnose-round
           - round-report
           - sheets
       round_no:
@@ -271,6 +272,21 @@ jobs:
             git commit -m "회차 사후분석 리포트 갱신 (자동)"
             git push
           fi
+
+  # 회차가 안 뜰 때 "발매 전"인지 "파서 파손"인지 가른다. 둘 다 masterSeq=null로 똑같이 보여서
+  # 로그만으로는 구분이 안 된다 - 과거 회차를 대조군으로 함께 조회해 판정한다.
+  diagnose-round:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'diagnose-round'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Diagnose round detection
+        run: npx tsx scripts/diagnose_round.ts
 
   sheets:
     if: github.event_name == 'workflow_dispatch' && inputs.task == 'sheets'
