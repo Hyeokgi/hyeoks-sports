@@ -19,12 +19,17 @@ on:
           - compare-market-d1
           - compare-bookmakers
           - diagnose-round
+          - probe-round
           - round-report
           - sheets
       round_no:
         description: "round-report 전용: 분석할 회차 번호(비우면 최근 정산 회차)"
         required: false
         type: string
+      round_no:
+        description: "probe-round에서 조사할 회차 번호(기본 47)"
+        required: false
+        default: "47"
       force_draws:
         description: "무승부 강제 슬롯: 숫자(0~5) 또는 auto(최근 2개 완료 시즌 무승부율 앵커). offline-pick 전용"
         type: string
@@ -287,6 +292,21 @@ jobs:
         run: npm ci
       - name: Diagnose round detection
         run: npx tsx scripts/diagnose_round.ts
+
+  # 특정 회차의 대진/배당/팀명 매핑 상태를 있는 그대로 찍는다. 배당 기반 예측(B안)이
+  # 그 회차에 성립하는지 판단하는 근거.
+  probe-round:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'probe-round'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Probe round
+        run: npx tsx scripts/probe_round.ts ${{ inputs.round_no || '47' }}
 
   sheets:
     if: github.event_name == 'workflow_dispatch' && inputs.task == 'sheets'
