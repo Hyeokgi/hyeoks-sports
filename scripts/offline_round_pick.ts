@@ -8,7 +8,7 @@
 // - 모델/픽: src/lib prediction/exclusivePick 공유 (웹앱과 동일 로직, 중복 구현 금지)
 import { readFileSync } from "node:fs";
 import { discoverRoundMasterSeq, fetchRoundFixtures } from "../src/lib/wisetoto";
-import { NAME_MAP, leagueOfKr } from "../src/lib/nameMap";
+import { NAME_MAP, leagueOfKr, isModelLeague } from "../src/lib/nameMap";
 import { computeEloAndHistory, recentForm, h2hDiff as computeH2hDiff, leagueDrawRate, seasonOf, type MatchRow } from "../src/lib/elo";
 import { predictMatch, DEFAULT_TOGGLES, FALLBACK_DRAW_RATE } from "../src/lib/prediction";
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
@@ -195,24 +195,34 @@ async function main() {
   const inputs: ExclusiveMatchInput[] = [];
   const evidence: string[] = [];
   for (const f of fixtures) {
-    const homeEn = NAME_MAP[f.homeKr];
-    const awayEn = NAME_MAP[f.awayKr];
-    const league = leagueOfKr(f.homeKr);
-    if (!homeEn || !awayEn) {
-      console.log(`  스킵(NAME_MAP 없음): ${f.seq}. ${f.homeKr} vs ${f.awayKr}`);
+    const homeEn = NAME_MAP[f.homeKr] ?? null;
+    const awayEn = NAME_MAP[f.awayKr] ?? null;
+    // 리그는 wisetoto 원문을 폴백으로 쓴다 - 모르는 팀을 K리그2로 떨어뜨리면 안 된다.
+    const league = leagueOfKr(f.homeKr, f.league);
+    const sig = `${normalizeTeamName(f.homeKr)}|${normalizeTeamName(f.awayKr)}`;
+    const market = oddsBySig.get(sig) ?? null;
+
+    // UCL/UEL처럼 Elo가 성립하지 않는 대회는 배당만으로 처리한다(웹앱과 동일 판단).
+    // 배당까지 없으면 근거가 아예 없으므로 그때만 스킵한다.
+    const marketOnly = !isModelLeague(league) || !homeEn || !awayEn;
+    if (marketOnly && !market) {
+      console.log(`  스킵(모델 미지원 + 배당 없음): ${f.seq}. ${f.homeKr} vs ${f.awayKr} [${league}]`);
       continue;
     }
-    const sig = `${normalizeTeamName(f.homeKr)}|${normalizeTeamName(f.awayKr)}`;
-    const homeState = elo.get(`${league}|${homeEn}`);
-    const awayState = elo.get(`${league}|${awayEn}`);
-    const eloDiff = (homeState?.elo ?? 1500) - (awayState?.elo ?? 1500);
-    const formHome = recentForm(teamHistory, league, homeEn);
-    const formAway = recentForm(teamHistory, league, awayEn);
-    const h2h_ = computeH2hDiff(h2h, league, homeEn, awayEn);
-    const nHome = (teamHistory.get(`${league}|${homeEn}`) ?? []).length;
-    const nAway = (teamHistory.get(`${league}|${awayEn}`) ?? []).length;
+    if (isModelLeague(league) && (!homeEn || !awayEn)) {
+      // 지원 리그인데 팀 매핑이 없다 - 승격/신규팀 누락 신호라 조용히 넘기면 안 된다.
+      console.log(`  ⚠ NAME_MAP 누락(${f.homeKr} / ${f.awayKr}) - 이 경기는 배당만으로 계산합니다`);
+    }
 
-    const market = oddsBySig.get(sig) ?? null;
+    const homeState = marketOnly ? undefined : elo.get(`${league}|${homeEn}`);
+    const awayState = marketOnly ? undefined : elo.get(`${league}|${awayEn}`);
+    const eloDiff = marketOnly ? 0 : (homeState?.elo ?? 1500) - (awayState?.elo ?? 1500);
+    const formHome = marketOnly ? { avgPts: 0 } : recentForm(teamHistory, league, homeEn!);
+    const formAway = marketOnly ? { avgPts: 0 } : recentForm(teamHistory, league, awayEn!);
+    const h2h_ = marketOnly ? { diff: 0, n: 0 } : computeH2hDiff(h2h, league, homeEn!, awayEn!);
+    const nHome = marketOnly ? 0 : (teamHistory.get(`${league}|${homeEn}`) ?? []).length;
+    const nAway = marketOnly ? 0 : (teamHistory.get(`${league}|${awayEn}`) ?? []).length;
+
     const prediction = predictMatch(
       {
         eloDiff,
@@ -223,6 +233,7 @@ async function main() {
         xgDiff: null,
         cornersDiff: null,
         league,
+        marketOnly,
       },
       DEFAULT_TOGGLES,
     );
@@ -239,9 +250,13 @@ async function main() {
         : 1;
 
     inputs.push({ seq: f.seq, league, home: f.homeKr, away: f.awayKr, prediction, voteShare: vote, drawBias });
+    // 모델 성분을 계산하지 않은 경기에 0을 나열하면 "전력 호각"으로 읽힌다 - 그렇게 쓰지 않는다.
     evidence.push(
-      `${String(f.seq).padStart(2)}. Elo차 ${eloDiff.toFixed(0)} / 폼차 ${(formHome.avgPts - formAway.avgPts).toFixed(2)} / H2H ${h2h_.diff.toFixed(2)}(n=${h2h_.n}) / 히스토리 ${nHome}·${nAway}경기` +
-        (market ? ` / 배당(${market.nBookmakers}개사) ${(market.pHome * 100).toFixed(0)}-${(market.pDraw * 100).toFixed(0)}-${(market.pAway * 100).toFixed(0)}` : " / 배당 없음"),
+      marketOnly
+        ? `${String(f.seq).padStart(2)}. [${league}] 모델 미지원 대회 - Elo/폼/H2H 미계산` +
+          ` / 배당(${market!.nBookmakers}개사) ${(market!.pHome * 100).toFixed(0)}-${(market!.pDraw * 100).toFixed(0)}-${(market!.pAway * 100).toFixed(0)} 그대로 사용`
+        : `${String(f.seq).padStart(2)}. Elo차 ${eloDiff.toFixed(0)} / 폼차 ${(formHome.avgPts - formAway.avgPts).toFixed(2)} / H2H ${h2h_.diff.toFixed(2)}(n=${h2h_.n}) / 히스토리 ${nHome}·${nAway}경기` +
+          (market ? ` / 배당(${market.nBookmakers}개사) ${(market.pHome * 100).toFixed(0)}-${(market.pDraw * 100).toFixed(0)}-${(market.pAway * 100).toFixed(0)}` : " / 배당 없음"),
     );
   }
 
@@ -277,7 +292,7 @@ async function main() {
         : "";
     console.log(
       `${String(p.seq).padStart(2)}. [${p.league}] ${p.home} vs ${p.away} → ${p.pick}${mark}\n` +
-        `    모델 홈${(probs.pHome * 100).toFixed(0)}/무${(probs.pDraw * 100).toFixed(0)}/원정${(probs.pAway * 100).toFixed(0)}% · 픽확률 ${(p.modelProb * 100).toFixed(0)}% · ${vote}`,
+        `    ${probs.basis === "model" ? "모델" : "배당"} 홈${(probs.pHome * 100).toFixed(0)}/무${(probs.pDraw * 100).toFixed(0)}/원정${(probs.pAway * 100).toFixed(0)}% · 픽확률 ${(p.modelProb * 100).toFixed(0)}% · ${vote}`,
     );
   }
   console.log(`\n[근거]`);
