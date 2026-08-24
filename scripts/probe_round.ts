@@ -45,6 +45,8 @@ async function fetchOdds(scheduleInfoSeq: string) {
 }
 
 // 경기별 schedule_info_seq는 회차 목록 HTML에 들어 있다.
+// 정규식은 직접 짜지 않고 scripts/fetch_market_odds.mjs의 검증된 패턴을 그대로 쓴다
+// (첫 시도에서 자작 패턴이 0건을 뽑아 "배당 없음"으로 오판할 뻔했다).
 async function fetchScheduleSeqs(gameYear: string, gameRound: string, masterSeq: string) {
   const url = new URL("https://www.wisetoto.com/util/gameinfo/get_toto_list.htm");
   const params: Record<string, string> = {
@@ -55,12 +57,20 @@ async function fetchScheduleSeqs(gameYear: string, gameRound: string, masterSeq:
   for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const res = await fetch(url.toString(), { headers: HEADERS });
   const html = new TextDecoder("utf-8").decode(await res.arrayBuffer());
+
   const seqs = new Map<number, string>();
-  const re = /(\d+)경기[\s\S]{0,600}?schedule_info_seq['"]?[=:]\s*['"]?(\d+)/g;
+  const blockRe =
+    /<div class="sub1_1">(\d+)<\/div>[\s\S]*?class="stu">([^<]+)<\/a>[\s\S]*?class="stu">([^<]+)<\/a>[\s\S]*?get_gameinfo_detail\('(\d+)','\d+','sc1'/g;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(html))) {
-    const no = Number(m[1]);
-    if (!seqs.has(no)) seqs.set(no, m[2]);
+  while ((m = blockRe.exec(html))) seqs.set(Number(m[1]), m[4]);
+
+  if (seqs.size === 0) {
+    // 패턴이 안 맞으면 "배당 없음"으로 오판하게 되므로 원인을 볼 단서를 남긴다.
+    console.log(`  ! schedule_info_seq 0건 (HTML ${html.length}자)`);
+    console.log(`    get_gameinfo_detail 존재: ${html.includes("get_gameinfo_detail")}`);
+    console.log(`    class="stu" 존재: ${html.includes('class="stu"')}`);
+    const near = html.match(/.{0,120}get_gameinfo_detail.{0,80}/);
+    if (near) console.log(`    주변: ${JSON.stringify(near[0].replace(/\s+/g, " ").slice(0, 200))}`);
   }
   return seqs;
 }
@@ -113,13 +123,18 @@ async function main() {
   console.log(`  리그 구성: ${[...leagues].map(([l, n]) => `${l} ${n}경기`).join(", ")}`);
   console.log(`  NAME_MAP 매핑 완료: ${mapped}/${fixtures.length}경기 (✗는 미매핑 팀)`);
   console.log(`  배당 확보: ${withOdds}/${fixtures.length}경기`);
-  console.log(
-    withOdds === fixtures.length
-      ? "  -> 전 경기 배당 확보. 배당 기반(B안) 예측이 성립한다."
-      : withOdds > 0
-        ? "  -> 일부만 배당이 있다. 누락 경기 처리 방침이 필요하다."
-        : "  -> 배당이 전혀 없다. B안은 이 회차에 성립하지 않는다.",
-  );
+  if (seqs.size === 0) {
+    // 여기서 "배당 없음"이라고 결론내면 안 된다. 조회 자체를 못 한 것이다.
+    console.log("  -> schedule_info_seq를 못 뽑아 배당 조회를 시도조차 못 했다(판정 불가).");
+    console.log("     get_toto_list 파싱을 고친 뒤 다시 실행할 것.");
+    process.exitCode = 1;
+  } else if (withOdds === fixtures.length) {
+    console.log("  -> 전 경기 배당 확보. 배당 기반(B안) 예측이 성립한다.");
+  } else if (withOdds > 0) {
+    console.log("  -> 일부만 배당이 있다. 누락 경기 처리 방침이 필요하다.");
+  } else {
+    console.log("  -> seq는 뽑혔는데 배당이 전혀 없다. B안은 이 회차에 성립하지 않는다.");
+  }
 }
 
 main().catch((e) => {
