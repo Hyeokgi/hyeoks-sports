@@ -57,7 +57,16 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
     // FotMob 백필(matches 테이블)로 못 채운 경기가 남으면 wisetoto 결과표를 폴백으로 쓴다.
     // UCL/UEL처럼 NAME_MAP도 백필도 없는 대회는 이 경로가 유일한 정산 근거다. 회차번호를
     // 모르면 조회할 수 없으므로 그때는 그냥 다음 주기를 기다린다.
-    const unsettled = roundMatches.filter((rm) => !settledIds.has(rm.id));
+    // 아직 안 끝난 경기까지 매 주기(3시간)마다 wisetoto에 물어보면, 발매중인 회차가 있는 동안
+    // 계속 무의미한 요청을 보내게 된다. 킥오프 + 여유시간이 지난 경기가 하나라도 있을 때만 조회한다.
+    const FINISH_BUFFER_MS = 2.5 * 60 * 60 * 1000; // 킥오프 후 경기가 끝나기까지의 여유
+    const now = Date.now();
+    const unsettled = roundMatches.filter(
+      (rm) =>
+        !settledIds.has(rm.id) &&
+        // kickoff_at이 없으면(파싱 실패) 판단 근거가 없으니 조회 대상에 포함한다.
+        (rm.kickoff_at == null || Date.parse(rm.kickoff_at) + FINISH_BUFFER_MS <= now),
+    );
     if (unsettled.length > 0 && round.round_no != null) {
       const gameYear = String(new Date().getUTCFullYear());
       try {

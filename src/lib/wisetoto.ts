@@ -2,8 +2,12 @@
 // (scripts/fetch_market_odds.mjs에서 이미 검증된 파싱 패턴과 동일 계열)
 const HEADERS = { "User-Agent": "Mozilla/5.0", Referer: "https://www.wisetoto.com/index.htm" };
 
+// 상대가 응답을 안 주면 이 호출을 품고 있는 크론(refreshHistory/detectNewRound) 전체가 매달린다.
+// 실제로 admin/sync가 17분 넘게 반환되지 않는 일이 있었다. 응답 없으면 포기하고 다음 주기에 재시도한다.
+const FETCH_TIMEOUT_MS = 15000;
+
 async function fetchText(url: string): Promise<string> {
-  const res = await fetch(url, { headers: HEADERS });
+  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`wisetoto fetch 실패 ${res.status}: ${url}`);
   const buf = await res.arrayBuffer();
   return new TextDecoder("utf-8").decode(buf);

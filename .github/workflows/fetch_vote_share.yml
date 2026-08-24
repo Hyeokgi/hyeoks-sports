@@ -114,7 +114,8 @@ jobs:
         env:
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
         run: |
-          curl -sf -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
+          # --max-time 없이 두면 Worker가 응답을 안 줄 때 러너가 6시간 한도까지 매달린다(실제 발생).
+          curl -sf --max-time 300 -X POST -H "Authorization: Bearer $ADMIN_TOKEN" \
             "${WORKER_BASE_URL:-https://kleague-toto-predictor.hyeoks.workers.dev}/api/admin/sync"
 
   # 발매중 회차(예: 46회차)를 Worker 배포/D1 백필 없이 러너에서 직접 분석해 독식픽을 출력한다.
