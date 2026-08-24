@@ -34,6 +34,16 @@ async function main() {
   const result = generateExclusivePick(inputs, { ...(maxUpsets != null ? { maxUpsets } : {}), forceDrawCount });
 
   console.log(`\n===== ${round.round_no ?? "?"}회차 독식 지향 픽 (round id=${round.id}) =====\n`);
+  // UCL/UEL처럼 모델이 없는 대회는 확률이 배당 그대로다. "모델 62%"라고 찍으면
+  // 우리가 분석한 값처럼 읽히므로 출처를 그대로 쓴다(prediction.basis).
+  const basisBySeq = new Map(matches.map((m: any) => [m.seq, m.prediction.basis ?? "model"]));
+  const marketOnly = [...basisBySeq.values()].filter((b) => b !== "model").length;
+  if (marketOnly > 0) {
+    console.log(
+      `※ ${marketOnly}경기는 모델 미지원 대회(리그가 다른 클럽 간 대결)라 Elo·폼·H2H 없이\n` +
+        `   해외배당 암시확률을 그대로 씁니다. 이 대회들은 백테스트 근거가 없습니다.\n`,
+    );
+  }
   for (const p of result.picks) {
     const vote = p.votePct != null ? `투표 ${p.votePct.toFixed(1)}%` : "투표율 없음";
     const mark = p.isForcedDraw
@@ -42,13 +52,14 @@ async function main() {
         ? ` ★이변 (기본픽 ${p.basePick})`
         : "";
     console.log(
-      `${String(p.seq).padStart(2)}. [${p.league}] ${p.home} vs ${p.away} → ${p.pick} (모델 ${(p.modelProb * 100).toFixed(0)}%, ${vote})${mark}`,
+      `${String(p.seq).padStart(2)}. [${p.league}] ${p.home} vs ${p.away} → ${p.pick} ` +
+        `(${basisBySeq.get(p.seq) === "model" ? "모델" : "배당"} ${(p.modelProb * 100).toFixed(0)}%, ${vote})${mark}`,
     );
   }
 
   // 무승부 가치비 진단: 승무패에서 대중이 무승부를 과소베팅하는 경향이 있어(독식의 고전 루트),
   // 경기별 홈/무/원정 투표율 전체와 무승부 가치비(모델확률/투표율)를 병기해 판단 근거를 남긴다.
-  console.log(`\n[무승부 진단] 모델 무승부확률 / 투표율 / 가치비(>1이면 대중이 저평가)`);
+  console.log(`\n[무승부 진단] 무승부확률(모델 또는 배당) / 투표율 / 가치비(>1이면 대중이 저평가)`);
   for (const m of matches) {
     if (!m.voteShare) continue;
     const pDraw = m.prediction.pDraw as number;

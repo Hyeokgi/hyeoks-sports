@@ -139,7 +139,10 @@ def build_app_rows():
                 vote_fav, vote_fav_pct, actual_share_pct, vote_upset,
                 model_pick, conf_gap, calib.get("tier", ""), calib_accuracy,
                 "이변" if actual != model_pick else "",
-                "hyeoks-sports 앱(42회차~)",
+                # UCL/UEL처럼 모델이 없는 대회는 확률이 배당 그대로다(prediction.basis).
+                # 출처를 구분해 두지 않으면 이 시트에서 모델 성능으로 집계된다.
+                "hyeoks-sports 앱(42회차~)" if p.get("basis", "model") == "model"
+                else f"hyeoks-sports 앱 · 배당 기반({m['league']}, 모델 미지원 대회)",
             ])
     return rows
 
