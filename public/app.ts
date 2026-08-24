@@ -5,6 +5,7 @@ import { findCalibrationBucket, confidenceTier, CALIBRATION, CALIBRATION_OVERALL
 import { computeUpsetSignal } from "../src/lib/upsetSignal";
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
 import { TEAM_LOGOS } from "../src/lib/teamLogos";
+import { isModelLeague } from "../src/lib/nameMap";
 
 interface MatchData {
   seq: number;
@@ -165,6 +166,9 @@ function toInputs(m: MatchData): PredictionInputs {
     xgDiff: m.raw.xgDiff,
     cornersDiff: m.raw.cornersDiff,
     league: m.league,
+    // UCL/UEL처럼 Elo(리그 내 상대평가)가 성립하지 않는 대회는 배당만 쓴다.
+    // 서버(predictRound.ts)와 같은 판단 기준을 써야 화면과 API가 갈리지 않는다.
+    marketOnly: !isModelLeague(m.league),
   };
 }
 
@@ -249,6 +253,25 @@ function renderMatches() {
     matchList.innerHTML = emptyState("matches", "이 회차에 등록된 경기가 없습니다.");
     return;
   }
+  // 회차 전체(또는 일부)가 배당 기반이면 목록 위에 한 번 설명한다. 카드마다 긴 문장을
+  // 반복하면 읽히지 않고, 무엇보다 "왜 갑자기 근거가 달라졌는지"는 회차 단위의 이야기다.
+  const marketOnlyCount = currentMatches.filter((m) => !isModelLeague(m.league)).length;
+  if (marketOnlyCount > 0) {
+    const comps = [...new Set(currentMatches.filter((m) => !isModelLeague(m.league)).map((m) => m.league))];
+    const notice = document.createElement("div");
+    notice.className = "round-notice";
+    const scope =
+      marketOnlyCount === currentMatches.length
+        ? `이번 회차는 전 경기가 <b>${esc(comps.join("·"))}</b>입니다.`
+        : `이번 회차 ${marketOnlyCount}경기가 <b>${esc(comps.join("·"))}</b>입니다.`;
+    notice.innerHTML =
+      `${scope} 서로 다른 리그의 클럽이 붙는 대회라 우리 Elo(같은 리그 안에서만 의미가 있는 상대평가)를 ` +
+      `쓸 수 없어, 해당 경기는 <b>해외 북메이커 배당</b>에서 마진을 뺀 확률을 그대로 씁니다. ` +
+      `모델이 분석한 결과가 아니고, 이 대회에 대한 백테스트 적중률 근거도 없습니다. ` +
+      `조합·독식 계산은 이 확률 위에서 평소와 같이 동작합니다.`;
+    matchList.appendChild(notice);
+  }
+
   const ranks = hedgeRanks();
   for (const m of currentMatches) {
     const prediction = predictMatch(toInputs(m), currentToggles);
@@ -279,10 +302,25 @@ function renderMatches() {
       rank != null && !m.result
         ? `<span class="hedge-badge" title="확신도가 낮아 복식/삼복식으로 덮을 우선순위">헤지 ${CIRCLED[rank]}</span>`
         : "";
+    // 이 경기의 확률이 모델에서 나온 건지 배당에서 나온 건지 항상 보이게 한다.
+    // 백테스트 근거가 없는 예측을 있는 것처럼 보이게 하지 않기 위한 표시다.
+    const basisBadge =
+      prediction.basis === "market"
+        ? `<span class="basis-badge" title="이 대회는 Elo(리그 내 상대평가)가 성립하지 않아 해외배당 암시확률을 그대로 씁니다">배당 기반</span>`
+        : prediction.basis === "none"
+          ? `<span class="basis-badge waiting" title="배당이 아직 수집되지 않았습니다">배당 대기</span>`
+          : "";
+    // 확신도 배지는 "이 확신도면 과거에 몇 % 맞았다"를 전제로 한 라벨이라, 근거가 없는
+    // 경기에서는 숫자만 보여주고 등급 라벨을 붙이지 않는다.
+    const confBadge =
+      prediction.basis === "none"
+        ? ""
+        : `<span class="confidence-badge t-${tier}"><i class="tier-dot"></i>${tier} · ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>`;
     meta.innerHTML =
       `<span class="league-badge"><b>${m.seq}</b>${esc(m.league)}</span>` +
+      basisBadge +
       hedgeBadge +
-      `<span class="confidence-badge t-${tier}"><i class="tier-dot"></i>${tier} · ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>` +
+      confBadge +
       resultBadge;
     card.appendChild(meta);
 
@@ -322,29 +360,53 @@ function renderMatches() {
 
     const pick = document.createElement("div");
     pick.className = "pick-line";
-    const marketNote = m.raw.market
-      ? ` <span class="market-note">해외배당 ${m.raw.market.nBookmakers}개사 반영</span>`
-      : "";
-    const xgNote = m.raw.xgDiff != null ? ` <span class="market-note">xG 반영</span>` : "";
-    const cornersNote = m.raw.cornersDiff != null ? ` <span class="market-note">코너킥 반영</span>` : "";
-    pick.innerHTML = `모델 추천 <b>${top}</b>${marketNote}${xgNote}${cornersNote}`;
+    if (prediction.basis === "none") {
+      pick.innerHTML = `<span class="market-note">배당 수집 대기 - 아직 추천할 근거가 없습니다</span>`;
+    } else if (prediction.basis === "market") {
+      pick.innerHTML =
+        `배당 기반 추천 <b>${top}</b>` +
+        (m.raw.market ? ` <span class="market-note">해외배당 ${m.raw.market.nBookmakers}개사</span>` : "");
+    } else {
+      const marketNote = m.raw.market
+        ? ` <span class="market-note">해외배당 ${m.raw.market.nBookmakers}개사 반영</span>`
+        : "";
+      const xgNote = m.raw.xgDiff != null ? ` <span class="market-note">xG 반영</span>` : "";
+      const cornersNote = m.raw.cornersDiff != null ? ` <span class="market-note">코너킥 반영</span>` : "";
+      pick.innerHTML = `모델 추천 <b>${top}</b>${marketNote}${xgNote}${cornersNote}`;
+    }
     card.appendChild(pick);
 
     // 작업1: 모델 원본 확률을 덮어쓰지 않고, 같은 확신도 구간의 실측 적중률을 항상 보이게 병기
     // ("82%"만 보이면 실제보다 신뢰도가 높아 보일 수 있어서 - 근거보기를 펼쳐야만 보이면 놓치기 쉬움).
     const bucket = findCalibrationBucket(m.league, prediction.confidenceGap);
-    const bucketNote = bucket
-      ? `이 확신도 구간(${(bucket.minGap * 100).toFixed(0)}~${(bucket.maxGap * 100).toFixed(0)}%p), 과거 실측 적중률 ${(bucket.accuracy * 100).toFixed(1)}% (표본 ${bucket.n}경기)`
-      : "이 구간에 대한 실측 데이터가 부족합니다";
     const calibLine = document.createElement("div");
     calibLine.className = "calib-note";
-    calibLine.textContent = `참고: ${bucketNote}`;
+    if (prediction.basis === "none") {
+      // 배당이 아직 없다. 화면의 확률은 리그 평균 사전확률일 뿐이라 예측이라고 부르면 안 된다.
+      calibLine.textContent =
+        `참고: 아래 확률은 배당이 붙기 전 임시값(평균 무승부율 기준)이며 예측이 아닙니다. ` +
+        `배당이 수집되면 자동으로 갱신됩니다.`;
+    } else if (prediction.basis === "market") {
+      // 이 대회는 백테스트 자체를 한 적이 없다. "데이터가 부족합니다"는 있는데 적다는 뜻으로
+      // 읽히므로, 없다고 분명히 쓴다.
+      calibLine.textContent =
+        `참고: ${m.league}는 백테스트한 적이 없어 적중률 근거가 없습니다. ` +
+        `이 확률은 북메이커 배당에서 마진을 뺀 값 그대로입니다.`;
+    } else {
+      calibLine.textContent = `참고: ${
+        bucket
+          ? `이 확신도 구간(${(bucket.minGap * 100).toFixed(0)}~${(bucket.maxGap * 100).toFixed(0)}%p), 과거 실측 적중률 ${(bucket.accuracy * 100).toFixed(1)}% (표본 ${bucket.n}경기)`
+          : "이 구간에 대한 실측 데이터가 부족합니다"
+      }`;
+    }
     card.appendChild(calibLine);
 
     // 작업(2026-08-06): 모델픽-시장픽 합의여부 참고 표시. contrarian(모델 확신픽인데 시장과
     // 불일치)은 근거(n=2)가 극히 약해 항상 그 사실을 같이 보여준다 - 픽 자체는 절대 안 바꿈.
     const upset = computeUpsetSignal(prediction, m.raw.market, tier);
-    if (upset.hasMarket) {
+    // agreement가 null이면 비교 자체가 성립하지 않는 경기다(배당이 곧 예측).
+    // 그 사실은 이미 배지와 위 참고문구가 말하고 있어, 여기서 또 쓰면 카드마다 중복된다.
+    if (upset.hasMarket && upset.agreement) {
       const upsetLine = document.createElement("div");
       upsetLine.className = upset.contrarian ? "calib-note upset-warn" : "calib-note";
       upsetLine.textContent = upset.note;
@@ -358,14 +420,32 @@ function renderMatches() {
     const evidenceBody = document.createElement("div");
     evidenceBody.className = "evidence-body";
     evidenceBody.hidden = true;
-    evidenceBody.innerHTML = `
-      <div>Elo 전력차: ${m.raw.eloDiff.toFixed(0)}점 (${esc(m.raw.eloDiff >= 0 ? m.home : m.away)} 우세)</div>
-      <div>최근 폼(5경기) 차이: ${m.raw.formDiff.toFixed(2)}점</div>
-      <div>상대전적(H2H) 성향: ${m.raw.h2hDiff.toFixed(2)} (표본 ${m.raw.nH2h}회)</div>
-      <div>리그 실측 무승부율: ${(m.raw.leagueDrawRate * 100).toFixed(1)}%</div>
-      ${m.raw.cornersDiff != null ? `<div>최근 폼(5경기) 코너킥 차이: ${m.raw.cornersDiff.toFixed(1)}개 (K리그2 실증 검증된 피처)</div>` : ""}
-      ${m.voteShare ? `<div>betman 투표율: 홈 ${m.voteShare.home.toFixed(1)}% / 무 ${m.voteShare.draw.toFixed(1)}% / 원정 ${m.voteShare.away.toFixed(1)}%</div>` : ""}
-    `;
+    const voteLine = m.voteShare
+      ? `<div>betman 투표율: 홈 ${m.voteShare.home.toFixed(1)}% / 무 ${m.voteShare.draw.toFixed(1)}% / 원정 ${m.voteShare.away.toFixed(1)}%</div>`
+      : "";
+    if (prediction.basis !== "model") {
+      // 이 경기들은 Elo/폼/H2H를 아예 계산하지 않았다(전부 0으로 저장). 0을 나열하면
+      // "전력이 호각"이라는 뜻으로 읽히므로 계산하지 않았다는 사실을 그대로 쓴다.
+      evidenceBody.innerHTML = `
+        <div>${esc(m.league)}는 서로 다른 리그의 클럽이 붙는 대회라 Elo·최근폼·상대전적을 계산하지 않았습니다.</div>
+        <div>우리 Elo는 같은 리그 안에서만 의미가 있는 상대평가라, 국가가 다른 두 팀의 점수를 직접 비교할 수 없습니다.</div>
+        ${
+          m.raw.market
+            ? `<div>해외배당 암시확률(${m.raw.market.nBookmakers}개사 평균, 마진 제거): 홈 ${(m.raw.market.pHome * 100).toFixed(1)}% / 무 ${(m.raw.market.pDraw * 100).toFixed(1)}% / 원정 ${(m.raw.market.pAway * 100).toFixed(1)}%</div>`
+            : `<div>배당이 아직 수집되지 않았습니다.</div>`
+        }
+        ${voteLine}
+      `;
+    } else {
+      evidenceBody.innerHTML = `
+        <div>Elo 전력차: ${m.raw.eloDiff.toFixed(0)}점 (${esc(m.raw.eloDiff >= 0 ? m.home : m.away)} 우세)</div>
+        <div>최근 폼(5경기) 차이: ${m.raw.formDiff.toFixed(2)}점</div>
+        <div>상대전적(H2H) 성향: ${m.raw.h2hDiff.toFixed(2)} (표본 ${m.raw.nH2h}회)</div>
+        <div>리그 실측 무승부율: ${(m.raw.leagueDrawRate * 100).toFixed(1)}%</div>
+        ${m.raw.cornersDiff != null ? `<div>최근 폼(5경기) 코너킥 차이: ${m.raw.cornersDiff.toFixed(1)}개 (K리그2 실증 검증된 피처)</div>` : ""}
+        ${voteLine}
+      `;
+    }
     evidenceBtn.addEventListener("click", () => {
       evidenceBody.hidden = !evidenceBody.hidden;
       evidenceBtn.textContent = evidenceBody.hidden ? "근거 보기 ▾" : "근거 접기 ▴";
@@ -520,8 +600,11 @@ function renderExclusivePick() {
       : p.isUpset
         ? ` <span class="upset-badge">이변</span> <s class="base-pick">${p.basePick}</s>`
         : "";
+    // 확률의 출처를 여기서도 정직하게 쓴다 - 배당 기반 경기에 "모델 61%"라고 적으면
+    // 우리가 분석한 값처럼 읽힌다.
+    const src = isModelLeague(currentMatches.find((m) => m.seq === p.seq)?.league ?? "") ? "모델" : "배당";
     row.innerHTML =
-      `<span>${p.seq}. ${p.home} vs ${p.away}<span class="vote-note">모델 ${(p.modelProb * 100).toFixed(0)}% · ${voteText}</span></span>` +
+      `<span>${p.seq}. ${p.home} vs ${p.away}<span class="vote-note">${src} ${(p.modelProb * 100).toFixed(0)}% · ${voteText}</span></span>` +
       `<span class="pick-tags">${upsetBadge}<span class="${p.pick}">${p.pick}</span></span>`;
     box.appendChild(row);
   }

@@ -310,6 +310,10 @@ main {
 .confidence-badge.t-보통 .tier-dot { background: var(--gold); }
 .confidence-badge.t-불확실 { background: rgba(239, 68, 68, 0.13); color: #f87171; }
 .confidence-badge.t-불확실 .tier-dot { background: var(--away); }
+/* 그 대회를 백테스트한 적이 없어 "이 확신도면 몇 % 맞았다"를 말할 근거가 없는 경우.
+   초록/노랑/빨강 신호등과 섞이지 않게 무채색으로 둔다. */
+.confidence-badge.t-근거없음 { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; }
+.confidence-badge.t-근거없음 .tier-dot { background: #94a3b8; }
 
 .round-summary .summary-stat {
   display: inline-flex;
@@ -1240,4 +1244,43 @@ main {
   padding: 9px 14px;
   font-size: 0.8rem;
   width: calc(100% - 20px);
+}
+
+/* ============================================================
+   예측 근거 표시(배당 기반)
+   UCL/UEL처럼 Elo가 성립하지 않는 대회는 확률이 배당에서 그대로 온다.
+   모델이 분석한 것처럼 보이면 안 되므로 카드마다 출처를 명시한다.
+   ============================================================ */
+.basis-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  color: #7dd3fc;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.basis-badge.waiting {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #cbd5e1;
+}
+
+/* 회차 전체가 배당 기반일 때 목록 위에 한 번 설명한다(카드마다 반복하면 읽히지 않는다). */
+.round-notice {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--text-1);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.round-notice b {
+  color: #7dd3fc;
 }
