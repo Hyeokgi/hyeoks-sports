@@ -15,6 +15,7 @@ import path from "node:path";
 import { predictMatch, DEFAULT_TOGGLES } from "../src/lib/prediction";
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
 import { confidenceTier, findCalibrationBucket } from "../src/lib/calibration";
+import { isModelLeague } from "../src/lib/nameMap";
 
 const BASE = process.env.WORKER_BASE_URL ?? "https://kleague-toto-predictor.hyeoks.workers.dev";
 const LABEL = { H: "홈승", D: "무승부", A: "원정승" } as const;
@@ -67,6 +68,7 @@ async function main() {
         eloDiff: m.raw.eloDiff, formDiff: m.raw.formDiff, h2hDiff: m.raw.h2hDiff,
         leagueDrawRate: m.raw.leagueDrawRate, marketOdds: m.raw.market ?? null,
         xgDiff: m.raw.xgDiff ?? null, cornersDiff: m.raw.cornersDiff ?? null, league: m.league,
+        marketOnly: !isModelLeague(m.league),
       },
       DEFAULT_TOGGLES,
     ),
@@ -85,6 +87,7 @@ async function main() {
         eloDiff: m.raw.eloDiff, formDiff: m.raw.formDiff, h2hDiff: m.raw.h2hDiff,
         leagueDrawRate: m.raw.leagueDrawRate, marketOdds: m.raw.market ?? null,
         xgDiff: m.raw.xgDiff ?? null, cornersDiff: m.raw.cornersDiff ?? null, league: m.league,
+        marketOnly: !isModelLeague(m.league),
       },
       DEFAULT_TOGGLES,
     );
@@ -112,7 +115,7 @@ async function main() {
       `  ${String(m.seq).padStart(2)}. ${m.league.padEnd(6)} ${m.home} vs ${m.away}\n` +
         `      실제 ${actual} (${m.result.hg}:${m.result.ag})  |  기본픽 ${basePick} ${okBase ? "O" : "X"}` +
         `  독식픽 ${exPick}${isUpset ? "(이변)" : ""} ${okEx ? "O" : "X"}\n` +
-        `      모델 홈${pct(pred.pHome)}/무${pct(pred.pDraw)}/원${pct(pred.pAway)}  확신도 ${(gap * 100).toFixed(1)}%p(${tier})` +
+        `      ${pred.basis === "model" ? "모델" : "배당"} 홈${pct(pred.pHome)}/무${pct(pred.pDraw)}/원${pct(pred.pAway)}  확신도 ${(gap * 100).toFixed(1)}%p(${tier})` +
         (m.raw.market ? `  시장픽 ${marketTop}` : "  시장배당 없음") +
         (m.voteShare ? `  투표 홈${m.voteShare.home.toFixed(0)}/무${m.voteShare.draw.toFixed(0)}/원${m.voteShare.away.toFixed(0)}` : ""),
     );
@@ -122,10 +125,16 @@ async function main() {
       const kinds: string[] = [];
       if (isUpset) kinds.push("독식 이변이 빗나감");
       if (okBase && !okEx) kinds.push("기본픽은 맞았는데 이변으로 놓침");
-      if (tier === "확신픽") kinds.push("모델 확신픽이 빗나감");
-      else if (tier === "불확실") kinds.push("모델도 불확실(예상된 노이즈)");
-      if (marketTop && marketTop !== basePick) kinds.push("시장과 불일치한 픽이 빗나감");
-      if (marketTop && marketTop === actual && basePick !== actual) kinds.push("시장이 맞고 우리가 틀림");
+      if (pred.basis !== "model") {
+        // 이 경기의 픽은 배당 그대로다. 모델의 확신/불확실을 논할 대상이 아니고,
+        // "시장과 불일치"도 정의상 일어날 수 없다.
+        kinds.push(`배당 기반 픽이 빗나감(${m.league}, 모델 미지원 대회)`);
+      } else {
+        if (tier === "확신픽") kinds.push("모델 확신픽이 빗나감");
+        else if (tier === "불확실") kinds.push("모델도 불확실(예상된 노이즈)");
+        if (marketTop && marketTop !== basePick) kinds.push("시장과 불일치한 픽이 빗나감");
+        if (marketTop && marketTop === actual && basePick !== actual) kinds.push("시장이 맞고 우리가 틀림");
+      }
       const bucket = findCalibrationBucket(m.league, gap);
       misses.push({
         seq: m.seq, league: m.league, home: m.home, away: m.away, actual,

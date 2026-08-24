@@ -8,7 +8,14 @@ function pred(pHome: number, pDraw: number, pAway: number): MatchPrediction {
     ["홈승", pHome], ["무승부", pDraw], ["원정승", pAway],
   ];
   ranked.sort((a, b) => b[1] - a[1]);
-  return { pHome, pDraw, pAway, rankedPicks: ranked.map((r) => r[0]), confidenceGap: ranked[0][1] - ranked[1][1] };
+  return {
+    pHome,
+    pDraw,
+    pAway,
+    rankedPicks: ranked.map((r) => r[0]),
+    confidenceGap: ranked[0][1] - ranked[1][1],
+    basis: "model",
+  };
 }
 
 function m(
@@ -98,5 +105,19 @@ describe("summarize", () => {
     expect(s.rounds).toBe(0);
     expect(s.basePickAccuracy).toBe(0);
     expect(s.medianActualCrowdShare).toBeNull();
+  });
+
+  // 배당 기반 경기(UCL/UEL)가 섞인 회차는 그 수를 따로 센다. 적중 수 자체는 우리가 실제로
+  // 낸 픽 그대로 세되, 그 숫자를 모델 성능으로 읽지 않도록 화면이 구분할 근거를 남긴다.
+  it("배당 기반 경기 수를 따로 집계한다", () => {
+    const model = { ...pred(0.6, 0.2, 0.2) };
+    const market = { ...pred(0.6, 0.2, 0.2), basis: "market" as const };
+    const r = computeRoundSettlement(1, 47, [
+      { seq: 1, league: "EPL", home: "a", away: "b", prediction: model, voteShare: null, actual: "H" },
+      { seq: 2, league: "UEL", home: "c", away: "d", prediction: market, voteShare: null, actual: "H" },
+      { seq: 3, league: "UEL", home: "e", away: "f", prediction: market, voteShare: null, actual: "A" },
+    ]);
+    expect(r.marketOnlyMatches).toBe(2);
+    expect(r.basePickHits).toBe(2); // 배당 기반이어도 실제로 맞힌 건 맞힌 것으로 센다
   });
 });

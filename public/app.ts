@@ -697,8 +697,13 @@ async function loadSettlement() {
     box.className = "combo-tier";
     const head = document.createElement("div");
     head.className = "tier-head";
+    // 배당 기반 경기가 섞인 회차는 그 사실을 함께 보여준다. 실적은 우리가 실제로 낸 픽
+    // 그대로 세지만, 그 숫자를 모델 성능으로 읽으면 안 되기 때문이다.
+    const moTag = r.marketOnlyMatches
+      ? `<span class="basis-badge">배당 기반 ${r.marketOnlyMatches}경기</span>`
+      : "";
     head.innerHTML =
-      `<span>${r.roundNo ?? "?"}회차</span>` +
+      `<span>${r.roundNo ?? "?"}회차 ${moTag}</span>` +
       `<span>기본 ${r.basePickHits}/${r.settledMatches} · 독식 ${r.exclusivePickHits}/${r.settledMatches}</span>`;
     box.appendChild(head);
 

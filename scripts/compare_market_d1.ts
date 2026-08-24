@@ -11,6 +11,7 @@
 // 실행: npx tsx scripts/compare_market_d1.ts   (러너에서 Worker에 HTTP로 접근)
 import fs from "node:fs";
 import path from "node:path";
+import { isModelLeague } from "../src/lib/nameMap";
 import { predictMatch, DEFAULT_TOGGLES, type MarketOdds } from "../src/lib/prediction";
 
 const BASE = process.env.WORKER_BASE_URL ?? "https://kleague-toto-predictor.hyeoks.workers.dev";
@@ -79,7 +80,7 @@ async function main() {
   console.log(`회차 ${rounds.length}건 조회`);
 
   const samples: Sample[] = [];
-  let noResult = 0, noMarket = 0, failed = 0;
+  let noResult = 0, noMarket = 0, failed = 0, marketOnlySkipped = 0;
 
   for (const r of rounds) {
     let data: any;
@@ -93,6 +94,10 @@ async function main() {
     for (const m of data.matches ?? []) {
       if (!m.result) { noResult++; continue; }
       if (!m.raw?.market) { noMarket++; continue; }
+      // 이 스크립트가 재는 건 "모델 vs 배당"이다. UCL/UEL 같은 모델 미지원 대회는
+      // 애초에 모델 성분이 전부 0이라 pure 쪽이 홈어드밴티지만 남은 껍데기가 되고,
+      // 그걸 표본에 섞으면 모델이 실제보다 나빠 보이게 된다. 아예 제외한다.
+      if (!isModelLeague(m.league)) { marketOnlySkipped++; continue; }
       const actual: Outcome = m.result.actual === "H" ? 0 : m.result.actual === "D" ? 1 : 2;
       samples.push({
         roundNo: r.round_no ?? null,
@@ -115,7 +120,7 @@ async function main() {
     }
   }
 
-  console.log(`\n평가 대상 ${samples.length}경기 (결과없음 ${noResult} / 배당없음 ${noMarket} / 조회실패 회차 ${failed})`);
+  console.log(`\n평가 대상 ${samples.length}경기 (결과없음 ${noResult} / 배당없음 ${noMarket} / 모델 미지원 대회 ${marketOnlySkipped} / 조회실패 회차 ${failed})`);
   if (samples.length === 0) {
     console.log("배당+결과가 모두 있는 경기가 없습니다. 정산된 회차가 쌓일 때까지 기다려야 합니다.");
     return;

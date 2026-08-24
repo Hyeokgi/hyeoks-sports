@@ -28,8 +28,11 @@ export interface RoundSettlement {
   roundNo: number | null;
   settledMatches: number;
   totalMatches: number;
-  basePickHits: number; // 모델 1픽 적중 수
+  basePickHits: number; // 1픽 적중 수 (배당 기반 경기 포함 - 우리가 실제로 낸 픽 그대로)
   exclusivePickHits: number; // 독식픽 적중 수
+  // 이 회차에서 모델이 아니라 배당으로 예측한 경기 수(UCL/UEL 등). 실적은 우리가 실제로
+  // 낸 픽이므로 그대로 집계하되, 그 수치를 모델 성능으로 읽으면 안 되므로 함께 노출한다.
+  marketOnlyMatches: number;
   upsetCount: number;
   drawsActual: number; // 실제 무승부 경기 수
   // 대중 구매비중 추정(∏투표율). 전 경기 투표율이 있어야 계산되며 없으면 null.
@@ -59,8 +62,10 @@ export function computeRoundSettlement(
   let basePickHits = 0;
   let exclusivePickHits = 0;
   let drawsActual = 0;
+  let marketOnlyMatches = 0;
   for (const m of matches) {
     if (m.actual == null) continue;
+    if (m.prediction.basis !== "model") marketOnlyMatches++;
     const actualLabel = LABEL[m.actual];
     if (m.prediction.rankedPicks[0] === actualLabel) basePickHits++;
     const pick = exclusive.picks.find((p) => p.seq === m.seq);
@@ -86,6 +91,7 @@ export function computeRoundSettlement(
     totalMatches: matches.length,
     basePickHits,
     exclusivePickHits,
+    marketOnlyMatches,
     upsetCount: exclusive.upsetCount + exclusive.forcedDrawCount,
     drawsActual,
     actualCrowdShare,
