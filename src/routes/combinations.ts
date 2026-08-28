@@ -18,7 +18,10 @@ export async function handleCombinations(env: Env, roundId: number, request: Req
   const toggles = body?.toggles ?? {};
   const budgetWon: number | undefined = body?.budgetWon;
   const tiers: number[] | undefined = body?.tiers;
-  const guaranteeDrawCount: number = body?.guaranteeDrawCount ?? 0;
+  // 숫자 또는 "auto"(예산이 감당하는 만큼 무승부를 덮음). 미지정이면 auto가 기본이다.
+  const raw = body?.guaranteeDrawCount;
+  const guaranteeDrawCount: number | "auto" =
+    raw === "auto" || raw == null ? "auto" : Number(raw) || 0;
 
   const predictions = await buildRoundPredictions(env, roundId, toggles);
   const comboMatches: ComboMatch[] = predictions.map((p) => ({

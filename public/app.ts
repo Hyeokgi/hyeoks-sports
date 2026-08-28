@@ -59,6 +59,11 @@ const budgetBtn = document.getElementById("budget-custom-btn") as HTMLButtonElem
 const reportBtn = document.getElementById("report-btn") as HTMLButtonElement;
 const reportText = document.getElementById("report-text") as HTMLParagraphElement;
 const drawGuaranteeSelect = document.getElementById("draw-guarantee-select") as HTMLSelectElement;
+
+// "자동"이면 예산이 감당하는 만큼 무승부를 덮는다(combinations.ts가 예산 검사로 클램프).
+function drawGuaranteeValue(): number | "auto" {
+  return drawGuaranteeSelect.value === "auto" ? "auto" : Number(drawGuaranteeSelect.value) || 0;
+}
 const exclusivePickEl = document.getElementById("exclusive-pick") as HTMLDivElement;
 const upsetCountSelect = document.getElementById("upset-count-select") as HTMLSelectElement;
 const drawForceSelect = document.getElementById("draw-force-select") as HTMLSelectElement;
@@ -555,7 +560,7 @@ function renderCombos() {
   comboTiersEl.innerHTML = "";
   if (currentMatches.length === 0) return;
   const comboMatches = toComboMatches();
-  const guaranteeDrawCount = Number(drawGuaranteeSelect.value) || 0;
+  const guaranteeDrawCount = drawGuaranteeValue();
   const plans = generateSystemBetTiers(comboMatches, DEFAULT_BUDGET_TIERS, undefined, { guaranteeDrawCount });
   plans.forEach((plan, i) => {
     renderComboPlan(comboTiersEl, `${DEFAULT_BUDGET_TIERS[i].toLocaleString()}원 예산`, plan);
@@ -791,7 +796,7 @@ budgetBtn.addEventListener("click", () => {
   const budget = Number(budgetInput.value);
   if (!budget || budget < 1000) return;
   const comboMatches = toComboMatches();
-  const guaranteeDrawCount = Number(drawGuaranteeSelect.value) || 0;
+  const guaranteeDrawCount = drawGuaranteeValue();
   const plan = generateSystemBet(comboMatches, budget, undefined, { guaranteeDrawCount });
   const box = document.createElement("div");
   renderComboPlan(box, `직접 입력 ${budget.toLocaleString()}원`, plan);

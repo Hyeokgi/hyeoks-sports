@@ -136,9 +136,10 @@
       <div class="option-row">
         <label for="draw-guarantee-select">무승부 헤지 (확신도 낮은 순)</label>
         <select id="draw-guarantee-select">
+          <option value="auto" selected>자동 (예산에 맞춰)</option>
           <option value="0">사용 안 함</option>
           <option value="1">1경기</option>
-          <option value="2" selected>2경기</option>
+          <option value="2">2경기</option>
           <option value="3">3경기</option>
           <option value="4">4경기</option>
         </select>
@@ -146,6 +147,7 @@
       <details class="explainer">
         <summary>독식픽의 "무승부 강제"와 뭐가 다른가요?</summary>
         <p class="hint">확신도가 가장 낮은(팽팽한) 경기부터 예산이 허락하는 한 무승부를 픽에 강제로 포함합니다. 이쪽은 복식 조합에 무승부를 <b>추가로</b> 얹어 헤지하고, 독식픽은 단일 조합에서 대중이 저평가한 무승부로 <b>바꿉니다</b>.</p>
+        <p class="hint"><b>왜 무승부를 따로 챙기나요?</b> 확률 1위만 찍는 방식은 무승부를 거의 못 고릅니다 — 무승부가 1위가 되려면 홈·원정이 둘 다 그보다 낮아야 하는데 그런 배당이 드물기 때문입니다. 그런데 1~41회차 574경기 실측으로는 <b>회차당 무승부가 평균 3.8경기</b>였고, <b>무승부가 하나도 없던 회차는 41번 중 한 번도 없었습니다</b>(최소 1경기). 조합에서 무승부를 덮는 건 취향이 아니라 이 구조적 공백을 메우는 일입니다. <b>자동</b>은 예산이 감당하는 만큼만 덮습니다(예: 5,000원 1경기 → 100,000원 4경기).</p>
       </details>
 
       <div class="budget-row">
