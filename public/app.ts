@@ -298,9 +298,11 @@ function renderMatches() {
     }
     if (m.result) {
       const hit = prediction.rankedPicks[0] === RESULT_LABEL[m.result.actual];
+      // 스코어는 배지가 아니라 대진줄 가운데(중계 화면처럼)에 둔다 - 팀명 사이에 있어야
+      // 어느 팀이 몇 점인지 바로 읽힌다. 배지는 우리 픽의 적중 여부만 말한다.
       resultBadge =
         `<span class="result-badge ${hit ? "hit" : "miss"}">${icon(hit ? "check" : "x")}` +
-        `${hit ? "적중" : "실패"} ${m.result.hg}:${m.result.ag}</span>`;
+        `${hit ? "적중" : "실패"}</span>`;
     }
     const rank = ranks.get(m.seq);
     const hedgeBadge =
@@ -335,13 +337,28 @@ function renderMatches() {
       resultBadge;
     card.appendChild(meta);
 
-    // 홈/VS/원정 3분할. 모델 1픽 쪽을 강조해서 "누구를 찍었는지"가 한눈에 보이게 한다.
+    // 홈/가운데/원정 3분할. 모델 1픽 쪽을 강조해서 "누구를 찍었는지"가 한눈에 보이게 한다.
+    // 경기가 끝났으면 가운데를 VS 대신 스코어보드로 바꾼다(중계 화면 표기).
     const top = prediction.rankedPicks[0];
     const fixture = document.createElement("div");
     fixture.className = "fixture";
+    let center: string;
+    if (m.result) {
+      const { hg, ag } = m.result;
+      // 이긴 쪽 숫자만 밝게. 무승부면 둘 다 같은 톤으로 둔다.
+      const cls = (mine: number, other: number) => (mine > other ? " won" : "");
+      center =
+        `<span class="score" aria-label="${hg} 대 ${ag}">` +
+        `<b class="${`sc${cls(hg, ag)}`}">${hg}</b>` +
+        `<i>:</i>` +
+        `<b class="${`sc${cls(ag, hg)}`}">${ag}</b>` +
+        `</span>`;
+    } else {
+      center = `<span class="vs${top === "무승부" ? " picked" : ""}">${top === "무승부" ? "무" : "VS"}</span>`;
+    }
     fixture.innerHTML =
       `<span class="team${top === "홈승" ? " picked" : ""}">${teamCrest(m.home)}<span class="team-name">${esc(m.home)}</span></span>` +
-      `<span class="vs${top === "무승부" ? " picked" : ""}">${top === "무승부" ? "무" : "VS"}</span>` +
+      center +
       `<span class="team${top === "원정승" ? " picked" : ""}">${teamCrest(m.away)}<span class="team-name">${esc(m.away)}</span></span>`;
     card.appendChild(fixture);
 

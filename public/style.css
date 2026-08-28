@@ -346,6 +346,8 @@ main {
   padding: 3px 9px;
   border-radius: 999px;
   font-weight: 700;
+  /* 메타줄이 꽉 차면 알약 안에서 "적"/"중"으로 접히던 것 방지 */
+  white-space: nowrap;
 }
 
 .result-badge .icon {
@@ -478,6 +480,37 @@ main {
   border: 1px solid var(--card-border);
   background: rgba(255, 255, 255, 0.03);
   white-space: nowrap;
+}
+
+/* 종료 경기의 스코어보드 - 중계 화면처럼 팀명 사이에 큼직하게. VS 알약과 같은 자리를
+   쓰지만 테두리 없이 숫자만 세워 카드에서 결과가 먼저 읽히게 한다. */
+.match-card .fixture .score {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.match-card .fixture .score .sc {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--muted);
+  letter-spacing: -0.02em;
+}
+
+/* 이긴 쪽 숫자만 밝게 - 무승부면 둘 다 기본 톤으로 남는다 */
+.match-card .fixture .score .sc.won {
+  color: var(--ink);
+}
+
+.match-card .fixture .score i {
+  font-style: normal;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--muted-2);
 }
 
 .match-card .fixture .vs.picked {

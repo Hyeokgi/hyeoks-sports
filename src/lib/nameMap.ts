@@ -163,13 +163,21 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   { nameKr: "토리노", nameEn: "Torino", league: "세리에A" },
   // FotMob 세리에A는 짧은 표기 사용("Milan"/"Inter"/"Roma") - 2026-08-22 현재시즌 실측 확인
   { nameKr: "AC밀란", nameEn: "Milan", league: "세리에A" },
-  // 세리에A 나머지 6팀(FotMob 2026-27 현재시즌 20팀 실측 기준) - 46회차에 노출되지 않아
-  // wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
+  // 세리에A 나머지 6팀. AS로마/라치오/피오렌티/볼로냐는 1~41회차 실표기에서 확인됨
+  // (각각 10/8/7/10회 등장). 아래 두 팀은 2026-08-22 편입 당시 추정 표기를 넣었다가
+  // 48회차에서 wisetoto 실표기가 다른 것이 드러나 정정했다 - 이 어긋남 때문에 48회차
+  // 등록이 통째로 보류됐다(NAME_MAP 누락 가드).
+  //   인터밀란 -> 실제 "인테르"  (1~41회차에도 10회 등장, 애초에 확인 가능했다)
+  //   몬차     -> 실제 "AC몬차"
+  // 틀린 추정 표기도 별칭으로 남긴다(같은 영문명으로 향하므로 무해하고, 다른 매체 표기가
+  // 들어와도 받아준다).
+  { nameKr: "인테르", nameEn: "Inter", league: "세리에A" },
   { nameKr: "인터밀란", nameEn: "Inter", league: "세리에A" },
   { nameKr: "AS로마", nameEn: "Roma", league: "세리에A" },
   { nameKr: "라치오", nameEn: "Lazio", league: "세리에A" },
   { nameKr: "피오렌티", nameEn: "Fiorentina", league: "세리에A" },
   { nameKr: "볼로냐", nameEn: "Bologna", league: "세리에A" },
+  { nameKr: "AC몬차", nameEn: "Monza", league: "세리에A" },
   { nameKr: "몬차", nameEn: "Monza", league: "세리에A" },
   // 라리가 (2026-08-22 선제 편입). nameKr은 1~41회차 betman/wisetoto 실표기에서 확인된 20팀 -
   // 2025-26 시즌 구성이라 그 시점 소속 기준이다. nameEn은 백필 데이터(FotMob 표기로 통일됨)와
