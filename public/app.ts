@@ -329,12 +329,19 @@ function renderMatches() {
         : prediction.basis === "market"
           ? `<span class="confidence-badge t-근거없음" title="1위와 2위 픽의 확률 차이입니다. 이 대회는 백테스트가 없어 등급(확신픽/보통/불확실)은 붙이지 않습니다"><i class="tier-dot"></i>확신도 ${gapText}</span>`
           : `<span class="confidence-badge t-${tier}"><i class="tier-dot"></i>${tier} · ${gapText}</span>`;
+    // 메타줄을 두 줄로 나눈다. 예전엔 배지 5개(연번·리그 / 배당기반 / 헤지 / 확신도 / 일정)를
+    // 한 줄에 밀어넣어서, 리그명이 긴 세리에A + 헤지 배지가 겹치는 카드는 360px에서 가로로
+    // 넘치고 배지가 제멋대로 3줄로 흩어졌다(48회차 14장 전부 해당).
+    //   윗줄  : 이 경기가 무엇이고 언제인가 (리그 ....... 킥오프/결과)
+    //   아랫줄: 우리가 이 경기를 어떻게 보는가 (배당기반 · 헤지 · 확신도)
+    // 아랫줄은 붙을 배지가 없으면 아예 만들지 않는다(빈 줄로 간격이 벌어지지 않게).
+    const tagBadges = basisBadge + hedgeBadge + confBadge;
     meta.innerHTML =
+      `<div class="meta-top">` +
       `<span class="league-badge"><b>${m.seq}</b>${esc(m.league)}</span>` +
-      basisBadge +
-      hedgeBadge +
-      confBadge +
-      resultBadge;
+      resultBadge +
+      `</div>` +
+      (tagBadges ? `<div class="meta-tags">${tagBadges}</div>` : "");
     card.appendChild(meta);
 
     // 홈/가운데/원정 3분할. 모델 1픽 쪽을 강조해서 "누구를 찍었는지"가 한눈에 보이게 한다.

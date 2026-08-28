@@ -266,19 +266,36 @@ main {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
+/* 메타줄 두 줄 구조. 배지를 한 줄에 다 넣으면 리그명이 긴 회차(세리에A/분데스리가)에서
+   가로로 넘치고 줄이 제멋대로 흩어진다. 윗줄은 "무엇을 언제", 아랫줄은 "우리 판단". */
 .match-card .meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.73rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.match-card .meta-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.73rem;
-  color: var(--muted);
-  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.match-card .meta-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .league-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
   padding: 3px 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.07);
