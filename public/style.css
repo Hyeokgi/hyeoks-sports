@@ -296,6 +296,9 @@ main {
   background: var(--gold-soft);
   color: var(--gold-bright);
   font-weight: 700;
+  /* 배당 기반 회차는 "확신도 41.1%p"라 라벨이 길어진다. 좁은 화면에서 알약 안에서 두 줄로
+     접히면 배지 높이가 들쭉날쭉해지므로 한 줄로 고정한다. */
+  white-space: nowrap;
 }
 
 /* 티어 신호등을 이모지 대신 CSS 점으로 - 이모지는 OS마다 크기/색이 다르다 */

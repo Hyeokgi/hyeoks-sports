@@ -315,12 +315,18 @@ function renderMatches() {
         : prediction.basis === "none"
           ? `<span class="basis-badge waiting" title="배당이 아직 수집되지 않았습니다">배당 대기</span>`
           : "";
-    // 확신도 배지는 "이 확신도면 과거에 몇 % 맞았다"를 전제로 한 라벨이라, 근거가 없는
-    // 경기에서는 숫자만 보여주고 등급 라벨을 붙이지 않는다.
+    // 확신도 등급(확신픽/보통/불확실)은 "이 확신도면 과거에 몇 % 맞았다"는 백테스트를 전제로 한
+    // 라벨이다. 그 근거가 없는 대회에서는 등급을 빼고 숫자만 보여준다.
+    // 여기에 "근거없음"이라고 찍으면 두 가지가 잘못된다. (1) 바로 옆 "배당 기반" 배지가 이미
+    // 같은 말을 하고 있어 중복이고 (2) "근거없음 · 59.7%p"는 저 59.7%p라는 숫자 자체가 근거
+    // 없는 값처럼 읽힌다 - 그 숫자는 실제 배당에서 나온 값이고, 없는 건 과거 적중률뿐이다.
+    const gapText = `${(prediction.confidenceGap * 100).toFixed(1)}%p`;
     const confBadge =
       prediction.basis === "none"
         ? ""
-        : `<span class="confidence-badge t-${tier}"><i class="tier-dot"></i>${tier} · ${(prediction.confidenceGap * 100).toFixed(1)}%p</span>`;
+        : prediction.basis === "market"
+          ? `<span class="confidence-badge t-근거없음" title="1위와 2위 픽의 확률 차이입니다. 이 대회는 백테스트가 없어 등급(확신픽/보통/불확실)은 붙이지 않습니다"><i class="tier-dot"></i>확신도 ${gapText}</span>`
+          : `<span class="confidence-badge t-${tier}"><i class="tier-dot"></i>${tier} · ${gapText}</span>`;
     meta.innerHTML =
       `<span class="league-badge"><b>${m.seq}</b>${esc(m.league)}</span>` +
       basisBadge +
