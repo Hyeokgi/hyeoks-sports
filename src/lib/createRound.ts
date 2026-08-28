@@ -100,10 +100,12 @@ export async function createRoundFromFixtures(
       .first<{ id: number }>();
     const roundMatchId = insertedMatch!.id;
 
+    // marketOnly는 등록 시점의 사실로 고정 저장한다. 매번 다시 판단하면, 나중에 NAME_MAP에
+    // 팀명을 추가했을 때 elo_diff=0으로 저장된 경기가 "모델 예측"으로 뒤집힌다(migration 0008 주석).
     await env.DB.prepare(
-      "INSERT INTO round_predictions (round_match_id, elo_diff, form_diff, h2h_diff, n_h2h, league_draw_rate, xg_diff, corners_diff, computed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO round_predictions (round_match_id, elo_diff, form_diff, h2h_diff, n_h2h, league_draw_rate, xg_diff, corners_diff, market_only, computed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
-      .bind(roundMatchId, eloDiff, formDiff, h2h_.diff, h2h_.n, drawRates[f.league], xgDiff, cornersDiff, new Date().toISOString())
+      .bind(roundMatchId, eloDiff, formDiff, h2h_.diff, h2h_.n, drawRates[f.league], xgDiff, cornersDiff, marketOnly ? 1 : 0, new Date().toISOString())
       .run();
 
     // 기본 토글(해외배당 없음, 등록 시점 xG/코너킥만) 기준 요약 - 텔레그램은 나중에 배당이 붙기 전 스냅샷.

@@ -43,5 +43,8 @@ export interface RoundPredictionRow {
   league_draw_rate: number;
   xg_diff: number | null;
   corners_diff: number | null;
+  // 등록 시점에 배당만으로 예측했는지(1) 아닌지(0). 매번 다시 판단하지 않는 이유는
+  // migrations/0008_market_only.sql 주석 참고. 0008 이전에 등록된 회차는 NULL일 수 있다.
+  market_only: number | null;
   computed_at: string;
 }

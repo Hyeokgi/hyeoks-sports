@@ -26,6 +26,13 @@ export interface MatchWithPrediction {
   };
 }
 
+// 등록 시점에 고정된 market_only를 쓰되, 그 컬럼이 없던 시절(migration 0008 이전) 회차는
+// 리그 기준으로 폴백한다. 이 판단이 뒤집히면 elo_diff=0으로 저장된 경기가 "모델 예측"으로
+// 표시되므로(격차 0 + 홈어드밴티지라는 가짜 신호), 규칙을 한 곳에 두고 테스트로 고정한다.
+export function resolveMarketOnly(storedMarketOnly: number | null | undefined, league: string): boolean {
+  return storedMarketOnly == null ? !isModelLeague(league) : storedMarketOnly === 1;
+}
+
 export async function buildRoundPredictions(
   env: Env,
   roundId: number,
@@ -59,9 +66,10 @@ export async function buildRoundPredictions(
         xgDiff: raw.xg_diff,
         cornersDiff: raw.corners_diff,
         league: m.league,
-        // 모델(Elo/폼/H2H)이 검증된 리그가 아니면 배당만 쓴다. round_predictions에 저장된
-        // 성분은 이 경우 전부 0이라, 섞으면 가짜 신호가 배당을 희석시킨다.
-        marketOnly: !isModelLeague(m.league),
+        // 등록 시점에 고정된 값을 쓴다. 여기서 리그로 다시 판단하면, 나중에 NAME_MAP에
+        // 팀명을 추가했을 때 성분이 0으로 저장된 경기가 "모델 예측"으로 뒤집힌다.
+        // market_only 컬럼이 없던 시절(0008 이전) 회차는 NULL이라 리그 기준으로 폴백한다.
+        marketOnly: resolveMarketOnly(raw.market_only, m.league),
       },
       merged,
     );
