@@ -36,13 +36,33 @@ async function probeUnderstat() {
   const urlish = [...new Set([...js.body.matchAll(/url\s*:\s*["']([^"']+)["']/g)].map((m) => m[1]))];
   console.log(`  ajax url: 리터럴: ${urlish.length ? urlish.join(" | ") : "(없음)"}`);
 
-  // 후보 엔드포인트를 실제로 두드려 본다. 응답을 보고 판단하려는 것이지, 되리라 가정하지 않는다.
-  for (const p of ["/main/getLeagueMatches/", "/main/getLeagueChemp/", "/main/getDatesData/"]) {
-    const r = await get(`https://understat.com${p}`, {
-      "x-requested-with": "XMLHttpRequest",
-      "content-type": "application/x-www-form-urlencoded",
-    });
-    console.log(`  POST후보 GET ${p}: HTTP ${r.status}, ${r.body.length}B, 앞120자: ${r.body.slice(0, 120).replace(/\s+/g, " ")}`);
+  // 실제 엔드포인트 이름을 알았으니(getLeagueData/) 호출부 주변 코드를 그대로 찍어
+  // 어떤 파라미터를 보내는지 본다. 파라미터를 추측해서 두드리면 404를 신호로 오해한다.
+  const i = js.body.indexOf("getLeagueData/");
+  if (i >= 0) {
+    console.log(`  --- getLeagueData/ 호출부 주변 ---`);
+    console.log(js.body.slice(Math.max(0, i - 700), i + 700));
+    console.log(`  --- 끝 ---`);
+  }
+
+  // 파라미터 없이 한 번, 그리고 리그/시즌을 넣어 한 번 POST해 본다.
+  for (const [label, body] of [
+    ["빈 body", ""],
+    ["league+season", "league=EPL&season=2024"],
+  ] as [string, string][]) {
+    try {
+      const res = await fetch("https://understat.com/getLeagueData/", {
+        method: "POST",
+        headers: { ...UA, "x-requested-with": "XMLHttpRequest", "content-type": "application/x-www-form-urlencoded" },
+        body,
+        signal: AbortSignal.timeout(30000),
+      });
+      const t = await res.text();
+      console.log(`  POST getLeagueData/ [${label}]: HTTP ${res.status}, ${t.length}B`);
+      console.log(`    앞 400자: ${t.slice(0, 400).replace(/\s+/g, " ")}`);
+    } catch (e) {
+      console.log(`  POST getLeagueData/ [${label}]: ERROR ${(e as Error).message}`);
+    }
   }
 }
 
@@ -56,24 +76,28 @@ async function probeFotmob() {
     console.log("  __NEXT_DATA__ 없음. FotMob도 구조가 바뀌었을 수 있다.");
     return;
   }
-  let ids: number[] = [];
-  try {
-    const json = JSON.parse(m[1]);
-    const s = JSON.stringify(json);
-    ids = [...new Set([...s.matchAll(/"id":"?(\d{7})"?/g)].map((x) => Number(x[1])))].slice(0, 3);
-  } catch (e) {
-    console.log(`  __NEXT_DATA__ 파싱 실패: ${(e as Error).message}`);
+  // 앞선 시도는 __NEXT_DATA__에서 아무 7자리 "id"나 긁어서 전부 404였다(팀/선수 ID였다).
+  // 페이지의 실제 경기 링크(/match/<id>/ 또는 matchId 필드)에서만 뽑는다.
+  const linkIds = [...new Set([...lg.body.matchAll(/\/match(?:es)?\/(\d{6,8})/g)].map((x) => Number(x[1])))];
+  const fieldIds = [...new Set([...lg.body.matchAll(/"matchId":\s*"?(\d{6,8})"?/g)].map((x) => Number(x[1])))];
+  const ids = [...new Set([...linkIds, ...fieldIds])].slice(0, 3);
+  console.log(`  경기 링크에서 ${linkIds.length}개, matchId 필드에서 ${fieldIds.length}개 -> 시도: ${ids.join(", ") || "(없음)"}`);
+  if (ids.length === 0) {
+    console.log("  경기 ID를 못 찾았다. FotMob 경로는 여기서 확인 불가.");
     return;
   }
-  console.log(`  후보 matchId: ${ids.join(", ")}`);
   for (const id of ids) {
     const r = await get(`https://www.fotmob.com/match/${id}`);
-    const has = /expected goals|Expected goals|xG/i.test(r.body);
-    console.log(`  match ${id}: HTTP ${r.status}, ${r.body.length}B, xG 문자열 ${has ? "있음" : "없음"}`);
-    if (has) {
-      const ctx = r.body.match(/.{0,80}[Ee]xpected goals.{0,160}/)?.[0];
-      console.log(`    주변: ${ctx?.replace(/\s+/g, " ")}`);
+    // 404 페이지에도 i18n 라벨로 "Expected goals" 문자열이 들어 있어서, 문자열 존재만으로는
+    // 판단하면 안 된다(1차 조사에서 실제로 이 함정에 빠졌다). HTTP 상태를 먼저 본다.
+    console.log(`  match ${id}: HTTP ${r.status}, ${r.body.length}B`);
+    if (r.status !== 200) {
+      console.log("    404/에러 - 이 ID는 유효한 경기가 아니다.");
+      continue;
     }
+    const stat = r.body.match(/"expected_goals"\s*:\s*\{[^}]{0,300}/)?.[0]
+      ?? r.body.match(/.{0,60}xG.{0,200}/)?.[0];
+    console.log(`    xG 관련 데이터: ${stat ? stat.replace(/\s+/g, " ") : "(없음)"}`);
   }
 }
 
