@@ -18,6 +18,33 @@
 // 픽이 나빠지는 변경은 개선이 아니다(시즌누적 xG가 정확히 그랬다).
 //
 // 데이터: understat GET /getLeagueData/<리그>/<시즌> (js/league.min.js에서 확인한 엔드포인트).
+// ── 실측 결과 (2026-08-31, understat 4,412경기 / 3,446~3,539경기 평가) ──────────
+//
+// 형태        잔차상관 r  |t|    4분할 통과   비고
+//   season     +0.1021   6.02    0/4        적중률 4/4 하락 (= 앱 현재 구현)
+//   roll5      +0.0994   5.94    3/4        0.8 분할만 로그손실에서 실패
+//   roll10     +0.1099   6.58    0/4        적중률 4/4 하락
+//   formDelta  +0.0156   0.91    3/4*       유의하지 않음. *선택 w가 10/5/5/0으로
+//                                            0에 수렴 - "아무 것도 안 한 것"이 통과로
+//                                            찍힌 것이지 개선이 아니다.
+//
+// 결론: 챗GPT의 핵심 가설(xGD Momentum = 최근 경기내용의 변화)은 기각된다.
+//   잔차 상관이 |t|=0.91로 유의하지 않고, 4분할 어디서도 0이 아닌 가중치가 선택되지 않는다.
+//
+// 그런데 흥미로운 것은 "수준"을 재는 세 형태(season/roll5/roll10)가 전부 r=+0.10 안팎으로
+// 강하게 유의하다는 점이다. 즉 잔차에 남은 xG 신호는 "최근에 좋아졌는가"가 아니라
+// "이 팀이 원래 얼마나 좋은가"에서 온다. 그건 Elo가 이미 재는 것이라 중복이고,
+// 실제로 셋 중 둘(season/roll10)은 적중률을 떨어뜨린다.
+//
+// roll5만 3/4인 이유도 "변화를 잡아서"가 아니라 창이 짧아 Elo와 덜 겹치기 때문으로 보인다.
+// 어느 쪽이든 4/4 기준에 미달하므로 채택하지 않는다.
+//
+// 설계 오류 기록: 처음에 5번째 형태를 attDelta = (최근공격-시즌공격) + (시즌실점-최근실점)
+// 으로 두고 "공수 분리"라고 이름 붙였는데, 이건 분리가 아니었다.
+//   (rF-sF) + (sA-rA) = (rF-rA) - (sF-sA) = roll5_xGD - season_xGD = formDelta
+// 대수적으로 formDelta와 같은 값이라 실행 결과가 소수점까지 동일하게 나왔고, 그걸 보고서야
+// 알았다. 진짜 분리는 두 항에 독립적인 가중치를 주는 것이라 2차원 그리드로 다시 짰다.
+// ──────────────────────────────────────────────────────────────────────────────
 // 샌드박스에서 막혀 있어 GitHub Actions 러너에서 실행한다.
 import {
   buildFeatures,
@@ -90,7 +117,9 @@ async function load(): Promise<XRow[]> {
 // 팀별 xG 이력 (시즌 태그 포함)
 type Entry = { f: number; a: number; season: number };
 
-const VARIANTS = ["season", "roll5", "roll10", "formDelta", "attDelta"] as const;
+const VARIANTS = ["season", "roll5", "roll10", "formDelta"] as const;
+// 공수 분리는 가중치가 둘이라 1차원 그리드로 못 잰다 - 아래에서 따로 처리한다.
+const PAIR_VARIANTS = ["attForm", "defForm"] as const;
 type Variant = (typeof VARIANTS)[number];
 
 const VARIANT_LABEL: Record<Variant, string> = {
@@ -98,31 +127,40 @@ const VARIANT_LABEL: Record<Variant, string> = {
   roll5: "2 roll5    최근 5경기 평균 xGD",
   roll10: "3 roll10   최근 10경기 평균 xGD",
   formDelta: "4 formDelta 최근5 - 시즌누적 (xGD Momentum)",
-  attDelta: "5 attDelta 공격변화 + 수비변화 분리 합성",
+
+
 };
 
-function teamValues(hist: Entry[], season: number): Record<Variant, number | null> {
+function teamValues(hist: Entry[], season: number): Record<Variant | (typeof PAIR_VARIANTS)[number], number | null> {
   const cur = hist.filter((e) => e.season === season);
   const seasonAvg = cur.length ? cur.reduce((s, e) => s + (e.f - e.a), 0) / cur.length : null;
   const r5 = hist.slice(-5), r10 = hist.slice(-10);
   const roll5 = r5.length >= 5 ? r5.reduce((s, e) => s + (e.f - e.a), 0) / 5 : null;
   const roll10 = r10.length >= 10 ? r10.reduce((s, e) => s + (e.f - e.a), 0) / 10 : null;
-  // attDelta: 공격(xG)과 수비(xGA)의 최근-시즌 변화를 따로 구해 합친다.
-  // 부호 규약: 공격이 좋아지면 +, 실점이 줄면 + (둘 다 팀에 유리한 방향)
-  let attDelta: number | null = null;
+  // 공격 변화(xG Form)와 수비 변화(xGA Form)를 따로 낸다.
+  // 부호 규약: 공격이 좋아지면 +, 실점이 줄면 + (둘 다 팀에 유리한 방향).
+  //
+  // 처음엔 이 둘을 더해서 attDelta 하나로 만들었는데, 그건 분리가 아니었다:
+  //   (rF-sF) + (sA-rA) = (rF-rA) - (sF-sA) = roll5_xGD - season_xGD = formDelta
+  // 대수적으로 formDelta와 완전히 같은 값이라 실행 결과도 소수점까지 동일하게 나왔다.
+  // 진짜로 분리하려면 두 항에 독립적인 가중치를 줘야 하므로 따로 내보낸다.
+  let attForm: number | null = null;
+  let defForm: number | null = null;
   if (cur.length > 0 && r5.length >= 5) {
     const sF = cur.reduce((s, e) => s + e.f, 0) / cur.length;
     const sA = cur.reduce((s, e) => s + e.a, 0) / cur.length;
     const rF = r5.reduce((s, e) => s + e.f, 0) / 5;
     const rA = r5.reduce((s, e) => s + e.a, 0) / 5;
-    attDelta = (rF - sF) + (sA - rA);
+    attForm = rF - sF;
+    defForm = sA - rA;
   }
   return {
     season: seasonAvg,
     roll5,
     roll10,
     formDelta: seasonAvg != null && roll5 != null ? roll5 - seasonAvg : null,
-    attDelta,
+    attForm,
+    defForm,
   };
 }
 
@@ -165,7 +203,7 @@ async function main() {
       const hv = teamValues(xgHist.get(`${m.league}|${k.home}`) ?? [], k.season);
       const av = teamValues(xgHist.get(`${m.league}|${k.away}`) ?? [], k.season);
       const out: Record<string, number | null> = {};
-      for (const v of VARIANTS) out[v] = hv[v] != null && av[v] != null ? hv[v]! - av[v]! : null;
+      for (const v of [...VARIANTS, ...PAIR_VARIANTS]) out[v] = hv[v] != null && av[v] != null ? hv[v]! - av[v]! : null;
       return out;
     },
     onMatch: (m, k) => {
@@ -181,7 +219,7 @@ async function main() {
     },
   });
   console.log(`워밍업 이후 평가 대상 ${feats.length}경기`);
-  for (const v of VARIANTS) console.log(`  ${v} 확보: ${feats.filter((f) => f.extra[v] != null).length}경기`);
+  for (const v of [...VARIANTS, ...PAIR_VARIANTS]) console.log(`  ${v} 확보: ${feats.filter((f) => f.extra[v] != null).length}경기`);
 
   for (const v of VARIANTS) {
     const sub = feats.filter((f) => f.extra[v] != null);
@@ -217,6 +255,57 @@ async function main() {
         `${frac.toFixed(1)}  ${String(train.length).padStart(5)}/${String(test.length).padEnd(5)} ${String(bw).padStart(4)}  ` +
           `${(b.acc * 100).toFixed(2)}->${(tu.acc * 100).toFixed(2)}%   ` +
           `${b.brier.toFixed(4)}->${tu.brier.toFixed(4)}   ` +
+          `${b.logloss.toFixed(4)}->${tu.logloss.toFixed(4)}   ${ok ? "통과" : "실패"}`,
+      );
+    }
+    console.log(`=> ${pass}/4 통과. ${pass === 4 ? "채택 기준 충족." : "채택 기준 미달."}`);
+  }
+
+  // ── 5. 공격변화/수비변화 분리 (가중치 2개, 2차원 그리드) ────────────────
+  const sub2 = feats.filter((f) => f.extra.attForm != null && f.extra.defForm != null);
+  if (sub2.length >= 500) {
+    console.log("\n" + "═".repeat(76));
+    console.log("5 공수 분리  attForm(공격변화) / defForm(수비변화) 를 독립 가중치로");
+    console.log("═".repeat(76));
+    for (const k of PAIR_VARIANTS) {
+      const resid = sub2.map((f) => {
+        const p = toProbs(baseStrength(f), f.drawBase, Math.abs(f.eloDiff));
+        return (f.outcome === 0 ? 3 : f.outcome === 1 ? 1 : 0) - (p[0] * 3 + p[1]);
+      });
+      const r = pearson(sub2.map((f) => f.extra[k]!), resid);
+      const t = Math.abs(r) * Math.sqrt((resid.length - 2) / (1 - r * r));
+      console.log(`잔차 상관 ${k.padEnd(8)} r = ${r >= 0 ? "+" : ""}${r.toFixed(4)}  |t| = ${t.toFixed(2)}  ${t > 1.96 ? "유의" : "유의하지 않음"}`);
+    }
+    const pairMetrics = (fs: Features[], wa: number, wd: number) => {
+      const items = [];
+      for (const f of fs) {
+        const a = f.extra.attForm, d = f.extra.defForm;
+        if (a == null || d == null) continue;
+        items.push({
+          probs: toProbs(baseStrength(f) + wa * a + wd * d, f.drawBase, Math.abs(f.eloDiff)),
+          outcome: f.outcome,
+        });
+      }
+      return items.length ? evaluate(items) : null;
+    };
+    console.log("\n분할  train/test   (wa,wd)     적중률(0->w)       Brier              로그손실           판정");
+    let pass = 0;
+    for (const frac of SPLITS) {
+      const cut = Math.floor(sub2.length * frac);
+      const train = sub2.slice(0, cut), test = sub2.slice(cut);
+      let bwa = 0, bwd = 0, bll = Infinity;
+      for (let wa = -100; wa <= 100; wa += 10) {
+        for (let wd = -100; wd <= 100; wd += 10) {
+          const m = pairMetrics(train, wa, wd);
+          if (m && m.logloss < bll) { bll = m.logloss; bwa = wa; bwd = wd; }
+        }
+      }
+      const b = pairMetrics(test, 0, 0)!, tu = pairMetrics(test, bwa, bwd)!;
+      const ok = tu.acc >= b.acc && tu.brier <= b.brier && tu.logloss <= b.logloss;
+      if (ok) pass++;
+      console.log(
+        `${frac.toFixed(1)}  ${String(train.length).padStart(5)}/${String(test.length).padEnd(5)} (${String(bwa).padStart(4)},${String(bwd).padStart(4)})  ` +
+          `${(b.acc * 100).toFixed(2)}->${(tu.acc * 100).toFixed(2)}%   ${b.brier.toFixed(4)}->${tu.brier.toFixed(4)}   ` +
           `${b.logloss.toFixed(4)}->${tu.logloss.toFixed(4)}   ${ok ? "통과" : "실패"}`,
       );
     }
