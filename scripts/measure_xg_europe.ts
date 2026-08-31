@@ -57,6 +57,8 @@ function parseDatesData(html: string): any[] | null {
   }
 }
 
+let dumped = false;
+
 async function fetchSeason(understat: string, season: string): Promise<any[]> {
   const url = `https://understat.com/league/${understat}/${season}`;
   const res = await fetch(url, {
@@ -78,7 +80,18 @@ async function fetchSeason(understat: string, season: string): Promise<any[]> {
     console.log(`     <title>: ${title ?? "(없음)"}`);
     const vars = [...html.matchAll(/var\s+([A-Za-z_$][\w$]*)\s*=\s*JSON\.parse/g)].map((m) => m[1]);
     console.log(`     JSON.parse로 주입된 변수: ${vars.length ? vars.join(", ") : "(없음)"}`);
-    console.log(`     앞 300자: ${html.slice(0, 300).replace(/\s+/g, " ")}`);
+    // 첫 실패 1건만 전체를 덤프한다. 18KB짜리 껍데기 페이지라 데이터를 어디서 불러오는지는
+    // 스크립트 태그와 XHR 엔드포인트를 봐야 안다(정상 understat 리그 페이지는 500KB+였다).
+    if (!dumped) {
+      dumped = true;
+      const srcs = [...html.matchAll(/<script[^>]*src=["\']([^"\']+)["\']/gi)].map((m) => m[1]);
+      console.log(`     script src (${srcs.length}): ${srcs.join(" | ")}`);
+      const urls = [...new Set([...html.matchAll(/["\']([^"\']*\/(?:api|ajax|data|json)[^"\']*)["\']/gi)].map((m) => m[1]))];
+      console.log(`     api/ajax 후보 URL: ${urls.length ? urls.join(" | ") : "(없음)"}`);
+      console.log("     ===== 전체 HTML 시작 =====");
+      console.log(html);
+      console.log("     ===== 전체 HTML 끝 =====");
+    }
     return [];
   }
   return rows;
