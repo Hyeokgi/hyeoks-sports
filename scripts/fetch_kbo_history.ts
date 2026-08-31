@@ -44,6 +44,9 @@ async function getPage(from: string, to: string, page: number): Promise<any> {
   return res.json();
 }
 
+let dumpedKeys = false;
+const seriesSeen = new Map<string, number>();
+
 async function fetchSeason(year: number): Promise<{ games: Game[]; pages: number; raw: number }> {
   const byId = new Map<string, Game>();
   let page = 1;
@@ -59,6 +62,15 @@ async function fetchSeason(year: number): Promise<{ games: Game[]; pages: number
     }
     const list: any[] = data?.result?.games ?? [];
     raw += list.length;
+    if (!dumpedKeys && list.length) {
+      dumpedKeys = true;
+      console.log(`  [필드 확인] 게임 객체 키: ${Object.keys(list[0]).join(", ")}`);
+      console.log(`  [필드 확인] 샘플: ${JSON.stringify(list[0]).slice(0, 500)}`);
+    }
+    for (const g of list) {
+      const k = `${g.seriesId ?? "?"}|${g.seriesName ?? g.seriesOutcome ?? "?"}`;
+      seriesSeen.set(k, (seriesSeen.get(k) ?? 0) + 1);
+    }
     for (const g of list) {
       const hs = Number(g.homeTeamScore);
       const as_ = Number(g.awayTeamScore);
@@ -109,6 +121,11 @@ async function main() {
       console.log(`  끝 경기: ${games.at(-1)!.date} ${games.at(-1)!.away} @ ${games.at(-1)!.home} ${games.at(-1)!.as}:${games.at(-1)!.hs}`);
     }
     all.push(...games);
+  }
+
+  console.log(`\n[시리즈 구분 값 분포] (정규시즌만 남기려면 이 중 어느 값인지 알아야 한다)`);
+  for (const [k, v] of [...seriesSeen.entries()].sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${k}  ${v}건`);
   }
 
   console.log(`\n총 ${all.length}경기`);
