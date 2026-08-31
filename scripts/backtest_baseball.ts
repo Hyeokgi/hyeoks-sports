@@ -138,6 +138,7 @@ function runLeague(name: string, rows: Array<Raw & { league: string }>) {
   console.log(`전체 홈 승률 ${(homeWins / (rows.length - ties) * 100).toFixed(2)}% (무승부 제외 기준)`);
 
   const passes: boolean[] = [];
+  let lastSplitAcc = 0;
   for (const frac of SPLITS) {
     // train/test 경계는 '원본 경기'의 시간순 비율로 자른다. 하이퍼파라미터마다
     // buildItems 결과 길이가 달라질 수 있으므로 날짜로 경계를 정해 동일하게 맞춘다.
@@ -174,13 +175,43 @@ function runLeague(name: string, rows: Array<Raw & { league: string }>) {
     console.log(`  모델    ${fmt(mModel)}`);
     console.log(`  무조건홈 ${fmt(mBase)}  (train 홈승률 ${(pFixed * 100).toFixed(2)}% 고정)`);
     console.log(`  판정: ${beats ? "모델이 적중률·로그손실 모두 앞선다" : "기준선을 못 넘는다"}`);
+    lastSplitAcc = mModel.acc;
   }
 
   const nPass = passes.filter(Boolean).length;
+  const lastAcc = lastSplitAcc;
   console.log(`\n${name} 종합: 4분할 중 ${nPass}개 통과 -> ${nPass === 4 ? "채택 가능" : "채택 기준 미달"}`);
   console.log(`(기준은 축구와 동일하다 - 4분할 전부에서 적중률과 로그손실이 함께 개선돼야 한다.`);
   console.log(` 승패는 argmax 픽으로 돈이 오가므로 확률만 좋아지고 픽이 나빠지면 개선이 아니다.)`);
-  return nPass;
+  return { nPass, lastAcc };
+}
+
+// 조합 기대값. 여기서 쓰는 적중률은 '가장 좋았던 분할'이 아니라 '마지막 분할'이다 -
+// 우위 폭이 최근으로 갈수록 줄어들기 때문에 낙관적인 쪽을 쓰면 조합 확률이 부풀려진다.
+//
+// 2택의 구조적 특징: 두 결과를 다 고르면 그 경기는 확정된다. 승무패 복식은 3개 중 2개라
+// 확정이 아니고 무승부가 나면 날아간다. 같은 예산에서 2택이 훨씬 강하게 작동하는 이유다.
+// 단, 이 계산은 '야구 14경기 승패 2택' 상품이 실제로 있을 때만 의미가 있다
+// (probe_baseball_products.ts로 확인 중). 승1패 3택이라면 이 이점은 사라진다.
+function combinationOutlook(rows: Array<{ name: string; acc: number; ways: number }>) {
+  const GAMES = 14;
+  const UNITS = 100; // 10만원 / 1,000원. betman 회차당 1인 구매한도
+  console.log("\n" + "=".repeat(78));
+  console.log("조합 기대값 (14경기 기준, 마지막 분할 적중률 사용)");
+  console.log("=".repeat(78));
+  for (const r of rows) {
+    const single = Math.pow(r.acc, GAMES);
+    console.log(`\n${r.name}  적중률 ${(r.acc * 100).toFixed(2)}%  (${r.ways}택)`);
+    console.log(`  단식 14경기 전부 적중: ${(single * 100).toFixed(4)}%  =  1/${Math.round(1 / single).toLocaleString()}`);
+    if (r.ways !== 2) {
+      console.log(`  (3택이라 복식이 경기를 확정시키지 못한다 - 아래 확정 계산은 2택에만 해당)`);
+      continue;
+    }
+    for (let k = 0; Math.pow(2, k) <= UNITS; k++) {
+      const p = Math.pow(r.acc, GAMES - k);
+      console.log(`  확정 ${String(k).padStart(2)}경기(${String(Math.pow(2, k)).padStart(3)}구좌) -> 나머지 ${GAMES - k}경기 전부 적중 ${(p * 100).toFixed(3)}%  =  1/${Math.round(1 / p).toLocaleString()}`);
+    }
+  }
 }
 
 function main() {
@@ -190,8 +221,16 @@ function main() {
   const b = runLeague("MLB", mlb);
 
   console.log("\n" + "=".repeat(78));
-  console.log(`요약: KBO ${a}/4, MLB ${b}/4`);
+  console.log(`요약: KBO ${a.nPass}/4, MLB ${b.nPass}/4`);
   console.log("=".repeat(78));
+
+  combinationOutlook([
+    { name: "MLB 승패", acc: b.lastAcc, ways: 2 },
+    { name: "KBO 승패", acc: a.lastAcc, ways: 2 },
+    // 대조군. 앱이 지금 파는 축구 승무패의 같은 프로토콜 마지막 분할 값이다
+    // (유럽 4대리그 marketWeight 0.8, 분할 0.8에서 53.20%).
+    { name: "축구 승무패(대조, 유럽4 w=0.8)", acc: 0.5320, ways: 3 },
+  ]);
 }
 
 main();
