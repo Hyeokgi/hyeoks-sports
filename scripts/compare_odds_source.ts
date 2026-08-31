@@ -18,7 +18,9 @@
 // 실행: npx tsx scripts/compare_odds_source.ts   (러너 전용)
 import { NAME_MAP } from "../src/lib/nameMap";
 
-const BASE = process.env.WORKER_BASE ?? "https://kleague-toto.hyeokgi.workers.dev";
+// compare_market_d1.ts / round_report.ts와 같은 값을 쓴다(환경변수 이름 포함).
+// 처음에 URL을 추측해서 넣었다가 ENOTFOUND로 실패했다.
+const BASE = process.env.WORKER_BASE_URL ?? "https://kleague-toto-predictor.hyeoks.workers.dev";
 const FD = [
   { league: "EPL", code: "E0" },
   { league: "세리에A", code: "I1" },
