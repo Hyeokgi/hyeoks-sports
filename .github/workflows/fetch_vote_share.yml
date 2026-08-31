@@ -553,7 +553,9 @@ jobs:
           git diff --staged --quiet || git commit -m "야구 조합 상품 조사 결과 (자동)"
           # 러너가 도는 동안 브랜치가 앞서 나갈 수 있다. 그냥 push하면 non-fast-forward로
           # 거절되고, 조사 결과가 조용히 사라진다(실제로 한 번 그렇게 잃었다).
-          git pull --rebase origin ${GITHUB_REF_NAME}
+          # --autostash: playwright 설치 스텝이 package.json/lock을 건드려 두면
+          # 그냥 rebase는 'unstaged changes'로 거절된다(probe-baseball-products가 이걸로 죽었다).
+          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
           git push origin HEAD:${GITHUB_REF_NAME}
 
   backtest-baseball:
@@ -577,7 +579,9 @@ jobs:
           git diff --staged --quiet || git commit -m "KBO 시리즈 구분 조사 결과 (자동)"
           # 러너가 도는 동안 브랜치가 앞서 나갈 수 있다. 그냥 push하면 non-fast-forward로
           # 거절되고, 조사 결과가 조용히 사라진다(실제로 한 번 그렇게 잃었다).
-          git pull --rebase origin ${GITHUB_REF_NAME}
+          # --autostash: playwright 설치 스텝이 package.json/lock을 건드려 두면
+          # 그냥 rebase는 'unstaged changes'로 거절된다(probe-baseball-products가 이걸로 죽었다).
+          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
           git push origin HEAD:${GITHUB_REF_NAME}
 
   fetch-kbo-history:
@@ -602,7 +606,9 @@ jobs:
           git diff --staged --quiet || git commit -m "KBO 경기결과 수집 (자동)"
           # 러너가 도는 동안 브랜치가 앞서 나갈 수 있다. 그냥 push하면 non-fast-forward로
           # 거절되고, 조사 결과가 조용히 사라진다(실제로 한 번 그렇게 잃었다).
-          git pull --rebase origin ${GITHUB_REF_NAME}
+          # --autostash: playwright 설치 스텝이 package.json/lock을 건드려 두면
+          # 그냥 rebase는 'unstaged changes'로 거절된다(probe-baseball-products가 이걸로 죽었다).
+          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
           git push origin HEAD:${GITHUB_REF_NAME}
 
   fetch-mlb-history:
@@ -627,5 +633,7 @@ jobs:
           git diff --staged --quiet || git commit -m "MLB 경기결과 수집 (자동)"
           # 러너가 도는 동안 브랜치가 앞서 나갈 수 있다. 그냥 push하면 non-fast-forward로
           # 거절되고, 조사 결과가 조용히 사라진다(실제로 한 번 그렇게 잃었다).
-          git pull --rebase origin ${GITHUB_REF_NAME}
+          # --autostash: playwright 설치 스텝이 package.json/lock을 건드려 두면
+          # 그냥 rebase는 'unstaged changes'로 거절된다(probe-baseball-products가 이걸로 죽었다).
+          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
           git push origin HEAD:${GITHUB_REF_NAME}
