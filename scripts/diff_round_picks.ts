@@ -7,7 +7,7 @@
 // 앱 API가 주는 raw 성분으로 종전 가중치(0.4)와 신규 가중치를 각각 계산해 나란히 놓는다.
 // 실행: npx tsx scripts/diff_round_picks.ts [회차번호]   (러너 전용 - 샌드박스는 워커 차단)
 import { predictMatch, DEFAULT_TOGGLES, DEFAULT_MARKET_WEIGHT, marketWeightForLeague } from "../src/lib/prediction";
-import { findCalibrationBucket, confidenceTier } from "../src/lib/calibration";
+import { confidenceTier } from "../src/lib/calibration";
 
 const BASE = process.env.WORKER_BASE_URL ?? "https://kleague-toto-predictor.hyeoks.workers.dev";
 const WANT = process.argv[2] ? Number(process.argv[2]) : null;
@@ -34,8 +34,9 @@ function calc(m: any, weight: number) {
     },
     { ...DEFAULT_TOGGLES, marketWeight: weight },
   );
-  const bucket = p.basis === "model" ? findCalibrationBucket(m.league, p.confidenceGap) : null;
-  return { p, tier: confidenceTier(bucket) };
+  // confidenceTier는 (리그, 확신도격차)를 받는다. 처음에 bucket을 넘겼다가 등급이 전부
+  // "근거없음"으로 찍혔다 - 앱은 정상이었고 이 스크립트의 표시만 틀렸던 것이다.
+  return { p, tier: p.basis === "model" ? confidenceTier(m.league, p.confidenceGap) : "근거없음" };
 }
 
 async function main() {
