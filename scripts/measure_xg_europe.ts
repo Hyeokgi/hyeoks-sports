@@ -44,57 +44,47 @@ interface XMatch extends MatchRow {
   axg: number;
 }
 
-// understat 리그 페이지의 datesData에서 경기별 xG를 뽑는다.
-// 페이지가 `var datesData = JSON.parse('\x5B...\x5D');` 형태로 16진 이스케이프해서 넣어둔다.
-function parseDatesData(html: string): any[] | null {
-  const m = html.match(/var\s+datesData\s*=\s*JSON\.parse\('([^']+)'\)/);
-  if (!m) return null;
-  const decoded = m[1].replace(/\\x([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
-  try {
-    return JSON.parse(decoded);
-  } catch {
-    return null;
-  }
-}
-
-let dumped = false;
-
+// understat은 2026년 기준으로 리그 페이지를 껍데기로 바꾸고 데이터를 JSON 엔드포인트로 옮겼다.
+// js/league.min.js 실물에서 확인한 호출:
+//   $.ajax({url:"getLeagueData/"+league+"/"+season, type:"get", dataType:"json",
+//           success: data => { datesData=data.dates; teamsData=data.teams; playersData=data.players }})
+// 즉 예전에 HTML에 인라인돼 있던 datesData가 지금은 data.dates로 온다. 경기별 xG는 그대로다.
 async function fetchSeason(understat: string, season: string): Promise<any[]> {
-  const url = `https://understat.com/league/${understat}/${season}`;
-  const res = await fetch(url, {
-    headers: { "user-agent": "Mozilla/5.0", "accept-language": "en" },
-    signal: AbortSignal.timeout(30000),
-  });
+  const url = `https://understat.com/getLeagueData/${understat}/${season}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: {
+        "user-agent": "Mozilla/5.0",
+        "accept-language": "en",
+        accept: "application/json, text/javascript, */*; q=0.01",
+        "x-requested-with": "XMLHttpRequest",
+        referer: `https://understat.com/league/${understat}/${season}`,
+      },
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch (e) {
+    console.log(`  !! ${understat} ${season}: 요청 실패 ${(e as Error).message}`);
+    return [];
+  }
   if (!res.ok) {
     console.log(`  !! ${understat} ${season}: HTTP ${res.status}`);
     return [];
   }
-  const html = await res.text();
-  const rows = parseDatesData(html);
-  if (!rows) {
-    // 추측하지 말고 실제로 뭘 받았는지 남긴다. 봇 차단 페이지인지, 구조가 바뀐 건지,
-    // 변수명이 다른 건지는 응답을 봐야만 구분된다.
-    console.log(`  !! ${understat} ${season}: datesData 파싱 실패`);
-    console.log(`     길이 ${html.length}B, content-type=${res.headers.get("content-type")}`);
-    const title = html.match(/<title[^>]*>([\s\S]{0,120}?)<\/title>/i)?.[1]?.trim();
-    console.log(`     <title>: ${title ?? "(없음)"}`);
-    const vars = [...html.matchAll(/var\s+([A-Za-z_$][\w$]*)\s*=\s*JSON\.parse/g)].map((m) => m[1]);
-    console.log(`     JSON.parse로 주입된 변수: ${vars.length ? vars.join(", ") : "(없음)"}`);
-    // 첫 실패 1건만 전체를 덤프한다. 18KB짜리 껍데기 페이지라 데이터를 어디서 불러오는지는
-    // 스크립트 태그와 XHR 엔드포인트를 봐야 안다(정상 understat 리그 페이지는 500KB+였다).
-    if (!dumped) {
-      dumped = true;
-      const srcs = [...html.matchAll(/<script[^>]*src=["\']([^"\']+)["\']/gi)].map((m) => m[1]);
-      console.log(`     script src (${srcs.length}): ${srcs.join(" | ")}`);
-      const urls = [...new Set([...html.matchAll(/["\']([^"\']*\/(?:api|ajax|data|json)[^"\']*)["\']/gi)].map((m) => m[1]))];
-      console.log(`     api/ajax 후보 URL: ${urls.length ? urls.join(" | ") : "(없음)"}`);
-      console.log("     ===== 전체 HTML 시작 =====");
-      console.log(html);
-      console.log("     ===== 전체 HTML 끝 =====");
-    }
+  const text = await res.text();
+  let json: any;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    console.log(`  !! ${understat} ${season}: JSON 아님 (${text.length}B, 앞120자: ${text.slice(0, 120).replace(/\s+/g, " ")})`);
     return [];
   }
-  return rows;
+  const dates = json?.dates;
+  if (!Array.isArray(dates)) {
+    console.log(`  !! ${understat} ${season}: data.dates가 배열이 아님 (키: ${Object.keys(json ?? {}).join(", ")})`);
+    return [];
+  }
+  return dates;
 }
 
 function norm(s: string): string {
