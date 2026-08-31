@@ -1,0 +1,123 @@
+======================================================================
+A. schedule 응답의 result 최상위 구조
+======================================================================
+HTTP 200
+최상위 키: code, success, result
+result 키: games, gameTotalCount
+result(games 제외): {"gameTotalCount":898}
+
+======================================================================
+B. 카테고리 목록 - 시범경기/포스트시즌이 별도 categoryId인가
+======================================================================
+
+https://api-gw.sports.naver.com/schedule/categories?upperCategoryId=kbaseball
+  HTTP 403  0B  
+
+https://api-gw.sports.naver.com/schedule/category/kbaseball
+  HTTP 403  0B  
+
+https://api-gw.sports.naver.com/schedule/leagues?upperCategoryId=kbaseball
+  HTTP 403  0B  
+
+======================================================================
+C. 경계 구간 gameId 형식 (시범 / 정규 / 포스트시즌)
+======================================================================
+
+[시범경기 의심] 2023-03-01~2023-03-25  55건
+  2023-03-13 20230313HTHH02023  KIA@한화 1:6  status=RESULT/9회초
+  2023-03-13 20230313KTWO02023  KT@키움 2:1  status=RESULT/9회말
+  2023-03-13 20230313LGNC02023  LG@NC 4:2  status=RESULT/9회말
+  2023-03-13 20230313OBLT02023  두산@롯데 5:3  status=RESULT/9회말
+  2023-03-13 20230313SKSS02023  SSG@삼성 1:3  status=RESULT/9회초
+  2023-03-14 20230314HTHH02023  KIA@한화 8:3  status=RESULT/9회말
+  2023-03-14 20230314KTWO02023  KT@키움 11:1  status=RESULT/9회말
+  2023-03-14 20230314LGNC02023  LG@NC 5:2  status=RESULT/9회말
+  ...
+  2023-03-24 20230324SSWO02023  삼성@키움 4:3  status=RESULT/9회말
+  2023-03-25 20230325LGWO02023  LG@키움 8:1  status=RESULT/9회말
+  2023-03-25 20230325SKKT02023  SSG@KT 5:5  status=RESULT/9회말
+  2023-03-25 20230325SSOB02023  삼성@두산 5:3  status=RESULT/9회말
+  2023-03-25 20230325HHLT02023  한화@롯데 5:1  status=RESULT/9회말
+  2023-03-25 20230325NCHT02023  NC@KIA 4:4  status=RESULT/9회말
+
+[정규 한복판] 2023-06-01~2023-06-05  20건
+  2023-06-01 20230601KTHT02023  KT@KIA 0:0  status=BEFORE/경기취소
+  2023-06-01 20230601OBNC02023  두산@NC 0:0  status=BEFORE/경기취소
+  2023-06-01 20230601LTLG02023  롯데@LG 1:6  status=RESULT/9회초
+  2023-06-01 20230601SSSK02023  삼성@SSG 2:14  status=RESULT/9회초
+  2023-06-01 20230601WOHH02023  키움@한화 3:7  status=RESULT/9회초
+  2023-06-02 20230602HTLT02023  KIA@롯데 2:14  status=RESULT/9회초
+  2023-06-02 20230602NCLG02023  NC@LG 9:2  status=RESULT/9회말
+  2023-06-02 20230602OBKT02023  두산@KT 10:1  status=RESULT/9회말
+  ...
+  2023-06-03 20230603WOSK02023  키움@SSG 1:2  status=RESULT/10회말
+  2023-06-04 20230604HTLT02023  KIA@롯데 6:0  status=RESULT/9회말
+  2023-06-04 20230604NCLG02023  NC@LG 3:1  status=RESULT/9회말
+  2023-06-04 20230604OBKT02023  두산@KT 2:5  status=RESULT/9회초
+  2023-06-04 20230604SSHH02023  삼성@한화 5:10  status=RESULT/9회초
+  2023-06-04 20230604WOSK02023  키움@SSG 4:3  status=RESULT/9회말
+
+[정규 끝~포스트] 2023-10-10~2023-11-30  37건
+  2023-10-10 20231010HHNC02023  한화@NC 0:2  status=RESULT/9회초
+  2023-10-10 20231010LTLG02023  롯데@LG 0:7  status=RESULT/9회초
+  2023-10-10 20231010OBKT02023  두산@KT 4:5  status=RESULT/9회말
+  2023-10-10 20231010SKHT02023  SSG@KIA 6:5  status=RESULT/9회말
+  2023-10-10 20231010SSWO02023  삼성@키움 3:5  status=RESULT/9회초
+  2023-10-11 20231011OBLT02023  두산@롯데 3:14  status=RESULT/9회초
+  2023-10-11 20231011WOHT02023  키움@KIA 0:11  status=RESULT/9회초
+  2023-10-12 20231012LTHT02023  롯데@KIA 5:6  status=RESULT/9회초
+  ...
+  2023-11-05 55551105NCKT02023  NC@KT 2:3  status=RESULT/9회초
+  2023-11-07 77771107KTLG02023  KT@LG 3:2  status=RESULT/9회말
+  2023-11-08 77771108KTLG02023  KT@LG 4:5  status=RESULT/9회초
+  2023-11-10 77771110LGKT02023  LG@KT 8:7  status=RESULT/9회말
+  2023-11-11 77771111LGKT02023  LG@KT 15:4  status=RESULT/9회말
+  2023-11-13 77771113KTLG02023  KT@LG 2:6  status=RESULT/9회초
+
+======================================================================
+D. 경기 상세 API에 시리즈 필드가 있는가
+======================================================================
+대상 gameId: 20230313HTHH02023, 20230601KTHT02023, 77771113KTLG02023
+
+https://api-gw.sports.naver.com/sports/games/20230313HTHH02023
+  HTTP 404  167B  키: timestamp, path, status, error, message, requestId
+
+https://api-gw.sports.naver.com/schedule/games/20230313HTHH02023
+  HTTP 200  2686B  키: game
+
+https://api-gw.sports.naver.com/sports/games/20230313HTHH02023/preview
+  HTTP 404  175B  키: timestamp, path, status, error, message, requestId
+
+https://api-gw.sports.naver.com/sports/games/20230601KTHT02023
+  HTTP 404  167B  키: timestamp, path, status, error, message, requestId
+
+https://api-gw.sports.naver.com/schedule/games/20230601KTHT02023
+  HTTP 200  2530B  키: game
+
+https://api-gw.sports.naver.com/sports/games/20230601KTHT02023/preview
+  HTTP 404  175B  키: timestamp, path, status, error, message, requestId
+
+https://api-gw.sports.naver.com/sports/games/77771113KTLG02023
+  HTTP 404  167B  키: timestamp, path, status, error, message, requestId
+
+https://api-gw.sports.naver.com/schedule/games/77771113KTLG02023
+  HTTP 200  2706B  키: game
+
+https://api-gw.sports.naver.com/sports/games/77771113KTLG02023/preview
+  HTTP 404  175B  키: timestamp, path, status, error, message, requestId
+
+======================================================================
+E. 날짜별 경기 수 (정규시즌은 하루 5경기가 규칙적)
+======================================================================
+
+2023: 199일
+  앞 20일: 03-13:5 03-14:5 03-15:5 03-16:5 03-18:5 03-19:5 03-20:5 03-21:5 03-23:5 03-24:5 03-25:5 03-26:5 03-27:5 03-28:5 04-01:5 04-02:5 04-04:5 04-05:5 04-06:5 04-07:5
+  뒤 25일: 10-07:4 10-08:4 10-09:3 10-10:5 10-11:2 10-12:2 10-13:3 10-14:3 10-15:3 10-16:3 10-17:2 10-19:1 10-22:1 10-23:1 10-25:1 10-30:1 10-31:1 11-02:1 11-03:1 11-05:1 11-07:1 11-08:1 11-10:1 11-11:1 11-13:1
+
+2024: 195일
+  앞 20일: 03-08:5 03-09:5 03-10:5 03-11:5 03-12:5 03-14:5 03-15:5 03-16:5 03-17:4 03-18:4 03-19:5 03-23:5 03-24:5 03-26:5 03-27:5 03-28:5 03-29:5 03-30:5 03-31:5 04-02:5
+  뒤 25일: 09-25:4 09-26:3 09-27:3 09-28:5 09-29:1 09-30:2 10-01:2 10-02:1 10-03:1 10-05:1 10-06:1 10-08:1 10-09:1 10-11:1 10-13:1 10-14:1 10-15:1 10-17:1 10-18:1 10-19:1 10-22:1 10-23:2 10-25:1 10-26:1 10-28:1
+
+2025: 196일
+  앞 20일: 03-08:5 03-09:5 03-10:5 03-11:5 03-13:5 03-14:5 03-15:5 03-16:5 03-17:5 03-18:5 03-22:5 03-23:5 03-25:5 03-26:5 03-27:5 03-28:5 03-29:5 03-30:5 04-01:5 04-02:5
+  뒤 25일: 09-28:4 09-29:3 09-30:5 10-01:3 10-02:1 10-03:3 10-04:2 10-06:1 10-07:1 10-09:1 10-10:1 10-11:1 10-13:1 10-14:1 10-17:1 10-18:1 10-19:1 10-21:1 10-22:1 10-24:1 10-26:1 10-27:1 10-29:1 10-30:1 10-31:1
