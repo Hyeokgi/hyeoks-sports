@@ -10,7 +10,8 @@
 //   데이터: understat.com 경기별 xG (EPL/라리가/세리에A/분데스리가, 2023~2026 시즌).
 //           앱이 쓰는 FotMob은 "시즌 누적 팀 xG"만 줘서 과거 시점 재현이 안 된다.
 //           understat은 경기별이라 워크포워드가 가능하다 - 각 경기 직전까지의 xG만 쓴다.
-//   피처:   xgDiff = (홈 최근N경기 평균 xG - xGA) - (원정 최근N경기 평균 xG - xGA)
+//   피처:   두 정의를 나란히 잰다. A) 시즌누적 - 앱 createRound.computeXgDiff와 같은 계산
+//           B) 최근5경기 롤링. 채택 가중치는 앱이 실제로 계산하는 A 기준으로 정한다.
 //           앱 코드(createRound.computeXgDiff)와 같은 정의를 최근경기 창으로 옮긴 것.
 //   비교:   현행 모델(Elo+폼+H2H) 대비 xgWeight를 0부터 올려가며 적중률/Brier/로그손실.
 //
@@ -130,7 +131,10 @@ interface Ctx {
   eloDiff: number;
   formDiff: number;
   h2hDiff: number;
-  xgDiff: number | null;
+  // 두 가지 정의를 같이 잰다. 앱이 실제로 계산하는 것은 season 쪽이므로 채택 가중치는
+  // season 기준으로 정해야 한다(createRound.computeXgDiff: 시즌누적 xG/경기 - xGA/경기).
+  xgDiffSeason: number | null;
+  xgDiffRolling: number | null;
   drawBase: number;
   homeAdv: number;
   outcome: 0 | 1 | 2;
@@ -142,7 +146,7 @@ function build(rows: XMatch[]): Ctx[] {
 
   const elo = new Map<string, { elo: number; lastSeason: number }>();
   const hist = new Map<string, number[]>();
-  const xgHist = new Map<string, { f: number; a: number }[]>();
+  const xgHist = new Map<string, { f: number; a: number; season: number }[]>();
   const h2h = new Map<string, { home: string; hg: number; ag: number }[]>();
   const count = new Map<string, number>();
   const out: Ctx[] = [];
@@ -151,9 +155,16 @@ function build(rows: XMatch[]): Ctx[] {
     const l = h.slice(-5);
     return l.length ? l.reduce((s, x) => s + x, 0) / l.length / 3 : 0;
   };
-  const xgNet = (k: string): number | null => {
+  const xgRolling = (k: string): number | null => {
     const l = (xgHist.get(k) ?? []).slice(-XG_WINDOW);
     if (l.length < XG_WINDOW) return null;
+    return l.reduce((s, x) => s + (x.f - x.a), 0) / l.length;
+  };
+  // 앱과 동일한 정의: 해당 시즌 그 시점까지의 누적 xG/경기 - xGA/경기.
+  // (앱은 FotMob 시즌 누적 테이블을 쓴다. 워크포워드라 "그 시점까지"로 잘라야 한다.)
+  const xgSeason = (k: string, season: number): number | null => {
+    const l = (xgHist.get(k) ?? []).filter((x) => x.season === season);
+    if (l.length === 0) return null;
     return l.reduce((s, x) => s + (x.f - x.a), 0) / l.length;
   };
 
@@ -172,13 +183,16 @@ function build(rows: XMatch[]): Ctx[] {
     const he = elo.get(hk)!;
     const ae = elo.get(ak)!;
     if ((count.get(hk) ?? 0) >= WARMUP && (count.get(ak) ?? 0) >= WARMUP) {
-      const hx = xgNet(hk);
-      const ax = xgNet(ak);
+      const hxR = xgRolling(hk);
+      const axR = xgRolling(ak);
+      const hxS = xgSeason(hk, season);
+      const axS = xgSeason(ak, season);
       out.push({
         eloDiff: he.elo - ae.elo,
         formDiff: avgPts(hist.get(hk) ?? []) - avgPts(hist.get(ak) ?? []),
         h2hDiff: h2hDiffOf(h2h, r.league, r.home, r.away).diff,
-        xgDiff: hx != null && ax != null ? hx - ax : null,
+        xgDiffSeason: hxS != null && axS != null ? hxS - axS : null,
+        xgDiffRolling: hxR != null && axR != null ? hxR - axR : null,
         drawBase: drawRates.get(r.league)!,
         homeAdv: homeAdvForLeague(r.league),
         outcome: r.hg > r.ag ? 0 : r.hg === r.ag ? 1 : 2,
@@ -196,7 +210,7 @@ function build(rows: XMatch[]): Ctx[] {
       h.push(pts);
       hist.set(k, h);
       const x = xgHist.get(k) ?? [];
-      x.push({ f, a });
+      x.push({ f, a, season });
       xgHist.set(k, x);
       count.set(k, (count.get(k) ?? 0) + 1);
     }
@@ -208,14 +222,17 @@ function build(rows: XMatch[]): Ctx[] {
   return out;
 }
 
-function evaluate(ctx: Ctx[], xgW: number) {
+type XgKind = "season" | "rolling";
+const xgOf = (c: Ctx, kind: XgKind) => (kind === "season" ? c.xgDiffSeason : c.xgDiffRolling);
+
+function evaluate(ctx: Ctx[], xgW: number, kind: XgKind = "rolling") {
   let correct = 0, brier = 0, ll = 0;
   for (const c of ctx) {
     const total =
       c.eloDiff +
       DEFAULT_FORM_WEIGHT * c.formDiff +
       DEFAULT_H2H_WEIGHT * c.h2hDiff +
-      (c.xgDiff != null ? xgW * c.xgDiff : 0);
+      (xgOf(c, kind) != null ? xgW * xgOf(c, kind)! : 0);
     const pHomeRaw = 1 / (1 + 10 ** (-(total + c.homeAdv) / 400));
     const pDraw = closenessAdjustedDrawRate(c.drawBase, Math.abs(c.eloDiff));
     const p = [pHomeRaw * (1 - pDraw), pDraw, (1 - pHomeRaw) * (1 - pDraw)];
@@ -250,37 +267,62 @@ async function main() {
   }
 
   const ctx = build(rows);
-  const withXg = ctx.filter((c) => c.xgDiff != null);
-  console.log(`평가 대상 ${ctx.length}경기, 그중 xG 창(최근 ${XG_WINDOW}경기) 확보 ${withXg.length}경기\n`);
-
-  // 1. 잔차 상관: Elo+폼+H2H가 설명하지 못한 부분에 xG 신호가 남아 있는가
-  const base = evaluate(withXg, 0);
-  const resid = withXg.map((c) => {
-    const total = c.eloDiff + DEFAULT_FORM_WEIGHT * c.formDiff + DEFAULT_H2H_WEIGHT * c.h2hDiff;
-    const pHomeRaw = 1 / (1 + 10 ** (-(total + c.homeAdv) / 400));
-    const pDraw = closenessAdjustedDrawRate(c.drawBase, Math.abs(c.eloDiff));
-    const expPts = pHomeRaw * (1 - pDraw) * 3 + pDraw;
-    const actual = c.outcome === 0 ? 3 : c.outcome === 1 ? 1 : 0;
-    return actual - expPts;
-  });
-  const r = pearson(withXg.map((c) => c.xgDiff!), resid);
-  const t = Math.abs(r) * Math.sqrt((resid.length - 2) / (1 - r * r));
-  console.log("── 1. 잔차 상관 (Elo+폼+H2H가 못 잡은 부분 vs xG 격차) ─────────");
-  console.log(`r = ${r >= 0 ? "+" : ""}${r.toFixed(4)}   |t| = ${t.toFixed(2)}   ${t > 1.96 ? "유의(p<0.05)" : "유의하지 않음"}`);
-  console.log("  부호가 양수여야 가설과 맞다(xG 우위 팀이 모델 예측보다 더 잘함).\n");
-
-  // 2. 가중치 그리드
-  console.log("── 2. xgWeight별 성능 (xG 확보 경기만) ─────────────────────────");
-  console.log("xgWeight   적중률    Brier     로그손실");
-  for (const w of [0, 25, 50, 100, 150, 200]) {
-    const e = evaluate(withXg, w);
-    const mark = w === DEFAULT_XG_WEIGHT ? "  <- 현행 K리그1 값" : w === 0 ? "  <- 현행 유럽(미적용)" : "";
-    console.log(
-      `${String(w).padStart(8)}   ${(e.acc * 100).toFixed(2)}%   ${e.brier.toFixed(4)}   ${e.ll.toFixed(4)}${mark}`,
-    );
+  console.log(`평가 대상 ${ctx.length}경기`);
+  for (const kind of ["season", "rolling"] as XgKind[]) {
+    console.log(`  ${kind} 정의 확보: ${ctx.filter((c) => xgOf(c, kind) != null).length}경기`);
   }
-  console.log(`\n기준선(xgWeight=0): 적중률 ${(base.acc * 100).toFixed(2)}%, Brier ${base.brier.toFixed(4)}`);
-  console.log("채택 조건: 1번 |t|>1.96 & 부호 양수, 그리고 2번에서 w>0이 w=0보다 Brier·로그손실 둘 다 개선.");
+
+  for (const kind of ["season", "rolling"] as XgKind[]) {
+    const withXg = ctx.filter((c) => xgOf(c, kind) != null);
+    console.log(`\n${"=".repeat(64)}`);
+    console.log(kind === "season" ? "정의 A: 시즌누적 (앱 createRound.computeXgDiff와 동일)" : "정의 B: 최근5경기 롤링");
+    console.log("=".repeat(64));
+
+    // 1. 잔차 상관
+    const resid = withXg.map((c) => {
+      const total = c.eloDiff + DEFAULT_FORM_WEIGHT * c.formDiff + DEFAULT_H2H_WEIGHT * c.h2hDiff;
+      const pHomeRaw = 1 / (1 + 10 ** (-(total + c.homeAdv) / 400));
+      const pDraw = closenessAdjustedDrawRate(c.drawBase, Math.abs(c.eloDiff));
+      const expPts = pHomeRaw * (1 - pDraw) * 3 + pDraw;
+      return (c.outcome === 0 ? 3 : c.outcome === 1 ? 1 : 0) - expPts;
+    });
+    const r = pearson(withXg.map((c) => xgOf(c, kind)!), resid);
+    const t = Math.abs(r) * Math.sqrt((resid.length - 2) / (1 - r * r));
+    console.log(`\n1. 잔차 상관: r = ${r >= 0 ? "+" : ""}${r.toFixed(4)}, |t| = ${t.toFixed(2)}, n = ${resid.length}`);
+    console.log(`   ${t > 1.96 && r > 0 ? "통과 (유의하고 부호도 가설과 일치)" : "미통과"}`);
+
+    // 2. 전체 그리드
+    console.log("\n2. xgWeight 그리드 (전체)");
+    console.log("   xgWeight   적중률    Brier     로그손실");
+    for (const w of [0, 25, 50, 75, 100, 150]) {
+      const e = evaluate(withXg, w, kind);
+      console.log(`   ${String(w).padStart(8)}   ${(e.acc * 100).toFixed(2)}%   ${e.brier.toFixed(4)}   ${e.ll.toFixed(4)}`);
+    }
+
+    // 3. 홀드아웃 검증 - 위 그리드는 같은 데이터로 가중치를 고른 것이라 그대로 믿으면 안 된다.
+    //    시간순 앞 60%에서 가중치를 고르고, 뒤 40%(한 번도 안 본 구간)에서만 평가한다.
+    const cut = Math.floor(withXg.length * 0.6);
+    const train = withXg.slice(0, cut);
+    const test = withXg.slice(cut);
+    let bestW = 0;
+    let bestLl = Infinity;
+    for (let w = 0; w <= 150; w += 5) {
+      const e = evaluate(train, w, kind);
+      if (e.ll < bestLl) {
+        bestLl = e.ll;
+        bestW = w;
+      }
+    }
+    const base = evaluate(test, 0, kind);
+    const tuned = evaluate(test, bestW, kind);
+    console.log(`\n3. 홀드아웃 (train ${train.length} -> test ${test.length}, 시간순 분할)`);
+    console.log(`   train에서 고른 xgWeight = ${bestW}`);
+    console.log("            적중률    Brier     로그손실");
+    console.log(`   w=0      ${(base.acc * 100).toFixed(2)}%   ${base.brier.toFixed(4)}   ${base.ll.toFixed(4)}`);
+    console.log(`   w=${String(bestW).padEnd(6)} ${(tuned.acc * 100).toFixed(2)}%   ${tuned.brier.toFixed(4)}   ${tuned.ll.toFixed(4)}`);
+    const win = tuned.brier < base.brier && tuned.ll < base.ll;
+    console.log(`   -> ${win ? "홀드아웃에서도 Brier·로그손실 둘 다 개선. 채택 가능." : "홀드아웃에서 개선 못 함. 채택 불가."}`);
+  }
 }
 
 main();
