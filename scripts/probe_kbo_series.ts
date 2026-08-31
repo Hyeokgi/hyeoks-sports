@@ -18,6 +18,18 @@
 //
 // 실행: npx tsx scripts/probe_kbo_series.ts   (러너 전용 - 샌드박스는 네이버 차단)
 
+import { writeFileSync } from "node:fs";
+
+// 출력을 파일로도 남긴다. 조사 결과는 Actions 로그 스크롤백이 아니라 레포에 남아야
+// 나중에 "그때 뭐가 나왔더라"를 다시 돌리지 않는다.
+const OUT = "seed/kbo_series_probe.txt";
+const lines: string[] = [];
+const say = (...a: unknown[]) => {
+  const s = a.map(String).join(" ");
+  lines.push(s);
+  say(s);
+};
+
 const UA = { "User-Agent": "Mozilla/5.0", Referer: "https://m.sports.naver.com/" };
 
 async function get(url: string): Promise<{ status: number; body: string }> {
@@ -42,40 +54,40 @@ async function schedule(from: string, to: string, page = 1, size = 100) {
 }
 
 async function main() {
-  console.log("=".repeat(70));
-  console.log("A. schedule 응답의 result 최상위 구조");
-  console.log("=".repeat(70));
+  say("=".repeat(70));
+  say("A. schedule 응답의 result 최상위 구조");
+  say("=".repeat(70));
   {
     const r = await schedule("2023-03-01", "2023-11-30", 1, 5);
-    console.log(`HTTP ${r.status}`);
+    say(`HTTP ${r.status}`);
     const top = r.json ? Object.keys(r.json) : [];
-    console.log(`최상위 키: ${top.join(", ")}`);
+    say(`최상위 키: ${top.join(", ")}`);
     const result = r.json?.result;
     if (result) {
-      console.log(`result 키: ${Object.keys(result).join(", ")}`);
+      say(`result 키: ${Object.keys(result).join(", ")}`);
       // games를 뺀 나머지를 통째로 찍는다. 시즌 구분 메타가 있으면 여기 있다.
       const { games, ...rest } = result;
-      console.log(`result(games 제외): ${JSON.stringify(rest).slice(0, 1500)}`);
+      say(`result(games 제외): ${JSON.stringify(rest).slice(0, 1500)}`);
     } else {
-      console.log(`result 없음. 원문 앞부분: ${r.body.slice(0, 600)}`);
+      say(`result 없음. 원문 앞부분: ${r.body.slice(0, 600)}`);
     }
   }
 
-  console.log("\n" + "=".repeat(70));
-  console.log("B. 카테고리 목록 - 시범경기/포스트시즌이 별도 categoryId인가");
-  console.log("=".repeat(70));
+  say("\n" + "=".repeat(70));
+  say("B. 카테고리 목록 - 시범경기/포스트시즌이 별도 categoryId인가");
+  say("=".repeat(70));
   for (const url of [
     "https://api-gw.sports.naver.com/schedule/categories?upperCategoryId=kbaseball",
     "https://api-gw.sports.naver.com/schedule/category/kbaseball",
     "https://api-gw.sports.naver.com/schedule/leagues?upperCategoryId=kbaseball",
   ]) {
     const r = await get(url);
-    console.log(`\n${url}\n  HTTP ${r.status}  ${r.body.length}B  ${r.body.slice(0, 400)}`);
+    say(`\n${url}\n  HTTP ${r.status}  ${r.body.length}B  ${r.body.slice(0, 400)}`);
   }
 
-  console.log("\n" + "=".repeat(70));
-  console.log("C. 경계 구간 gameId 형식 (시범 / 정규 / 포스트시즌)");
-  console.log("=".repeat(70));
+  say("\n" + "=".repeat(70));
+  say("C. 경계 구간 gameId 형식 (시범 / 정규 / 포스트시즌)");
+  say("=".repeat(70));
   const windows: Array<[string, string, string]> = [
     ["시범경기 의심", "2023-03-01", "2023-03-25"],
     ["정규 한복판", "2023-06-01", "2023-06-05"],
@@ -86,27 +98,27 @@ async function main() {
     const r = await schedule(from, to, 1, 100);
     const games: any[] = r.json?.result?.games ?? [];
     samples[label] = games;
-    console.log(`\n[${label}] ${from}~${to}  ${games.length}건`);
+    say(`\n[${label}] ${from}~${to}  ${games.length}건`);
     for (const g of games.slice(0, 8)) {
-      console.log(`  ${g.gameDate} ${g.gameId}  ${g.awayTeamName}@${g.homeTeamName} ${g.awayTeamScore}:${g.homeTeamScore}  status=${g.statusCode}/${g.statusInfo}`);
+      say(`  ${g.gameDate} ${g.gameId}  ${g.awayTeamName}@${g.homeTeamName} ${g.awayTeamScore}:${g.homeTeamScore}  status=${g.statusCode}/${g.statusInfo}`);
     }
     if (games.length > 8) {
-      console.log(`  ...`);
+      say(`  ...`);
       for (const g of games.slice(-6)) {
-        console.log(`  ${g.gameDate} ${g.gameId}  ${g.awayTeamName}@${g.homeTeamName} ${g.awayTeamScore}:${g.homeTeamScore}  status=${g.statusCode}/${g.statusInfo}`);
+        say(`  ${g.gameDate} ${g.gameId}  ${g.awayTeamName}@${g.homeTeamName} ${g.awayTeamScore}:${g.homeTeamScore}  status=${g.statusCode}/${g.statusInfo}`);
       }
     }
   }
 
-  console.log("\n" + "=".repeat(70));
-  console.log("D. 경기 상세 API에 시리즈 필드가 있는가");
-  console.log("=".repeat(70));
+  say("\n" + "=".repeat(70));
+  say("D. 경기 상세 API에 시리즈 필드가 있는가");
+  say("=".repeat(70));
   const probeIds = [
     samples["시범경기 의심"]?.[0]?.gameId,
     samples["정규 한복판"]?.[0]?.gameId,
     samples["정규 끝~포스트"]?.at(-1)?.gameId,
   ].filter(Boolean);
-  console.log(`대상 gameId: ${probeIds.join(", ")}`);
+  say(`대상 gameId: ${probeIds.join(", ")}`);
   for (const id of probeIds) {
     for (const tmpl of [
       `https://api-gw.sports.naver.com/sports/games/${id}`,
@@ -116,7 +128,7 @@ async function main() {
       const r = await get(tmpl);
       const data = j(r.body);
       const keys = data?.result ? Object.keys(data.result) : data ? Object.keys(data) : [];
-      console.log(`\n${tmpl}\n  HTTP ${r.status}  ${r.body.length}B  키: ${keys.join(", ").slice(0, 300)}`);
+      say(`\n${tmpl}\n  HTTP ${r.status}  ${r.body.length}B  키: ${keys.join(", ").slice(0, 300)}`);
       // 시리즈처럼 보이는 키/값만 골라 찍는다
       const flat = r.body.toLowerCase();
       for (const kw of ["series", "seasontype", "gametype", "round", "시범", "포스트", "한국시리즈", "playoff"]) {
@@ -126,9 +138,9 @@ async function main() {
     }
   }
 
-  console.log("\n" + "=".repeat(70));
-  console.log("E. 날짜별 경기 수 (정규시즌은 하루 5경기가 규칙적)");
-  console.log("=".repeat(70));
+  say("\n" + "=".repeat(70));
+  say("E. 날짜별 경기 수 (정규시즌은 하루 5경기가 규칙적)");
+  say("=".repeat(70));
   for (const year of [2023, 2024, 2025]) {
     const perDate = new Map<string, number>();
     for (let page = 1; page <= 12; page++) {
@@ -138,10 +150,13 @@ async function main() {
       if (games.length < 100) break;
     }
     const dates = [...perDate.entries()].sort();
-    console.log(`\n${year}: ${dates.length}일`);
-    console.log(`  앞 20일: ${dates.slice(0, 20).map(([d, n]) => `${d.slice(5)}:${n}`).join(" ")}`);
-    console.log(`  뒤 25일: ${dates.slice(-25).map(([d, n]) => `${d.slice(5)}:${n}`).join(" ")}`);
+    say(`\n${year}: ${dates.length}일`);
+    say(`  앞 20일: ${dates.slice(0, 20).map(([d, n]) => `${d.slice(5)}:${n}`).join(" ")}`);
+    say(`  뒤 25일: ${dates.slice(-25).map(([d, n]) => `${d.slice(5)}:${n}`).join(" ")}`);
   }
 }
 
-main();
+main().then(() => {
+  writeFileSync(OUT, lines.join("\n") + "\n");
+  console.log(`\n${OUT}에 저장`);
+});
