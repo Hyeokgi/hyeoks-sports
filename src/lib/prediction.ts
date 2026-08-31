@@ -62,7 +62,46 @@ export interface PredictionToggles {
 // (항상 홈승 찍기 38.1%와 큰 차이 없음), Brier score 0.6092(완전 무작위 0.667 대비 근소 우위).
 // 특히 마켓이 40~50% 확신을 보인 구간(표본 37개)은 실제 적중률이 18.9%로 오히려 나빠서,
 // 애초 계획했던 0.6 가중치는 과했다고 판단해 낮춘다.
+//
+// 이 값은 시장이 얇은 리그(K리그/J1/MLS)에서만 계속 쓴다. 그쪽은 아직 큰 표본으로
+// 검증된 적이 없어 기존 값을 유지하는 것이고, "검증됐다"는 뜻이 아니다.
 export const DEFAULT_MARKET_WEIGHT = 0.4;
+
+// 유럽 4대리그는 2026-08-31에 큰 표본으로 재측정해서 따로 정했다.
+//
+// 근거 (football-data 4리그 4시즌, 배당 보유 3,512경기, 시간순 4분할 홀드아웃):
+//   w      분할0.5          분할0.6          분할0.7          분할0.8
+//   0.4    53.76%/0.9811   53.45%/0.9842   52.56%/0.9933   52.63%/0.9952   <- 종전
+//   0.8    54.38%/0.9715   54.02%/0.9749   52.94%/0.9845   53.20%/0.9857
+//   1.0    54.61%/0.9689   54.38%/0.9724   53.32%/0.9822   53.34%/0.9833
+//   train에서 로그손실 최적 w를 고르면 4개 분할 전부 1.00이 선택된다.
+//
+// 이 근거를 앱에 적용해도 되는지 따로 확인했다. 위 수치는 football-data의 북메이커
+// 배당인데 앱은 wisetoto 표시 해외배당을 쓰기 때문이다(compare_odds_source.ts).
+//   같은 경기 대조: 암시확률 평균 절대차 0.45%p, 홈승 확률 상관 r = 0.9994
+//   -> 사실상 같은 시장이다. 근거가 전이된다.
+//   (그래서 compare_market_d1.ts의 n=84 표본에서 "배당이 모델보다 나쁘다"고 나온 것은
+//    노이즈로 본다. 그 표본은 84경기 중 56경기가 K리그/J1/MLS이고 McNemar p=0.386이다.)
+//
+// 측정된 최적은 1.0인데 0.8을 쓰는 이유: w=1.0은 모델을 완전히 버린다는 뜻이고, 그러면
+// 확신도 등급(확신픽/보통/불확실)의 근거가 사라진다. 그 등급은 모델 확률의 1위-2위 격차로
+// 백테스트한 값이라(calibration.ts) 확률 출처가 배당으로 바뀌면 그대로 쓸 수 없다.
+// 1.0으로 가려면 배당 확률 기준으로 등급 체계를 다시 만들어야 하고, 그건 화면에 보이는
+// 제품 변경이라 따로 결정할 일이다. 0.8은 0.4->1.0 개선분의 약 2/3를 가져오면서
+// 모델을 블렌딩에 남겨 등급 체계를 유지한다(등급 자체는 0.8 기준으로 재산출했다).
+export const EUROPEAN_MARKET_WEIGHT = 0.8;
+
+const MARKET_WEIGHT_BY_LEAGUE: Record<string, number> = {
+  EPL: EUROPEAN_MARKET_WEIGHT,
+  라리가: EUROPEAN_MARKET_WEIGHT,
+  세리에A: EUROPEAN_MARKET_WEIGHT,
+  분데스리가: EUROPEAN_MARKET_WEIGHT,
+};
+
+export function marketWeightForLeague(league: string | undefined): number {
+  if (!league) return DEFAULT_MARKET_WEIGHT;
+  return MARKET_WEIGHT_BY_LEAGUE[league] ?? DEFAULT_MARKET_WEIGHT;
+}
 
 export const DEFAULT_TOGGLES: PredictionToggles = {
   useElo: true,
@@ -150,7 +189,12 @@ export function predictMatch(
   let pAway = pAway0;
 
   if (toggles.useMarketOdds && inputs.marketOdds) {
-    const w = toggles.marketWeight;
+    // 토글로 명시적으로 바꾼 값이 아니면 리그별 실측값을 쓴다. 시뮬레이터/백테스트가
+    // marketWeight를 직접 넘길 때는 그 값이 그대로 이긴다.
+    const w =
+      toggles.marketWeight === DEFAULT_MARKET_WEIGHT
+        ? marketWeightForLeague(inputs.league)
+        : toggles.marketWeight;
     pHome = w * inputs.marketOdds.pHome + (1 - w) * pHome0;
     pDraw = w * inputs.marketOdds.pDraw + (1 - w) * pDraw0;
     pAway = w * inputs.marketOdds.pAway + (1 - w) * pAway0;

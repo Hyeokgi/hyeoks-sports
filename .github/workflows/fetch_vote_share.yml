@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       task:
-        description: "pipeline: 회차감지+배당+투표율+독식픽 / backfill: EPL·세리에A 백필 생성+커밋 / offline-pick: 발매중 회차 오프라인 독식픽(배포 불필요) / deploy: D1 백필 적용+Worker 배포+동기화 / sheets: 구글시트(회차분석+팀DB+선수DB) 갱신 / logos: 팀 엠블럼 수집+커밋 / compare-market: 종가배당 vs 모델 / compare-market-d1: 앱 실제 배당 vs 모델 / compare-bookmakers: 북메이커별·시점별 배당 품질 / round-report: 정산 회차 사후분석 / diagnose-round: 회차 감지 실패 원인 진단 / probe-round: 회차 대진·배당·매핑 조사 / probe-results: 종료 회차 스코어 노출 여부 조사 / measure-baseball: 야구토토 승1패 예측 가능성 실측 / probe-baseball-odds: 야구토토 해외배당 제공 여부 조사 / measure-xg-europe: 유럽 4대리그 xG 예측력 워크포워드 검증 / probe-xg-sources: 경기별 xG 데이터 소스 조사 / ablation: A~F 절제 사다리(무엇이 실제 예측력을 더하는가) / measure-xg-variants: xG 5개 형태 비교 / measure-baseball-sabr: 야구 지표 기반 승패·승1패 예측 가능성 / compare-odds-source: wisetoto 배당 vs 실제 북메이커 배당 대조"
+        description: "pipeline: 회차감지+배당+투표율+독식픽 / backfill: EPL·세리에A 백필 생성+커밋 / offline-pick: 발매중 회차 오프라인 독식픽(배포 불필요) / deploy: D1 백필 적용+Worker 배포+동기화 / sheets: 구글시트(회차분석+팀DB+선수DB) 갱신 / logos: 팀 엠블럼 수집+커밋 / compare-market: 종가배당 vs 모델 / compare-market-d1: 앱 실제 배당 vs 모델 / compare-bookmakers: 북메이커별·시점별 배당 품질 / round-report: 정산 회차 사후분석 / diagnose-round: 회차 감지 실패 원인 진단 / probe-round: 회차 대진·배당·매핑 조사 / probe-results: 종료 회차 스코어 노출 여부 조사 / measure-baseball: 야구토토 승1패 예측 가능성 실측 / probe-baseball-odds: 야구토토 해외배당 제공 여부 조사 / measure-xg-europe: 유럽 4대리그 xG 예측력 워크포워드 검증 / probe-xg-sources: 경기별 xG 데이터 소스 조사 / ablation: A~F 절제 사다리(무엇이 실제 예측력을 더하는가) / measure-xg-variants: xG 5개 형태 비교 / measure-baseball-sabr: 야구 지표 기반 승패·승1패 예측 가능성 / compare-odds-source: wisetoto 배당 vs 실제 북메이커 배당 대조 / calibrate-market-blend: 새 marketWeight 기준 확신도 캘리브레이션 재산출"
         type: choice
         default: pipeline
         options:
@@ -29,6 +29,7 @@ on:
           - measure-xg-variants
           - measure-baseball-sabr
           - compare-odds-source
+          - calibrate-market-blend
           - round-report
           - sheets
       round_no:
@@ -463,3 +464,16 @@ jobs:
         run: npm ci
       - name: Compare wisetoto odds against football-data bookmaker odds
         run: npx tsx scripts/compare_odds_source.ts
+
+  calibrate-market-blend:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'calibrate-market-blend'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Recompute calibration at new marketWeight
+        run: npx tsx scripts/calibrate_market_blend.ts
