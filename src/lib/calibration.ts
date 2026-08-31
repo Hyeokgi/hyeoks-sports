@@ -42,34 +42,47 @@ export const CALIBRATION: Record<string, CalibrationBucket[]> = {
   // 기본모델(Elo+최근폼+H2H) 그대로: HOME_ADV 그리드서치(30~105)에서 EPL 90이 60 대비
   // +0.4%p(4경기 수준, 노이즈 범위)라 MLS 때 같은 뚜렷한 근거가 없어 기본값 60 유지,
   // 세리에A는 60이 최적. 두 리그 모두 K리그보다 상위권 전력차가 커서 전체 적중률이 더 높다.
+  //
+  // [2026-08-31 갱신] 유럽 4대리그는 marketWeight를 0.4 -> 0.8로 올리면서 재산출했다
+  // (prediction.ts EUROPEAN_MARKET_WEIGHT). 확률 출처가 달라지면 "이 확신도면 과거에
+  // 몇 % 맞았나"도 달라지므로 가중치만 바꾸고 이 표를 두면 화면이 검증되지 않은 등급을
+  // 표시하게 된다. 프로토콜·구간 경계는 종전과 동일하게 유지했다(scripts/calibrate_market_blend.ts).
+  //
+  // 갱신 전후로 두 가지가 달라졌다.
+  //   1) 등급이 실제로 순서대로 작동하게 됐다. 종전에는 라리가/분데스리가에서 5~15%p 구간이
+  //      0~5%p 구간보다 적중률이 낮아 라벨이 뒤집혀 있었는데(아래 옛 주석 참고), 이제
+  //      네 리그 모두 구간이 올라갈수록 적중률이 단조 증가한다.
+  //   2) 최상위 구간이 훨씬 뾰족해졌다(EPL 0.581 -> 0.654, 라리가 0.657 -> 0.730).
+  //      배당이 강하게 한쪽을 가리키는 경기가 그 구간에 더 많이 들어오기 때문이다.
+  //   반대로 최하위 구간은 대체로 낮아졌다(EPL 0.458 -> 0.436). 확률이 뾰족해지면서
+  //   "정말 팽팽한 경기"만 그 구간에 남은 결과다.
   "EPL": [
-    { minGap: 0, maxGap: 0.05, accuracy: 0.458, n: 83 },
-    { minGap: 0.05, maxGap: 0.15, accuracy: 0.423, n: 156 },
-    { minGap: 0.15, maxGap: 0.3, accuracy: 0.506, n: 237 },
-    { minGap: 0.3, maxGap: 1.01, accuracy: 0.581, n: 442 },
+    { minGap: 0, maxGap: 0.05, accuracy: 0.436, n: 94 },
+    { minGap: 0.05, maxGap: 0.15, accuracy: 0.461, n: 178 },
+    { minGap: 0.15, maxGap: 0.3, accuracy: 0.476, n: 267 },
+    { minGap: 0.3, maxGap: 1.01, accuracy: 0.654, n: 387 },
   ],
   "세리에A": [
-    { minGap: 0, maxGap: 0.05, accuracy: 0.442, n: 77 },
-    { minGap: 0.05, maxGap: 0.15, accuracy: 0.430, n: 223 },
-    { minGap: 0.15, maxGap: 0.3, accuracy: 0.510, n: 343 },
-    { minGap: 0.3, maxGap: 1.01, accuracy: 0.638, n: 276 },
+    { minGap: 0, maxGap: 0.05, accuracy: 0.370, n: 81 },
+    { minGap: 0.05, maxGap: 0.15, accuracy: 0.430, n: 244 },
+    { minGap: 0.15, maxGap: 0.3, accuracy: 0.540, n: 287 },
+    { minGap: 0.3, maxGap: 1.01, accuracy: 0.688, n: 317 },
   ],
-  // 라리가/분데스리가 (2026-08-22 선제 편입, 같은 백필·같은 워크포워드 프로토콜).
-  // 주의: 두 리그 모두 5~15%p 구간이 0~5%p 구간보다 실측 적중률이 낮다(라리가 40.6% vs 48.3%,
-  // 분데스리가 35.8% vs 46.4%). 즉 확신도 라벨이 이 두 구간에서는 순서대로 작동하지 않는다 -
-  // 표본이 작아서(69~180) 생긴 노이즈일 수 있으나 값을 매끄럽게 손보지 않고 실측 그대로 둔다.
-  // 30%p+ 구간의 뚜렷한 우위(65.7%/60.2%)는 다른 리그와 동일하게 재현된다.
+  // 라리가/분데스리가 (2026-08-22 선제 편입, 2026-08-31 marketWeight 0.8 기준 재산출).
+  // 종전 값에는 "두 리그 모두 5~15%p 구간이 0~5%p 구간보다 적중률이 낮아 라벨이 순서대로
+  // 작동하지 않는다"는 주의가 붙어 있었다(라리가 40.6% vs 48.3%, 분데스 35.8% vs 46.4%).
+  // 재산출 후에는 두 리그 모두 단조 증가로 정상화됐다.
   "라리가": [
-    { minGap: 0, maxGap: 0.05, accuracy: 0.483, n: 89 },
-    { minGap: 0.05, maxGap: 0.15, accuracy: 0.406, n: 180 },
-    { minGap: 0.15, maxGap: 0.3, accuracy: 0.476, n: 351 },
-    { minGap: 0.3, maxGap: 1.01, accuracy: 0.657, n: 289 },
+    { minGap: 0, maxGap: 0.05, accuracy: 0.347, n: 101 },
+    { minGap: 0.05, maxGap: 0.15, accuracy: 0.476, n: 231 },
+    { minGap: 0.15, maxGap: 0.3, accuracy: 0.483, n: 294 },
+    { minGap: 0.3, maxGap: 1.01, accuracy: 0.730, n: 293 },
   ],
   "분데스리가": [
-    { minGap: 0, maxGap: 0.05, accuracy: 0.464, n: 69 },
-    { minGap: 0.05, maxGap: 0.15, accuracy: 0.358, n: 137 },
-    { minGap: 0.15, maxGap: 0.3, accuracy: 0.506, n: 233 },
-    { minGap: 0.3, maxGap: 1.01, accuracy: 0.602, n: 299 },
+    { minGap: 0, maxGap: 0.05, accuracy: 0.348, n: 92 },
+    { minGap: 0.05, maxGap: 0.15, accuracy: 0.471, n: 136 },
+    { minGap: 0.15, maxGap: 0.3, accuracy: 0.498, n: 225 },
+    { minGap: 0.3, maxGap: 1.01, accuracy: 0.670, n: 285 },
   ],
 };
 
@@ -78,10 +91,12 @@ export const CALIBRATION_OVERALL: Record<string, { accuracy: number; homeBaselin
   "K리그2": { accuracy: 0.428, homeBaseline: 0.389, n: 1814 },
   "J1리그": { accuracy: 0.434, homeBaseline: 0.402, n: 723 },
   "MLS": { accuracy: 0.475, homeBaseline: 0.456, n: 1102 },
-  "EPL": { accuracy: 0.524, homeBaseline: 0.422, n: 918 },
-  "세리에A": { accuracy: 0.523, homeBaseline: 0.398, n: 919 },
-  "라리가": { accuracy: 0.520, homeBaseline: 0.460, n: 909 },
-  "분데스리가": { accuracy: 0.514, homeBaseline: 0.407, n: 738 },
+  // 유럽 4대리그는 marketWeight 0.8 기준(2026-08-31). homeBaseline은 대진 자체의 성질이라
+  // 가중치와 무관해 그대로 둔다.
+  "EPL": { accuracy: 0.543, homeBaseline: 0.422, n: 926 },
+  "세리에A": { accuracy: 0.547, homeBaseline: 0.398, n: 929 },
+  "라리가": { accuracy: 0.545, homeBaseline: 0.460, n: 919 },
+  "분데스리가": { accuracy: 0.541, homeBaseline: 0.407, n: 738 },
 };
 
 // 백테스트한 적 없는 대회(UCL/UEL 등)는 반드시 null을 돌려준다. 예전엔 모르는 리그를
