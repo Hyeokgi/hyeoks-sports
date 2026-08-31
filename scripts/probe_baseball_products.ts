@@ -133,20 +133,27 @@ async function main() {
         let j: any = null;
         try { j = JSON.parse(c.body); } catch { /* JSON 아님 */ }
         if (!j) { say(`  (JSON 아님) ${c.body.slice(0, 300)}`); continue; }
-        const s: any[] = j.schedulesList ?? [];
+        // 프로토 승부식은 schedulesList가 아니라 compSchedules에 담는다. 1차에서 이걸
+        // 몰라 '경기수=0'으로 찍혔다 - 상품이 비어서가 아니라 내가 다른 키를 본 것이다.
+        const s: any[] = j.schedulesList ?? j.compSchedules ?? [];
+        if (j.compSchedules) say(`  (compSchedules 사용 - 프로토 계열)`);
+        if (j.sportsItemList) say(`  취급 종목=${JSON.stringify(j.sportsItemList).slice(0, 400)}`);
         say(`  gmTs=${j.gmTs} 최상위키=${Object.keys(j).join(",").slice(0, 240)}`);
         say(`  경기수=${s.length}`);
         if (s[0]) {
           say(`  첫경기 키=${Object.keys(s[0]).join(",").slice(0, 400)}`);
-          say(`  첫경기=${JSON.stringify(s[0]).slice(0, 700)}`);
+          // 자르지 않는다. 선택지 라벨(winTxt/drawTxt/loseTxt)과 배당 필드가 뒤쪽에 있어서
+          // 700자에서 끊으면 '몇 택인가'라는 핵심 질문에 답을 못 한다.
+          say(`  첫경기 전문=${JSON.stringify(s[0])}`);
         }
         // 종목·배당이 붙는지: 야구 경기가 섞여 있는지와 배당 필드 유무를 센다
         const sports = new Map<string, number>();
         let withOdds = 0;
         for (const g of s) {
-          const sp = String(g.sportCd ?? g.mchSportCd ?? g.sportsCd ?? "?");
+          const sp = `${g.itemCode ?? "?"}/${g.leagueName ?? g.leagueCode ?? "?"}`;
           sports.set(sp, (sports.get(sp) ?? 0) + 1);
-          if (g.allotRate1 ?? g.odds1 ?? g.allot1) withOdds++;
+          // 파리뮤추얼(토토)은 확정배당이 없어 winAllot이 0으로 온다. 프로토는 값이 붙는다.
+          if (Number(g.winAllot ?? 0) > 0 || Number(g.loseAllot ?? 0) > 0) withOdds++;
         }
         if (s.length) say(`  종목 분포=${[...sports.entries()].map(([k, n]) => `${k} ${n}`).join(" / ")}  배당필드 보유=${withOdds}/${s.length}`);
       }
