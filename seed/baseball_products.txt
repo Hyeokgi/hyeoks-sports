@@ -1,95 +1,105 @@
 ======================================================================
-1) betman 발매 게임 목록 - 어떤 XHR이 오는지 원문 그대로
+A. 상품 카탈로그 - gmId <-> 게임명 <-> 종목코드
 ======================================================================
+  G011  축구토토 승무패  종목=SC  회차: 발매중(gmTs 260049, year 2026) / 2026/48(gmTs 260048) / 2026/47(gmTs 260047) / 2026/46(gmTs 260046) / 2026/45(gmTs 260045)
+  G016  축구토토 스페셜  종목=SC  회차: 2026/55(gmTs 260055) / 2026/54(gmTs 260054)
+  G017  야구토토 스페셜 트리플  종목=BS  회차: 발매중(gmTs 260125, year 2026) / 발매중(gmTs 260124, year 2026) / 2026/123(gmTs 260123) / 2026/122(gmTs 260122) / 2026/121(gmTs 260121) / 2026/120(gmTs 260120)
+  G023  야구토토 스페셜 더블  종목=?  회차: 발매중(gmTs 260125, year 2026) / 발매중(gmTs 260124, year 2026)
+  G024  야구토토 승1패  종목=BS  회차: 발매중(gmTs 260064, year 2026) / 2026/63(gmTs 260063) / 2026/62(gmTs 260062) / 2026/61(gmTs 260061) / 2026/60(gmTs 260060)
+  G060  골프토토 스페셜  종목=GF  회차: 2026/25(gmTs 260025) / 2026/24(gmTs 260024)
+  G101  프로토 승부식  종목=PT  회차: 2026/103(gmTs 260103) / 2026/102(gmTs 260102) / 2026/101(gmTs 260101) / 2026/100(gmTs 260100)
+  G102  프로토 기록식  종목=PT  회차: 발매중(gmTs 260090, year 2026) / 2026/89(gmTs 260089) / 2026/88(gmTs 260088) / 2026/87(gmTs 260087) / 2026/86(gmTs 260086)
 
-https://www.betman.co.kr/main/mainPage/gamebuy/buyableGameList.do  -> XHR 4건
-  [POST 200] https://www.betman.co.kr/buyPsblGame/inqCacheBuyAbleGameInfoList.do
-    {"currentTime":1788191021574,"protoGames":[{"gmId":"G101","gameName":"26103","gmTs":260103,"gmOsidTsYear":2026,"gmOsidTs":103,"saleStatus":null,"saleEndDate":1788271200000,"totalSellAmount":10820319800,"forwardAmount":0,"forwardCnt":0,"gameMaster":{"gmId":"G101","gameName":"프로토 승부식","gameNickName":"승부식","gameTypeName":"승부식","gameTypeCode":"PPTPVE","sportsItem":{"id":"PT","sportsItemName":"프로토","sportsItemEngName":"proto","sportsItemOrder":0},"unitSellPrice":100,"baseSellPrice":100,"winRstAllotTable":null,"winRstGameResultTable":null,"slipType":{"id":"PV3X5","column":3,"row":5,"numOfResult":0},"slipBtkCnt":"1","divisionRound":1,"gameScore":null,"gameScoreAdditional":null,"gameResultScore":null,"gameResultScoreAdditional":null,"allotType":"Proto","order":0,"relatedGameId":null,"relatedGameId2":null,"relatedGameId3":null,"useAt":"Y","oddsTable":null,"bettTable":null,"btksysGmId":"24","selling":true},"saleChnlClCd":"A"},{"gmId":"G102","gameName":"26090","gmTs":260090,"gmOsidTsYear":2026,"gmOsidTs":90,"saleStatus":null,"saleEndDate":1788271200000,"totalSellAmount":0,"forwardAmount":0,"forwardCnt":0,"gameMaster":{"gmId":"G102","gameName":"프로토 기록식","gameNickName":"기록식","gameTypeName":"기록식
-  [POST 200] https://www.betman.co.kr/buyPsblGame/inqBuyAbleGameInfoList.do
-    {"strReserveDayMM":"09","strReserveDayDD":"01","reserve":"Y","protoGames":[{"seqNo":0,"gameSeqNo":0,"gameResultSeqNo":0,"gameResultViewYn":null,"gameMaster":{"gmId":"G101","gameName":"프로토 승부식","gameNickName":"승부식","gameTypeName":"승부식","gameTypeCode":"PPTPVE","sportsItem":{"id":"PT","sportsItemName":"프로토","sportsItemEngName":"proto","sportsItemOrder":0},"unitSellPrice":100,"baseSellPrice":100,"winRstAllotTable":null,"winRstGameResultTable":null,"slipType":{"id":"PV3X5","column":3,"row":5,"numOfResult":0},"slipBtkCnt":"1","divisionRound":1,"gameScore":null,"gameScoreAdditional":null,"gameResultScore":null,"gameResultScoreAdditional":null,"allotType":"Proto","order":0,"relatedGameId":null,"relatedGameId2":null,"relatedGameId3":null,"useAt":"Y","oddsTable":null,"bettTable":null,"btksysGmId":"24","selling":true},"gmId":"G101","gameName":"26103","subjectGame":null,"totalSellAmount":10820319800,"forwardAmount":0,"forwardCnt":0,"gmTs":260103,"gmOsidTs":103,"gmOsidTsYear":2026,"gmOsidTsPlayNo":0,"gameResultDate":null,"unsetGameResult":null,"payoStartDate":null,"unsetPayoStart":null,"payoEndDate":null,"unsetPayoEnd":null,"saleStartDate":null,"unsetSaleStart":null,"saleEndDate":1788271200000,
-  [POST 200] https://www.betman.co.kr/buyPsblGame/inqTodayBuyCount.do
-    {"todayBuyCount":[],"rsMsg":{"sessionInterval":"","message":"정상 처리되었습니다.","statusCode":"S"}}
-  [POST 200] https://www.betman.co.kr/buyPsblGame/inqBuyableTime.do
-    {"buyableTime":{"CODE_ATTR_1":"20260901","CODE_ATTR_3":"20260901","RESERV_STA_TM":"202608312300","CODE_ATTR_2":"080000","RESERV_END_TM":"202609010800","DBLE_CHK_END_TM":"20260901230500","CODE_ATTR_4":"230000","BUT_STA_TM":"20260901080000","CNCL_STA_TM":"20260901230500","BUT_END_TM":"20260901230000","CNCL_END_TM":"20260901075500"},"rsMsg":{"sessionInterval":"","message":"정상 처리되었습니다.","statusCode":"S"}}
-
-https://www.betman.co.kr/  -> XHR 10건
-  [POST 200] https://www.betman.co.kr/matchinfo/inqMainGameInfo.do
-    {"currentLottery":{"seqNo":0,"gameSeqNo":0,"gameResultSeqNo":0,"gameResultViewYn":null,"gameMaster":{"gmId":"G101","gameName":"프로토 승부식","gameNickName":"승부식","gameTypeName":"승부식","gameTypeCode":"PPTPVE","sportsItem":{"id":"PT","sportsItemName":"프로토","sportsItemEngName":"proto","sportsItemOrder":0},"unitSellPrice":100,"baseSellPrice":100,"winRstAllotTable":null,"winRstGameResultTable":null,"slipType":{"id":"PV3X5","column":3,"row":5,"numOfResult":0},"slipBtkCnt":"1","divisionRound":1,"gameScore":null,"gameScoreAdditional":null,"gameResultScore":null,"gameResultScoreAdditional":null,"allotType":"Proto","order":0,"relatedGameId":null,"relatedGameId2":null,"relatedGameId3":null,"useAt":"Y","oddsTable":null,"bettTable":null,"btksysGmId":"24","selling":true},"gmId":"G101","gameName":"26103","subjectGame":null,"totalSellAmount":10820319800,"forwardAmount":0,"forwardCnt":0,"gmTs":260103,"gmOsidTs":103,"gmOsidTsYear":2026,"gmOsidTsPlayNo":0,"gameResultDate":1788274800000,"unsetGameResult":"N","payoStartDate":1788102000000,"unsetPayoStart":"N","payoEndDate":1819897140000,"unsetPayoEnd":"N","saleStartDate":1788130800000,"unsetSaleStart":"N","saleEndDate":1788271200000,"unsetSaleEnd":"N","sport
-  [POST 200] https://www.betman.co.kr/main/retrieveComCodeList.do
-    {"wsComCodeParam":[{"codeId":"LL_NEW_TS_CL_VAL","useAt":"Y"}],"wsComCodeList":{"LL_NEW_TS_CL_VAL":[{"clCode":"DEFAULT","clCodeNm":"기본공통분류코드","clCodeDc":"BETMAN에서 사용하는 기본공통분류코드","codeId":"LL_NEW_TS_CL_VAL","codeIdNm":"승부식신규회차구분값","codeIdDc":"승부식신규회차구분값","codeIdOrder":0,"code":"LL_TS_CL","codeNm":"승부식회차구분","codeDc":"승부식회차구분","codeOrder":1,"codeAttr1":"260045","codeAttr2":"2026/45","codeAttr3":"260046","codeAttr4":"2026/46","codeAttr5":null,"useAt":"Y"}]},"rsMsg":{"sessionInterval":"","message":"COM001","statusCode":"S"}}
-  [POST 200] https://www.betman.co.kr/buyPsblGame/inqCacheBuyAbleGameInfoList.do
-    {"currentTime":1788191027381,"protoGames":[{"gmId":"G101","gameName":"26103","gmTs":260103,"gmOsidTsYear":2026,"gmOsidTs":103,"saleStatus":null,"saleEndDate":1788271200000,"totalSellAmount":10820319800,"forwardAmount":0,"forwardCnt":0,"gameMaster":{"gmId":"G101","gameName":"프로토 승부식","gameNickName":"승부식","gameTypeName":"승부식","gameTypeCode":"PPTPVE","sportsItem":{"id":"PT","sportsItemName":"프로토","sportsItemEngName":"proto","sportsItemOrder":0},"unitSellPrice":100,"baseSellPrice":100,"winRstAllotTable":null,"winRstGameResultTable":null,"slipType":{"id":"PV3X5","column":3,"row":5,"numOfResult":0},"slipBtkCnt":"1","divisionRound":1,"gameScore":null,"gameScoreAdditional":null,"gameResultScore":null,"gameResultScoreAdditional":null,"allotType":"Proto","order":0,"relatedGameId":null,"relatedGameId2":null,"relatedGameId3":null,"useAt":"Y","oddsTable":null,"bettTable":null,"btksysGmId":"24","selling":true},"saleChnlClCd":"A"},{"gmId":"G102","gameName":"26090","gmTs":260090,"gmOsidTsYear":2026,"gmOsidTs":90,"saleStatus":null,"saleEndDate":1788271200000,"totalSellAmount":0,"forwardAmount":0,"forwardCnt":0,"gameMaster":{"gmId":"G102","gameName":"프로토 기록식","gameNickName":"기록식","gameTypeName":"기록식
-  [POST 200] https://www.betman.co.kr/main/surveyLogin.do
-    {"rsMsg":{"sessionInterval":"","message":"COM001","statusCode":"S"},"curSurveyDataList":[]}
-  [POST 200] https://www.betman.co.kr/etc/inqNoticePop.do
-    {"noticePop":[{"STA_DTM":"202608141400","PC_USE_YN":"Y","IMG_FILE_NM":null,"NOTI_TITLE":"2026-27시즌 해외축구 개막 벳머니 킥오프 페스타 (PC)","END_DTM":"202609202359","POPUP_LOCTN_VAL":"SIZE_D/LOGO_W","POPUP_SN":1283,"STA_DT":null,"RNUM":1,"NOTI_CTT":"&lt;p&gt;&lt;a href=\"https://www.betman.co.kr/main/mainPage/customercenter/eventContent.do?EVNT_SN=4805\" target=\"_blank\" title=\"새창열림\"&gt;&lt;img src=\"//www.betman.co.kr/images/upload/FILE_000000000010977_0.png\" alt=\"[2026-27시즌 해외축구 개막 벳머니 킥오프 페스타] EVENT1. 첫 구매 킥오프 혜택! 신규가입 후 첫 구매(5천원 이상)시, 벳머니 3천원 적립! / EVENT2. 구매고객 리워드 찬스! 기간 내 5만원 이상 구매 시, 벳머니 5천원 추첨 적립! / 즐거운 스포츠, 즐거운 토토, 소액으로 건전하게 즐기세요.\" border=\"0\" style=\"width: 300px; height: 400px; border: 0px solid rgb(0, 0, 0);\"&gt;&lt;/a&gt;&lt;br&gt;&lt;/p&gt;","MOBILE_USE_YN":"N","LOGIN_YN":"N","END_DT":null},{"STA_DTM":"20260803100000","PC_USE_YN":"Y","IMG_FILE_NM":null,"NOTI_TITLE":"[2차] 우리은행 바로충전 벳머니 프로모션 (PC)","END_DTM":"20260906235900","POPUP_LOCTN_VAL":"SIZE_D/LOGO_B","POPUP_SN":1278,"STA_DT":null,"RNUM":2,"NOTI_CTT":"&lt;p&gt;&lt;a href=\"https://www.betman.co.kr/main/mainPage/customercenter/eventContent.do?EVNT_SN=4765\" target=\"_blank\" title=\"새창열림\"&gt;&lt;img src=\"//www.betman.co
-  [POST 200] https://www.betman.co.kr/matchinfo/inqMainLivescreMchList.do
-    {"dl_data":[{"MCH_ST_CTT":"종료","AW_TEAM_CD":"103158","HM_TEAM_CD":"4103","MCH_DTM":"20260831000000","MCH_GM_ID":"20260831MADMAA167","GM_ROUND":"102","GM_ST_CD":"4","GM_OSID_TS":"2026/102","RNUM":1,"HOME_NM":"레알마드","LEAG_NM":"라리가","GM_NM":"프로토 승부식","GM_TS":260102,"GM_YEAR":"2026","GM_ID":"G101","AWAY_NM":"말라가","GM_LEAG_CD":"67","OUTER_GM_OSID_TS":"102","MCH_SPORT_CD":"SC","MCH_DTM_H":"00:00"},{"MCH_ST_CTT":"종료","AW_TEAM_CD":"100159","HM_TEAM_CD":"4894","MCH_DTM":"20260831001500","MCH_GM_ID":"20260831RENLEM654","GM_ROUND":"102","GM_ST_CD":"4","GM_OSID_TS":"2026/102","RNUM":1,"HOME_NM":"스타드렌","LEAG_NM":"프리그1","GM_NM":"프로토 승부식","GM_TS":260102,"GM_YEAR":"2026","GM_ID":"G101","AWAY_NM":"르망FC","GM_LEAG_CD":"54","OUTER_GM_OSID_TS":"102","MCH_SPORT_CD":"SC","MCH_DTM_H":"00:15"},{"MCH_ST_CTT":"종료","AW_TEAM_CD":"4112","HM_TEAM_CD":"104291","MCH_DTM":"20260831003000","MCH_GM_ID":"20260831AUGSCH356","GM_ROUND":"102","GM_ST_CD":"4","GM_OSID_TS":"2026/102","RNUM":1,"HOME_NM":"아우크스","LEAG_NM":"분데스리","GM_NM":"프로토 승부식","GM_TS":260102,"GM_YEAR":"2026","GM_ID":"G101","AWAY_NM":"샬케04","GM_LEAG_CD":"56","OUTER_GM_OSID_TS":"102","MCH_SPORT_CD":"SC","MCH_DTM_H":"00:30"},{"MCH_ST_CTT":"종료","AW_TEAM_CD":"99
-  [POST 200] https://www.betman.co.kr/main/inqEventBannerList.do
-    {"rsMsg":{"sessionInterval":"","message":"정상 처리되었습니다.","statusCode":"S"},"items":[{"STA_DTM":"20260313133000","EXPSR_SEQ":0,"BANNER_DESC":null,"BANNER_TITLE":"미성년자 구매불가 안내 배너","BANNER_SN":5071,"BANNER_TXT_CTT":"즐거운 스포츠, 즐거운 토토, 소액으로 건전하게 즐기세요. 미성년자 및 발행대상 운동경기 관계자의 투표권 구매는 법으로 금지되며 어떠한 경우에도 구매하거나 환급금을 수령할 수 없습니다.","END_DTM":"20300313235959","BANNER_IMG_FILE_ID":"FILE_000000000010379","LINK_URL_ADDR":null,"BANNER_IMG_FILE_ID_SEQ":0,"EXPSR_AREA_ID":"BNRMILNG","BANNER_CL_CD":"01","BANNER_RGST_HTML_CTT":null,"BANNER_IMG_FILE_EXT":"gif","BANNER_TYP_CD":"1"},{"STA_DTM":"20260115100000","EXPSR_SEQ":0,"BANNER_DESC":null,"BANNER_TITLE":"위드토토 홍보 배너","BANNER_SN":4971,"BANNER_TXT_CTT":"스포츠토토 이용자를 위한 건전화 서비스 통합 지원 플랫폼 위드토토에서 몰입 진단 및 맞춤형 프로그램을 이용해보세요 (Withtoto Logo)","END_DTM":"20261231000000","BANNER_IMG_FILE_ID":"FILE_000000000010250","LINK_URL_ADDR":"javascript:window.open('https://www.withtoto.co.kr/');","BANNER_IMG_FILE_ID_SEQ":0,"EXPSR_AREA_ID":"BNRMILNG","BANNER_CL_CD":"01","BANNER_RGST_HTML_CTT":null,"BANNER_IMG_FILE_EXT":"png","BANNER_TYP_CD":"1"},{"STA_DTM":"20240326000000","EXPSR_SEQ":0,"BANNER_DESC":null,"BANNER_TITLE":"초보자를 위한 이용안내 상단 배너","BANNER_SN":3892,"BANNER_TXT_CTT":"초보자를 위한 구
-  [POST 200] https://www.betman.co.kr/customercenter/custCentr/inqCustCentrNotiList.do
-    {"rsMsg":{"sessionInterval":"","message":"정상 처리되었습니다.","statusCode":"S"},"dl_noticeList":[{"NO":17074,"NTCE_YN":"Y","LST_USER_ID":"025168","UPEND_FIX_YN":"Y","TOT_CNT":17074,"LST_CHG_DTM":"2026.08.31","NOTI_TITLE":"2026 아이치∙나고야 아시안게임 프로토 기록식 스페셜 발매 안내","GMS_NUM":null,"FST_RGST_DTM":"2026.08.31","GM_OSID_TS":null,"MOBILE_WEB_NTCE_YN":"N","NOTI_SN":181236,"INQ_CNT":386,"FST_USER_ID":"225005","SPCL_CL_CD":null,"ATCH_FILE_ID":null,"NOTI_CL_CD":"1","GM_ID":null,"GM_NOTI_CL_CD":"3","RN":1,"WINR_NTCE_YN":"N","ADM_ID":"225005"},{"NO":17074,"NTCE_YN":"Y","LST_USER_ID":"025168","UPEND_FIX_YN":"Y","TOT_CNT":17074,"LST_CHG_DTM":"2026.08.24","NOTI_TITLE":"베트맨 개인정보처리방침 개정에 따른 사전 안내문","GMS_NUM":null,"FST_RGST_DTM":"2026.08.24","GM_OSID_TS":null,"MOBILE_WEB_NTCE_YN":"N","NOTI_SN":180792,"INQ_CNT":1933,"FST_USER_ID":"025168","SPCL_CL_CD":null,"ATCH_FILE_ID":"FILE_000000000010980","NOTI_CL_CD":"1","GM_ID":null,"GM_NOTI_CL_CD":"2","RN":1,"WINR_NTCE_YN":"N","ADM_ID":"025168"},{"NO":17073,"NTCE_YN":"Y","LST_USER_ID":"025168","UPEND_FIX_YN":"Y","TOT_CNT":17074,"LST_CHG_DTM":"2026.07.14","NOTI_TITLE":"[공지] 로그인 본인확인[추가인증] 절차 도입 및 계정 보안 강화 안내","GMS_NUM":null,"FST_RGST_DTM":"2026.07.14","GM_OSID_TS":null,"M
-  [POST 200] https://www.betman.co.kr/gamebuy/winrst/inqWinrstList.do
-    {"data":[{"NO":1,"SALE_CHNL_CL_CD":"A","ROUND":"103","OLD_GM_TS":1,"GM_TS_ASIS":"260045","RSLT_ANNC_DTM":"26.09.02(수)","GM_NM_MAIN":"프로토 승부식","BUY_ST_CD":"0","ROUND_YEAR":"2026","GM_TS":260103,"GM_NM":"프로토 승부식","PROTO_RECORD_GAME":null,"GM_ID":"G101","MCH_SPORT_CD":"PT"},{"NO":2,"SALE_CHNL_CL_CD":"A","ROUND":"102","OLD_GM_TS":1,"GM_TS_ASIS":"260045","RSLT_ANNC_DTM":"26.08.31(월)","GM_NM_MAIN":"프로토 승부식","BUY_ST_CD":"0","ROUND_YEAR":"2026","GM_TS":260102,"GM_NM":"프로토 승부식","PROTO_RECORD_GAME":null,"GM_ID":"G101","MCH_SPORT_CD":"PT"},{"NO":3,"SALE_CHNL_CL_CD":"A","ROUND":"63","OLD_GM_TS":1560,"GM_TS_ASIS":"260045","RSLT_ANNC_DTM":"26.08.31(월)","GM_NM_MAIN":"야구 승1패","BUY_ST_CD":"0","ROUND_YEAR":"2026","GM_TS":260063,"GM_NM":"야구토토 승1패","PROTO_RECORD_GAME":null,"GM_ID":"G024","MCH_SPORT_CD":"BS"},{"NO":4,"SALE_CHNL_CL_CD":"A","ROUND":"25","OLD_GM_TS":1557,"GM_TS_ASIS":"260045","RSLT_ANNC_DTM":"26.08.31(월)","GM_NM_MAIN":"골프 스페셜","BUY_ST_CD":"0","ROUND_YEAR":"2026","GM_TS":260025,"GM_NM":"골프토토 스페셜","PROTO_RECORD_GAME":null,"GM_ID":"G060","MCH_SPORT_CD":"GF"},{"NO":5,"SALE_CHNL_CL_CD":"A","ROUND":"48","OLD_GM_TS":1564,"GM_TS_ASIS":"260045","RSLT_ANNC_DTM":"26.08.31(월)","GM_NM_MAIN":"축구 승무패","
-  [POST 200] https://www.betman.co.kr/totocafe/inqMainHonorHallList.do
-    {"rsMsg":{"sessionInterval":"","message":"COM001","statusCode":"S"},"dl_bestofbest":[{"BAMT":"4159000","MBR_NUM":"914173400100","N_MBR_NM":"김*환"},{"BAMT":"1213500","MBR_NUM":"635314200100","N_MBR_NM":"이*찬"},{"BAMT":"1128200","MBR_NUM":"296105300100","N_MBR_NM":"김*호"}]}
+  페이지에 박힌 슬립 링크(회차 포함): G101|2026|260102, G102|2026|89, G011|2026|260048, G024|2026|260063, G016|2026|260055, G008|2026|260055, G101|2026|260103
+  '야구 매치' 토큰: "G034", "G071"
 
 ======================================================================
-2) 페이지 본문에서 gmId와 게임명 - 목록 API를 못 찾았을 때의 보조 증거
-======================================================================
-  gmId 토큰: G101, G102, G024, G017, G023, G011, G016, G008, G060
-
-  "야구" 주변 3건:
-    tem=SC');">축구</a></li><li> <a href="javascript:movePage('201020300', '/main/mainPage/gameinfo/bsGameInfo.do?item=BS');">야구</a></li><li> <a href="javascript:movePage('201020400', '/main/mainPage/gameinfo/bkGameInfo.do?ite
-    ge/gameinfo/scPlayerInfo.do?item=SC">선수정보</a></li></ul></li><li><a href="/main/mainPage/gameinfo/bsGameInfo.do?item=BS">야구</a><ul class="depth03"><li><a href="/main/mainPage/gameinfo/dataOfBaseballSchedule.do">일정/결과</a><
-    do","frameTypeCd":"B","gnbMenuNo":"201020000","lnbMenuNo":"201020240","needAuth":false},{"menuLevel":4,"menuPath":" ㅏ야구","menuNm":"야구","programFileName":"uuGI088","menuNo":"201020300","upperMenuNo":"201020000","menuOrdr"
-
-  "승1패" 주변 3건:
-    "flag3 bak">이월, 임박</span> <div class="icoArea"><span class="icoGame BS">야구</span></div> <div class="infos"> <strong>승1패 64회차</strong> <div class="dateArea"><em>마감 17시간 47분 전</em></div> </div> </a></li><li> <a href="javas
-    lass="ellipsis"><a href="/main/mainPage/gamebuy/gameSlip.do?gmId=G024&amp;year=2026&amp;gmTs=260063" tabindex="-1">야구토토 승1패 63회차</a></div><div class="btns"></div></div></div></li><li aria-hidden="true" tabindex="-1" styl
-    lass="ellipsis"><a href="/main/mainPage/gamebuy/gameSlip.do?gmId=G024&amp;year=2026&amp;gmTs=260063" tabindex="-1">야구토토 승1패 63회차</a></div><div class="btns"></div></div></div></li><li aria-hidden="true" tabindex="-1" styl
-
-  "프로토" 주변 3건:
-    제공됩니다.">게임구매안내</a></li><li> <a href="javascript:linkurl('/gameguide/protoVictory.html');" title="이용가이드는 별도의 창에서 제공됩니다.">프로토게임안내</a></li><li> <a href="javascript:linkurl('/gameguide/scVictoryA.html');" title="이용가이드는 별도의 창
-    제공됩니다.">게임구매안내</a></li><li><a href="javascript:linkurl('/gameguide/protoVictory.html');" title="이용가이드는 별도의 창에서 제공됩니다.">프로토게임안내</a></li><li><a href="javascript:linkurl('/gameguide/scVictoryA.html');" title="이용가이드는 별도의 창에서
-    ml","frameTypeCd":"B","gnbMenuNo":"201070000","lnbMenuNo":"201070300","needAuth":false},{"menuLevel":4,"menuPath":" ㅏ프로토게임안내","menuNm":"프로토게임안내","programFileName":"uuTG125","menuNo":"201070100","upperMenuNo":"201070000",
-
-  "승부식" 주변 3건:
-    ss="flag1 bak">임박</span> <div class="icoArea"><span class="icoGame PT">프로토</span></div> <div class="infos"> <strong>승부식 103회차</strong> <div class="dateArea"><em>회차마감 22시간 17분 전</em></div> </div> </a></li><li> <a href="ja
-    // 프로토 승부식 싱글 전용 링크 (&gameDivCd=S)
-    // 프로토 승부식 싱글 게임형태 추가를 위해 추가 구성. 22.08.jmcho
-
-  "매치" 주변 1건:
-    var totoGameIdsFor8TypeBtn = ["G034", "G071"]; // 야구 매치
-
-======================================================================
-3) 발견된 gmId마다 게임슬립을 열어 구조 확인 (몇 경기 / 몇 택)
+B~D. 슬립을 회차와 함께 열어 실제 구조 확인 (몇 경기 / 몇 택 / 배당)
 ======================================================================
 
-G101: XHR 2건, gameInfoInq 1건
-  gmTs=0 최상위키=gmTs,alertAndForwardList,rsMsg
-  경기수=0  첫경기=null
+G101 (year=2026 gmTs=260102)  gameInfoInq 1건
+  gmTs=260102 최상위키=currentLottery,noticeListCount,tooltipList,gmTs,availableBuyAmount,voteStatus,rsMsg,compSchedules,gameNoticeList,caution,sportsItemList
+  경기수=0
 
-G102: XHR 1건, gameInfoInq 0건
-  gameInfoInq 없음. title="프로토 기록식 < 게임구매 | BETMAN" 본문앞부분=<!DOCTYPE html><html lang="ko"><head> <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> <meta http-equiv="X-UA-Compatible" content="IE=Edge"> <script type="text/javascript" class="init"></script> <!-- 라이브러리 영역 --> <script type="text/javascript" src="//cdn.betman.co.kr/js/
+G102 (year=2026 gmTs=89)  gameInfoInq 1건
+  gmTs=89 최상위키=gameNoticeList,sportsItemList,currentLottery,noticeListCount,tooltipList,protoRecordsLength,protoRecordComments,schedulesList,gmTs,protoRecordsList,availableBuyAmount,rsMsg,caution
+  경기수=142
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":"BS","itemName":null,"gameName":"260089_3244","gameKey":"두산:키움","gameDate":1787909400000,"startDate":null,"endDate":1787906820000,"unsetEndDate":null,"resultDate":1787842800000,"payoStartDate":1787907000000,"payoEndDate":1819637940000,"leagueCode":"BS001","leagueName":"KBO","leagueShortName":null,"leagueFullName":"KBO","domastic":true,"managedLeague":true,"meetName":null,"matchName":null,"matchImage":null,"meetStadiumFullName":"서울잠실야구장","meetStadium":"서울잠실","matchSeq":3244,"homeId":"OB","awayId":"WO","homeName":"두산","homeShortName":"두산","homeFullName":"두산 베어스","awayName":"키움","awayShortName":"키움","awayFullName":"키움 히어로즈","joinPlayers":null,"joinPlayersFull":null,"gameSubject":"두산
+  종목 분포=? 142  배당필드 보유=0/142
 
-G024: XHR 2건, gameInfoInq 0건
-  gameInfoInq 없음. title="< 게임구매 | BETMAN" 본문앞부분=<!DOCTYPE html><html lang="ko"><head> <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> <meta http-equiv="X-UA-Compatible" content="IE=Edge"> <script type="text/javascript" class="init"></script> <!-- 라이브러리 영역 --> <script type="text/javascript" src="//cdn.betman.co.kr/js/
+G011 (year=2026 gmTs=260048)  gameInfoInq 1건
+  gmTs=260048 최상위키=voteStatus,nationalCount,gameNoticeList,sportsItemList,standardDate,currentLottery,noticeListCount,schedulesList,gmTs,availableBuyAmount,internationalCount,comment,rsMsg,caution
+  경기수=14
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":"SC","itemName":null,"gameName":null,"gameKey":null,"gameDate":1788012000000,"startDate":null,"endDate":null,"unsetEndDate":null,"resultDate":null,"payoStartDate":null,"payoEndDate":null,"leagueCode":"52","leagueName":"잉글랜드 프리미어리그","leagueShortName":null,"leagueFullName":null,"domastic":false,"managedLeague":true,"meetName":null,"matchName":null,"matchImage":null,"meetStadiumFullName":"바이탈리티스타디움","meetStadium":"바이탈리","matchSeq":1,"homeId":"102706","awayId":"4047","homeName":"본머스","homeShortName":"본머스","homeFullName":"본머스","awayName":"에버턴","awayShortName":"에버턴","awayFullName":"에버턴","joinPlayers":null,"joinPlayersFull":null,"gameSubject":null,"broadcastSeq":0,"winTxt":null,"winAllo
+  종목 분포=? 14  배당필드 보유=0/14
 
-G017: XHR 2건, gameInfoInq 0건
-  gameInfoInq 없음. title="< 게임구매 | BETMAN" 본문앞부분=<!DOCTYPE html><html lang="ko"><head> <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> <meta http-equiv="X-UA-Compatible" content="IE=Edge"> <script type="text/javascript" class="init"></script> <!-- 라이브러리 영역 --> <script type="text/javascript" src="//cdn.betman.co.kr/js/
+G024 (year=2026 gmTs=260063)  gameInfoInq 1건
+  gmTs=260063 최상위키=voteStatus,nationalCount,gameNoticeList,sportsItemList,standardDate,currentLottery,noticeListCount,schedulesList,gmTs,availableBuyAmount,internationalCount,comment,rsMsg,caution
+  경기수=14
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":"BS","itemName":null,"gameName":null,"gameKey":null,"gameDate":1788106500000,"startDate":null,"endDate":null,"unsetEndDate":null,"resultDate":null,"payoStartDate":null,"payoEndDate":null,"leagueCode":"BS002","leagueName":"MLB","leagueShortName":null,"leagueFullName":null,"domastic":false,"managedLeague":true,"meetName":null,"matchName":null,"matchImage":null,"meetStadiumFullName":"내셔널스파크","meetStadium":"내셔널스","matchSeq":1,"homeId":"MO","awayId":"FL","homeName":"워싱내셔","homeShortName":"워싱내셔","homeFullName":"워싱내셔","awayName":"마이말린","awayShortName":"마이말린","awayFullName":"마이말린","joinPlayers":null,"joinPlayersFull":null,"gameSubject":null,"broadcastSeq":0,"winTxt":null,"winAllot":0,"dr
+  종목 분포=? 14  배당필드 보유=0/14
 
-G023: XHR 2건, gameInfoInq 0건
-  gameInfoInq 없음. title="< 게임구매 | BETMAN" 본문앞부분=<!DOCTYPE html><html lang="ko"><head> <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> <meta http-equiv="X-UA-Compatible" content="IE=Edge"> <script type="text/javascript" class="init"></script> <!-- 라이브러리 영역 --> <script type="text/javascript" src="//cdn.betman.co.kr/js/
+G016 (year=2026 gmTs=260055)  gameInfoInq 1건
+  gmTs=260055 최상위키=nationalCount,gameNoticeList,sportsItemList,standardDate,currentLottery,noticeListCount,schedulesList,maxMinAllot,voteStatusPlay2,gmTs,voteStatusPlay3,availableBuyAmount,voteStatusPlay1,internationalCount,comment,rsMsg,caution
+  경기수=3
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":"SC","itemName":null,"gameName":null,"gameKey":null,"gameDate":1788107400000,"startDate":null,"endDate":null,"unsetEndDate":null,"resultDate":null,"payoStartDate":null,"payoEndDate":null,"leagueCode":"53","leagueName":"이탈리아 세리에A","leagueShortName":null,"leagueFullName":null,"domastic":false,"managedLeague":true,"meetName":null,"matchName":null,"matchImage":null,"meetStadiumFullName":"디에고아르만도마라도나스타디움","meetStadium":"마라스타","matchSeq":1,"homeId":"4239","awayId":"100128","homeName":"나폴리","homeShortName":"나폴리","homeFullName":"나폴리","awayName":"코모1907","awayShortName":"코모1907","awayFullName":"코모1907","joinPlayers":null,"joinPlayersFull":null,"gameSubject":null,"broadcastSeq":0,"winTxt":
+  종목 분포=? 3  배당필드 보유=0/3
 
-G011: XHR 2건, gameInfoInq 0건
-  gameInfoInq 없음. title="< 게임구매 | BETMAN" 본문앞부분=<!DOCTYPE html><html lang="ko"><head> <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> <meta http-equiv="X-UA-Compatible" content="IE=Edge"> <script type="text/javascript" class="init"></script> <!-- 라이브러리 영역 --> <script type="text/javascript" src="//cdn.betman.co.kr/js/
+G008 (year=2026 gmTs=260055)  gameInfoInq 1건
+  gmTs=260055 최상위키=nationalCount,gameNoticeList,sportsItemList,standardDate,currentLottery,noticeListCount,schedulesList,maxMinAllot,voteStatusPlay2,gmTs,availableBuyAmount,voteStatusPlay1,internationalCount,isRelatedGameList,comment,rsMsg,caution
+  경기수=2
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":"SC","itemName":null,"gameName":null,"gameKey":null,"gameDate":1788107400000,"startDate":null,"endDate":null,"unsetEndDate":null,"resultDate":null,"payoStartDate":null,"payoEndDate":null,"leagueCode":"53","leagueName":"이탈리아 세리에A","leagueShortName":null,"leagueFullName":null,"domastic":false,"managedLeague":true,"meetName":null,"matchName":null,"matchImage":null,"meetStadiumFullName":"디에고아르만도마라도나스타디움","meetStadium":"마라스타","matchSeq":1,"homeId":"4239","awayId":"100128","homeName":"나폴리","homeShortName":"나폴리","homeFullName":"나폴리","awayName":"코모1907","awayShortName":"코모1907","awayFullName":"코모1907","joinPlayers":null,"joinPlayersFull":null,"gameSubject":null,"broadcastSeq":0,"winTxt":
+  종목 분포=? 2  배당필드 보유=0/2
 
-G016: XHR 2건, gameInfoInq 0건
-  gameInfoInq 없음. title="< 게임구매 | BETMAN" 본문앞부분=<!DOCTYPE html><html lang="ko"><head> <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> <meta http-equiv="X-UA-Compatible" content="IE=Edge"> <script type="text/javascript" class="init"></script> <!-- 라이브러리 영역 --> <script type="text/javascript" src="//cdn.betman.co.kr/js/
+G101 (year=2026 gmTs=260103)  gameInfoInq 1건
+  gmTs=260103 최상위키=currentLottery,noticeListCount,tooltipList,gmTs,availableBuyAmount,voteStatus,rsMsg,compSchedules,gameNoticeList,caution,sportsItemList
+  경기수=0
 
-G008: XHR 2건, gameInfoInq 0건
-  gameInfoInq 없음. title="< 게임구매 | BETMAN" 본문앞부분=<!DOCTYPE html><html lang="ko"><head> <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> <meta http-equiv="X-UA-Compatible" content="IE=Edge"> <script type="text/javascript" class="init"></script> <!-- 라이브러리 영역 --> <script type="text/javascript" src="//cdn.betman.co.kr/js/
+G024 (year=2026 gmTs=260064)  gameInfoInq 1건
+  gmTs=260064 최상위키=voteStatus,nationalCount,gameNoticeList,sportsItemList,standardDate,currentLottery,noticeListCount,schedulesList,gmTs,availableBuyAmount,internationalCount,comment,rsMsg,caution
+  경기수=14
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":"BS","itemName":null,"gameName":null,"gameKey":null,"gameDate":1788255000000,"startDate":null,"endDate":null,"unsetEndDate":null,"resultDate":null,"payoStartDate":null,"payoEndDate":null,"leagueCode":"BS001","leagueName":"KBO","leagueShortName":null,"leagueFullName":null,"domastic":true,"managedLeague":true,"meetName":null,"matchName":null,"matchImage":null,"meetStadiumFullName":"서울잠실야구장","meetStadium":"서울잠실","matchSeq":1,"homeId":"OB","awayId":"LG","homeName":"두산","homeShortName":"두산","homeFullName":"두산","awayName":"LG","awayShortName":"LG","awayFullName":"LG","joinPlayers":null,"joinPlayersFull":null,"gameSubject":null,"broadcastSeq":0,"winTxt":null,"winAllot":0,"drawTxt":null,
+  종목 분포=? 14  배당필드 보유=0/14
 
-G060: XHR 2건, gameInfoInq 0건
-  gameInfoInq 없음. title="< 게임구매 | BETMAN" 본문앞부분=<!DOCTYPE html><html lang="ko"><head> <meta http-equiv="Content-Type" content="text/html; charset=utf-8"> <meta http-equiv="X-UA-Compatible" content="IE=Edge"> <script type="text/javascript" class="init"></script> <!-- 라이브러리 영역 --> <script type="text/javascript" src="//cdn.betman.co.kr/js/
+G060 (year=2026 gmTs=260025)  gameInfoInq 1건
+  gmTs=260025 최상위키=nationalCount,gameNoticeList,sportsItemList,standardDate,currentLottery,voteStatusPlay6,noticeListCount,voteStatusPlay7,voteStatusPlay4,schedulesList,voteStatusPlay5,maxMinAllot,voteStatusPlay2,gmTs,voteStatusPlay3,availableBuyAmount,voteSt
+  경기수=7
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":null,"itemName":null,"gameName":null,"gameKey":null,"gameDate":null,"startDate":1788084000000,"endDate":1788084000000,"unsetEndDate":null,"resultDate":null,"payoStartDate":null,"payoEndDate":null,"leagueCode":null,"leagueName":null,"leagueShortName":null,"leagueFullName":null,"domastic":false,"managedLeague":false,"meetName":"LPGA FM 챔피언십 ","matchName":null,"matchImage":null,"meetStadiumFullName":"메사추세츠(미국)","meetStadium":"메사추세","matchSeq":1,"homeId":null,"awayId":null,"homeName":null,"homeShortName":null,"homeFullName":null,"awayName":null,"awayShortName":null,"awayFullName":null,"joinPlayers":["김세영"],"joinPlayersFull":["<strong>김세영</strong> (김세영)"],"gameSubject":null,"broadcast
+  종목 분포=? 7  배당필드 보유=0/7
+
+G011 (year=2026 gmTs=260049)  gameInfoInq 1건
+  gmTs=260049 최상위키=voteStatus,nationalCount,gameNoticeList,sportsItemList,standardDate,currentLottery,noticeListCount,schedulesList,gmTs,availableBuyAmount,internationalCount,comment,rsMsg,caution
+  경기수=14
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":"SC","itemName":null,"gameName":null,"gameKey":null,"gameDate":1788288300000,"startDate":null,"endDate":null,"unsetEndDate":null,"resultDate":null,"payoStartDate":null,"payoEndDate":null,"leagueCode":"48","leagueName":"잉글랜드 챔피언십","leagueShortName":null,"leagueFullName":null,"domastic":false,"managedLeague":true,"meetName":null,"matchName":null,"matchImage":null,"meetStadiumFullName":"프래턴파크","meetStadium":"프래턴파","matchSeq":1,"homeId":"100012","awayId":"4041","homeName":"포츠머스","homeShortName":"포츠머스","homeFullName":"포츠머스","awayName":"더비카운","awayShortName":"더비카운","awayFullName":"더비카운","joinPlayers":null,"joinPlayersFull":null,"gameSubject":null,"broadcastSeq":0,"winTxt":null,"winAllo
+  종목 분포=? 14  배당필드 보유=0/14
+
+G017 (year=2026 gmTs=260125)  gameInfoInq 1건
+  gmTs=260125 최상위키=nationalCount,gameNoticeList,sportsItemList,standardDate,currentLottery,noticeListCount,schedulesList,maxMinAllot,voteStatusPlay2,gmTs,voteStatusPlay3,availableBuyAmount,voteStatusPlay1,internationalCount,comment,rsMsg,caution
+  경기수=3
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":"BS","itemName":null,"gameName":null,"gameKey":null,"gameDate":1788341400000,"startDate":null,"endDate":null,"unsetEndDate":null,"resultDate":null,"payoStartDate":null,"payoEndDate":null,"leagueCode":"BS001","leagueName":"KBO","leagueShortName":null,"leagueFullName":null,"domastic":true,"managedLeague":true,"meetName":null,"matchName":null,"matchImage":null,"meetStadiumFullName":"대구삼성라이온즈파크","meetStadium":"대구파크","matchSeq":1,"homeId":"SS","awayId":"LT","homeName":"삼성","homeShortName":"삼성","homeFullName":"삼성","awayName":"롯데","awayShortName":"롯데","awayFullName":"롯데","joinPlayers":null,"joinPlayersFull":null,"gameSubject":null,"broadcastSeq":0,"winTxt":null,"winAllot":0,"drawTxt":nu
+  종목 분포=? 3  배당필드 보유=0/3
+
+G102 (year=2026 gmTs=260090)  gameInfoInq 0건
+  (응답 없음 - title="프로토 기록식 < 게임구매 | BETMAN")
+
+G023 (year=2026 gmTs=260125)  gameInfoInq 1건
+  gmTs=260125 최상위키=nationalCount,gameNoticeList,sportsItemList,standardDate,currentLottery,noticeListCount,schedulesList,maxMinAllot,voteStatusPlay2,gmTs,availableBuyAmount,voteStatusPlay1,internationalCount,isRelatedGameList,comment,rsMsg,caution
+  경기수=2
+  첫경기 키=itemCode,itemName,gameName,gameKey,gameDate,startDate,endDate,unsetEndDate,resultDate,payoStartDate,payoEndDate,leagueCode,leagueName,leagueShortName,leagueFullName,domastic,managedLeague,meetName,matchName,matchImage,meetStadiumFullName,meetStadium,matchSeq,homeId,awayId,homeName,homeShortName,homeFullName,awayName,awayShortName,awayFullName,joinPlayers,joinPlayersFull,gameSubject,broadcastSeq,wi
+  첫경기={"itemCode":"BS","itemName":null,"gameName":null,"gameKey":null,"gameDate":1788341400000,"startDate":null,"endDate":null,"unsetEndDate":null,"resultDate":null,"payoStartDate":null,"payoEndDate":null,"leagueCode":"BS001","leagueName":"KBO","leagueShortName":null,"leagueFullName":null,"domastic":true,"managedLeague":true,"meetName":null,"matchName":null,"matchImage":null,"meetStadiumFullName":"대구삼성라이온즈파크","meetStadium":"대구파크","matchSeq":1,"homeId":"SS","awayId":"LT","homeName":"삼성","homeShortName":"삼성","homeFullName":"삼성","awayName":"롯데","awayShortName":"롯데","awayFullName":"롯데","joinPlayers":null,"joinPlayersFull":null,"gameSubject":null,"broadcastSeq":0,"winTxt":null,"winAllot":0,"drawTxt":nu
+  종목 분포=? 2  배당필드 보유=0/2
+
+G034 (year=- gmTs=-)  gameInfoInq 0건
+  (응답 없음 - title="< 게임구매 | BETMAN")
+
+G071 (year=- gmTs=-)  gameInfoInq 0건
+  (응답 없음 - title="< 게임구매 | BETMAN")
