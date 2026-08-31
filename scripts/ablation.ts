@@ -276,6 +276,66 @@ async function main() {
     const d = lls.get(to)! - lls.get(from)!;
     console.log(`  ${label.padEnd(46)} ${d >= 0 ? "+" : ""}${d.toFixed(4)}  ${d < 0 ? "개선" : "악화"}`);
   }
+  // ── marketWeight 스윕 (4분할 홀드아웃) ─────────────────────────────────────
+  // seed/market_comparison.json의 스윕은 전체 구간에서 잰 값이라 가중치 선택 근거로는
+  // 순환이다. 여기서는 train에서 고르고 test에서만 평가한다.
+  console.log("\n" + "═".repeat(78));
+  console.log("marketWeight 스윕 (시간순 4분할, test에서만 평가)");
+  console.log("═".repeat(78));
+  const blendArm = (w: number): Arm => ({
+    key: `w${w}`,
+    label: `w=${w.toFixed(1)}`,
+    predict: (f) => {
+      const m = toProbs(
+        f.eloDiff + f.homeAdv + DEFAULT_FORM_WEIGHT * f.formDiff + DEFAULT_H2H_WEIGHT * f.h2hDiff,
+        f.drawBase,
+        Math.abs(f.eloDiff),
+      );
+      return f.market ? blend(m, f.market, w) : null;
+    },
+  });
+  const WS = [0, 0.2, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
+  console.log("  w      " + SPLITS.map((f) => `분할${f.toFixed(1)} 적중/로그손실`).join("   "));
+  for (const w of WS) {
+    const cells = SPLITS.map((frac) => {
+      const m = evalArm(blendArm(w), common.slice(Math.floor(common.length * frac)))!;
+      return `${(m.acc * 100).toFixed(2)}%/${m.logloss.toFixed(4)}`;
+    });
+    const mark = Math.abs(w - DEFAULT_MARKET_WEIGHT) < 1e-9 ? "  <- 현행" : "";
+    console.log(`  ${w.toFixed(1)}    ${cells.join("   ")}${mark}`);
+  }
+  // train에서 고른 w가 test에서 실제로 좋은가
+  console.log("\n  train에서 로그손실 최적 w를 골라 test 평가:");
+  console.log("  분할  train/test    선택w   test 적중률(0.4 -> 선택w)   test 로그손실(0.4 -> 선택w)");
+  for (const frac of SPLITS) {
+    const cut = Math.floor(common.length * frac);
+    const train = common.slice(0, cut), test = common.slice(cut);
+    let bw = 0, bll = Infinity;
+    for (let w = 0; w <= 1.0001; w += 0.05) {
+      const m = evalArm(blendArm(w), train);
+      if (m && m.logloss < bll) { bll = m.logloss; bw = w; }
+    }
+    const cur = evalArm(blendArm(DEFAULT_MARKET_WEIGHT), test)!;
+    const tuned = evalArm(blendArm(bw), test)!;
+    console.log(
+      `  ${frac.toFixed(1)}   ${String(train.length).padStart(5)}/${String(test.length).padEnd(5)}   ${bw.toFixed(2)}    ` +
+        `${(cur.acc * 100).toFixed(2)} -> ${(tuned.acc * 100).toFixed(2)}%          ` +
+        `${cur.logloss.toFixed(4)} -> ${tuned.logloss.toFixed(4)}`,
+    );
+  }
+
+  // 리그별로도 본다 - 시장 두께가 다르면 최적 w도 다를 수 있다.
+  console.log("\n  리그별 (전체 구간 기준, 표본이 작아 참고용):");
+  console.log("  리그          n     w=0 적중  w=0.4 적중  w=1.0 적중   w=0 손실  w=0.4 손실  w=1.0 손실");
+  for (const lg of [...new Set(common.map((f) => f.league))]) {
+    const sub = common.filter((f) => f.league === lg);
+    const m0 = evalArm(blendArm(0), sub)!, m4 = evalArm(blendArm(0.4), sub)!, m10 = evalArm(blendArm(1.0), sub)!;
+    console.log(
+      `  ${lg.padEnd(12)} ${String(sub.length).padStart(4)}  ${(m0.acc * 100).toFixed(2)}%    ${(m4.acc * 100).toFixed(2)}%     ${(m10.acc * 100).toFixed(2)}%     ` +
+        `${m0.logloss.toFixed(4)}   ${m4.logloss.toFixed(4)}    ${m10.logloss.toFixed(4)}`,
+    );
+  }
+
   console.log("\n주의: 모든 arm이 동일한 무승부 모델(리그 무승부율 + 격차보정)을 공유한다.");
   console.log("따라서 이 비교는 강도 항의 기여만 분리해서 보여준다.");
 }
