@@ -189,12 +189,11 @@ export function predictMatch(
   let pAway = pAway0;
 
   if (toggles.useMarketOdds && inputs.marketOdds) {
-    // 토글로 명시적으로 바꾼 값이 아니면 리그별 실측값을 쓴다. 시뮬레이터/백테스트가
-    // marketWeight를 직접 넘길 때는 그 값이 그대로 이긴다.
-    const w =
-      toggles.marketWeight === DEFAULT_MARKET_WEIGHT
-        ? marketWeightForLeague(inputs.league)
-        : toggles.marketWeight;
+    // predictMatch는 받은 값을 그대로 쓴다. 리그별 가중치 적용은 호출부(predictRound)가
+    // 한다 - 여기서 "값이 기본값과 같으면 리그값으로 바꾼다"는 식으로 처리했더니,
+    // 백테스트가 w를 0부터 1까지 훑을 때 0.4 지점만 조용히 0.8로 바뀌었다.
+    // 명시적으로 넘긴 값과 안 넘긴 값을 구분할 수 없는 sentinel이었다.
+    const w = toggles.marketWeight;
     pHome = w * inputs.marketOdds.pHome + (1 - w) * pHome0;
     pDraw = w * inputs.marketOdds.pDraw + (1 - w) * pDraw0;
     pAway = w * inputs.marketOdds.pAway + (1 - w) * pAway0;

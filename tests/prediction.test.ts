@@ -1,6 +1,12 @@
 // predictMatch()가 predict_round42_v2.py(파이썬) 산출값과 일치하는지, 그리고 격차 보정 무승부율이 의도대로 동작하는지 검증
 import { describe, expect, it } from "vitest";
-import { predictMatch, DEFAULT_TOGGLES } from "../src/lib/prediction";
+import {
+  predictMatch,
+  DEFAULT_TOGGLES,
+  DEFAULT_MARKET_WEIGHT,
+  EUROPEAN_MARKET_WEIGHT,
+  marketWeightForLeague,
+} from "../src/lib/prediction";
 import fixture from "./fixtures/round42_prediction_v2.json";
 
 const LEAGUE_DRAW_RATE: Record<string, number> = {
@@ -103,5 +109,48 @@ describe("closeness-adjusted draw rate (default toggles)", () => {
   it("일반 경기는 basis=model", () => {
     const p = predictMatch({ eloDiff: 50, formDiff: 0, h2hDiff: 0, leagueDrawRate: 0.27 }, DEFAULT_TOGGLES);
     expect(p.basis).toBe("model");
+  });
+});
+
+describe("리그별 marketWeight", () => {
+  const market = { pHome: 0.6, pDraw: 0.25, pAway: 0.15, nBookmakers: 3 };
+  const base = {
+    eloDiff: 0,
+    formDiff: 0,
+    h2hDiff: 0,
+    leagueDrawRate: 0.27,
+    marketOdds: market,
+  };
+
+  it("predictMatch는 넘겨받은 marketWeight를 그대로 쓴다(리그를 보고 몰래 바꾸지 않는다)", () => {
+    // 회귀 테스트. 한때 'marketWeight가 기본값(0.4)과 같으면 리그별 값으로 교체'하는
+    // sentinel을 뒀는데, 그러면 백테스트가 w를 훑을 때 0.4 지점만 조용히 다른 값이 되어
+    // 측정이 오염된다. 명시적으로 넘긴 0.4와 안 넘긴 것을 구분할 수 없기 때문이다.
+    const epl = predictMatch(
+      { ...base, league: "EPL" },
+      { ...DEFAULT_TOGGLES, marketWeight: DEFAULT_MARKET_WEIGHT },
+    );
+    const k1 = predictMatch(
+      { ...base, league: "K리그1" },
+      { ...DEFAULT_TOGGLES, marketWeight: DEFAULT_MARKET_WEIGHT },
+    );
+    expect(epl.pHome).toBeCloseTo(k1.pHome, 10);
+  });
+
+  it("marketWeightForLeague는 유럽 4대리그만 높은 값을 준다", () => {
+    for (const lg of ["EPL", "라리가", "세리에A", "분데스리가"]) {
+      expect(marketWeightForLeague(lg)).toBe(EUROPEAN_MARKET_WEIGHT);
+    }
+    for (const lg of ["K리그1", "K리그2", "J1리그", "MLS"]) {
+      expect(marketWeightForLeague(lg)).toBe(DEFAULT_MARKET_WEIGHT);
+    }
+    expect(marketWeightForLeague(undefined)).toBe(DEFAULT_MARKET_WEIGHT);
+    expect(marketWeightForLeague("UCL")).toBe(DEFAULT_MARKET_WEIGHT);
+  });
+
+  it("가중치가 커지면 배당 쪽으로 더 끌린다", () => {
+    const low = predictMatch({ ...base, league: "EPL" }, { ...DEFAULT_TOGGLES, marketWeight: 0.4 });
+    const high = predictMatch({ ...base, league: "EPL" }, { ...DEFAULT_TOGGLES, marketWeight: 0.8 });
+    expect(Math.abs(high.pHome - market.pHome)).toBeLessThan(Math.abs(low.pHome - market.pHome));
   });
 });

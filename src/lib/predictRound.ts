@@ -1,6 +1,12 @@
 // round_predictions에 저장된 원본 diff 성분을 읽어 토글이 반영된 확률로 재계산
 import { getRoundMatches, getRoundPredictions, getMarketOdds } from "./db";
-import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type MatchPrediction } from "./prediction";
+import {
+  predictMatch,
+  DEFAULT_TOGGLES,
+  marketWeightForLeague,
+  type PredictionToggles,
+  type MatchPrediction,
+} from "./prediction";
 import { findCalibrationBucket, confidenceTier, type CalibrationBucket, type ConfidenceTier } from "./calibration";
 import { computeUpsetSignal, type UpsetSignal } from "./upsetSignal";
 import { isModelLeague } from "./nameMap";
@@ -45,6 +51,10 @@ export async function buildRoundPredictions(
     getMarketOdds(env, matchIds),
   ]);
   const merged: PredictionToggles = { ...DEFAULT_TOGGLES, ...toggles };
+  // marketWeight는 리그마다 다르다(유럽 4대리그만 큰 표본으로 검증됨 - prediction.ts 참고).
+  // 호출자가 명시적으로 넘겼으면 그 값이 이긴다. 시뮬레이터가 슬라이더로 0.4를 고르는 것과
+  // 아무것도 안 넘기는 것을 구분해야 해서 undefined 여부로 판단한다.
+  const explicitMarketWeight = toggles?.marketWeight;
 
   return matches.map((m: RoundMatchRow) => {
     const raw = predRows.get(m.id);
@@ -71,7 +81,7 @@ export async function buildRoundPredictions(
         // market_only 컬럼이 없던 시절(0008 이전) 회차는 NULL이라 리그 기준으로 폴백한다.
         marketOnly: resolveMarketOnly(raw.market_only, m.league),
       },
-      merged,
+      { ...merged, marketWeight: explicitMarketWeight ?? marketWeightForLeague(m.league) },
     );
     const calibration = {
       bucket: findCalibrationBucket(m.league, prediction.confidenceGap),

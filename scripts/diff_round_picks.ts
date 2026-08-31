@@ -30,7 +30,7 @@ function calc(m: any, weight: number) {
       xgDiff: m.raw.xgDiff ?? null,
       cornersDiff: m.raw.cornersDiff ?? null,
       league: m.league,
-      marketOnly: m.prediction?.basis === "market" || m.prediction?.basis === "none",
+      marketOnly: m.prediction?.basis !== "model",
     },
     { ...DEFAULT_TOGGLES, marketWeight: weight },
   );
@@ -48,6 +48,12 @@ async function main() {
   const data = await getJson(`${BASE}/api/rounds/${target.id}`);
   const matches = data.matches ?? [];
   console.log(`${target.round_no}회차 (id=${target.id}, ${matches.length}경기, status=${target.status})`);
+  // 앱이 실제로 무엇을 내놓고 있는지 먼저 찍는다 - 내 재계산이 앱과 어긋나면 여기서 드러난다.
+  const b = new Map<string, number>();
+  for (const m of matches) b.set(m.prediction?.basis ?? "(없음)", (b.get(m.prediction?.basis ?? "(없음)") ?? 0) + 1);
+  console.log(`앱이 낸 basis 분포: ${[...b].map(([k, v]) => `${k} ${v}`).join(", ")}`);
+  const s0 = matches[0];
+  console.log(`샘플(1번): basis=${s0?.prediction?.basis} tier=${s0?.calibration?.tier} 1픽=${s0?.prediction?.rankedPicks?.[0]} gap=${s0?.prediction?.confidenceGap?.toFixed?.(4)}`);
   console.log(`종전 marketWeight ${OLD_WEIGHT} vs 신규 리그별 가중치\n`);
 
   const P = ["홈승", "무승부", "원정승"];
