@@ -121,6 +121,9 @@ async function main() {
     for (const id of ["G034", "G071"]) if (![...targets].some((t) => t.startsWith(id))) targets.add(`${id}||`);
 
     for (const t of targets) {
+      // 한 상품에서 예외가 나도 나머지 조사를 잃지 않는다. 앞서 compSchedules
+      // 순회가 터지면서 이미 받아둔 G024/G017/G023 결과까지 통째로 날렸다.
+      try {
       const [gmId, year, gmTs] = t.split("|");
       const url = gmTs
         ? `${BASE}/main/mainPage/gamebuy/gameSlip.do?gmId=${gmId}&year=${year}&gmTs=${gmTs}`
@@ -133,10 +136,20 @@ async function main() {
         let j: any = null;
         try { j = JSON.parse(c.body); } catch { /* JSON 아님 */ }
         if (!j) { say(`  (JSON 아님) ${c.body.slice(0, 300)}`); continue; }
-        // 프로토 승부식은 schedulesList가 아니라 compSchedules에 담는다. 1차에서 이걸
-        // 몰라 '경기수=0'으로 찍혔다 - 상품이 비어서가 아니라 내가 다른 키를 본 것이다.
-        const s: any[] = j.schedulesList ?? j.compSchedules ?? [];
-        if (j.compSchedules) say(`  (compSchedules 사용 - 프로토 계열)`);
+        // 프로토 승부식은 schedulesList가 아니라 compSchedules에 담는다. 다만 그것은
+        // 배열이 아니라 객체다(그냥 순회하다 TypeError로 조사 전체가 죽었다).
+        // 모양을 가정하지 않고, 배열이면 쓰고 아니면 안쪽에서 배열을 찾아 찍는다.
+        const raw = j.schedulesList ?? j.compSchedules;
+        let s: any[] = Array.isArray(raw) ? raw : [];
+        if (raw && !Array.isArray(raw)) {
+          say(`  compSchedules가 배열이 아니다. 키=${Object.keys(raw).join(",").slice(0, 300)}`);
+          for (const [k, v] of Object.entries(raw)) {
+            if (Array.isArray(v) && v.length) {
+              say(`    ${k}: ${v.length}건  샘플=${JSON.stringify(v[0]).slice(0, 500)}`);
+              if (!s.length) s = v as any[];
+            }
+          }
+        }
         if (j.sportsItemList) say(`  취급 종목=${JSON.stringify(j.sportsItemList).slice(0, 400)}`);
         say(`  gmTs=${j.gmTs} 최상위키=${Object.keys(j).join(",").slice(0, 240)}`);
         say(`  경기수=${s.length}`);
@@ -156,6 +169,9 @@ async function main() {
           if (Number(g.winAllot ?? 0) > 0 || Number(g.loseAllot ?? 0) > 0) withOdds++;
         }
         if (s.length) say(`  종목 분포=${[...sports.entries()].map(([k, n]) => `${k} ${n}`).join(" / ")}  배당필드 보유=${withOdds}/${s.length}`);
+      }
+      } catch (e) {
+        say(`  !! ${t} 조사 중 예외: ${(e as Error).message}`);
       }
     }
   } finally {
