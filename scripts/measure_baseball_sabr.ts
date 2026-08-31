@@ -262,6 +262,37 @@ async function main() {
   const c3 = [0, 1, 2].map((o) => ctx.filter((c) => c.outcome3 === o).length / ctx.length);
   console.log(`  승 ${(c3[0] * 100).toFixed(1)}% / 1 ${(c3[1] * 100).toFixed(1)}% / 패 ${(c3[2] * 100).toFixed(1)}%  -> 상한 ${(Math.max(...c3) * 100).toFixed(1)}%`);
 
+  // ── 상한: 총득점을 완벽하게 안다면 승1패는 어디까지 가는가 ──────────────
+  // 고리2를 아무리 잘 만들어도 넘을 수 없는 천장이다. 이 값이 낮으면 선발투수든
+  // Statcast든 더 좋은 예측자를 붙이는 것 자체가 의미가 없다.
+  // 계산: 실제 총득점 구간별로 승/1/패 중 가장 흔한 것을 "미리 알고" 찍었을 때의 적중률.
+  // (실제로는 총득점을 완벽히 알 수 없으므로 도달 불가능한 상한이다.)
+  console.log("\n" + "=".repeat(72));
+  console.log("상한  총득점을 완벽하게 안다고 가정했을 때 승1패 적중률");
+  console.log("=".repeat(72));
+  let ceilHit = 0;
+  console.log("총득점       n      승     1점차   패     최적픽   그 구간 적중률");
+  for (const [lo, hi, label] of totBuckets) {
+    const g = ctx.filter((c) => total(c.g) > lo && total(c.g) <= hi);
+    if (!g.length) continue;
+    const c = [0, 1, 2].map((o) => g.filter((x) => x.outcome3 === o).length);
+    const best = c.indexOf(Math.max(...c));
+    ceilHit += c[best];
+    const nm = ["승", "1", "패"][best];
+    console.log(
+      `${label.padEnd(11)} ${String(g.length).padStart(5)}  ` +
+        c.map((x) => ((x / g.length) * 100).toFixed(1).padStart(5) + "%").join(" ") +
+        `   ${nm}      ${((c[best] / g.length) * 100).toFixed(1)}%`,
+    );
+  }
+  const ceil = ceilHit / ctx.length;
+  const baseCeil = Math.max(...[0, 1, 2].map((o) => ctx.filter((c) => c.outcome3 === o).length)) / ctx.length;
+  console.log(`\n총득점을 완벽히 알 때 상한: ${(ceil * 100).toFixed(1)}%`);
+  console.log(`총득점을 전혀 모를 때(최빈 구간만 찍기): ${(baseCeil * 100).toFixed(1)}%`);
+  console.log(`-> 완벽한 총득점 예측이 벌어주는 최대치는 ${((ceil - baseCeil) * 100).toFixed(1)}%p다.`);
+  console.log(`   현재 팀 득점환경의 설명력은 R^2 = ${(r2 * r2 * 100).toFixed(2)}%. 선발투수를 넣어`);
+  console.log(`   이걸 크게 끌어올린다 해도 위 ${((ceil - baseCeil) * 100).toFixed(1)}%p 중 그 비율만큼만 가져온다.`);
+
   // ── 참고: 승패 2택은 어디까지 가는가 ────────────────────────────────────
   console.log("\n" + "=".repeat(72));
   console.log("참고  승패 2택 (무승부 없음) - Elo가 어디까지 가는가");
