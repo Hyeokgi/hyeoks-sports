@@ -139,6 +139,44 @@ async function main() {
   }
 
   say("\n" + "=".repeat(70));
+  say("D2. 상세 응답 전문 - 목록에 없는 필드가 있는가");
+  say("=".repeat(70));
+  // 1차 조사에서 schedule/games/{id}가 HTTP 200 2.5~2.7KB를 주는데 키워드 검색만 하고
+  // 본문을 안 봤다. 없는 것을 "없다"고 말하려면 실제로 봐야 한다.
+  for (const id of probeIds) {
+    const r = await get(`https://api-gw.sports.naver.com/schedule/games/${id}`);
+    const g = j(r.body)?.result?.game ?? j(r.body)?.game;
+    say(`\n${id}  키: ${g ? Object.keys(g).join(", ") : "(파싱 실패)"}`);
+    say(`  전문: ${r.body}`);
+  }
+
+  say("\n" + "=".repeat(70));
+  say("F. gameId 앞 4자리 분포 - 포스트시즌은 연도 대신 다른 코드를 쓴다");
+  say("=".repeat(70));
+  // 실측 확인: 정규 20230601... / 플레이오프 55551105... / 한국시리즈 77771113...
+  // 어떤 코드가 더 있는지 전 시즌에서 세어 본다.
+  for (const year of [2023, 2024, 2025]) {
+    const pfx = new Map<string, { n: number; first: string; last: string; sample: string }>();
+    for (let page = 1; page <= 12; page++) {
+      const r = await schedule(`${year}-03-01`, `${year}-11-30`, page, 100);
+      const games: any[] = r.json?.result?.games ?? [];
+      for (const g of games) {
+        const k = String(g.gameId).slice(0, 4);
+        const cur = pfx.get(k) ?? { n: 0, first: g.gameDate, last: g.gameDate, sample: g.gameId };
+        cur.n++;
+        if (g.gameDate < cur.first) cur.first = g.gameDate;
+        if (g.gameDate > cur.last) cur.last = g.gameDate;
+        pfx.set(k, cur);
+      }
+      if (games.length < 100) break;
+    }
+    say(`\n${year}:`);
+    for (const [k, v] of [...pfx.entries()].sort((a, b) => b[1].n - a[1].n)) {
+      say(`  ${k}  ${v.n}건  ${v.first}~${v.last}  예: ${v.sample}`);
+    }
+  }
+
+  say("\n" + "=".repeat(70));
   say("E. 날짜별 경기 수 (정규시즌은 하루 5경기가 규칙적)");
   say("=".repeat(70));
   for (const year of [2023, 2024, 2025]) {
