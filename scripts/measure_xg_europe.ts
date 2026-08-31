@@ -300,28 +300,40 @@ async function main() {
     }
 
     // 3. 홀드아웃 검증 - 위 그리드는 같은 데이터로 가중치를 고른 것이라 그대로 믿으면 안 된다.
-    //    시간순 앞 60%에서 가중치를 고르고, 뒤 40%(한 번도 안 본 구간)에서만 평가한다.
-    const cut = Math.floor(withXg.length * 0.6);
-    const train = withXg.slice(0, cut);
-    const test = withXg.slice(cut);
-    let bestW = 0;
-    let bestLl = Infinity;
-    for (let w = 0; w <= 150; w += 5) {
-      const e = evaluate(train, w, kind);
-      if (e.ll < bestLl) {
-        bestLl = e.ll;
-        bestW = w;
+    //    분할 지점 하나로는 노이즈와 구분이 안 되므로(테스트 1,400경기에서 로그손실 0.0003
+    //    차이는 아무 의미가 없다), 코너킥 피처를 채택할 때 쓴 것과 같은 프로토콜로
+    //    4개 분할 전부에서 개선되는지를 본다. 하나라도 실패하면 채택하지 않는다.
+    console.log("\n3. 홀드아웃 (시간순 분할 4개, train에서 가중치 선택 -> test에서만 평가)");
+    console.log("   분할     train/test   선택w   적중률(0->w)      Brier(0->w)        로그손실(0->w)     판정");
+    let allPass = true;
+    for (const frac of [0.5, 0.6, 0.7, 0.8]) {
+      const cut = Math.floor(withXg.length * frac);
+      const train = withXg.slice(0, cut);
+      const test = withXg.slice(cut);
+      let bestW = 0;
+      let bestLl = Infinity;
+      for (let w = 0; w <= 150; w += 5) {
+        const e = evaluate(train, w, kind);
+        if (e.ll < bestLl) {
+          bestLl = e.ll;
+          bestW = w;
+        }
       }
+      const base = evaluate(test, 0, kind);
+      const tuned = evaluate(test, bestW, kind);
+      const pass = tuned.brier < base.brier && tuned.ll < base.ll && tuned.acc >= base.acc;
+      if (!pass) allPass = false;
+      console.log(
+        `   ${frac.toFixed(1)}   ${String(train.length).padStart(5)}/${String(test.length).padEnd(5)}  ${String(bestW).padStart(4)}   ` +
+          `${(base.acc * 100).toFixed(2)}->${(tuned.acc * 100).toFixed(2)}%   ` +
+          `${base.brier.toFixed(4)}->${tuned.brier.toFixed(4)}   ` +
+          `${base.ll.toFixed(4)}->${tuned.ll.toFixed(4)}   ${pass ? "통과" : "실패"}`,
+      );
     }
-    const base = evaluate(test, 0, kind);
-    const tuned = evaluate(test, bestW, kind);
-    console.log(`\n3. 홀드아웃 (train ${train.length} -> test ${test.length}, 시간순 분할)`);
-    console.log(`   train에서 고른 xgWeight = ${bestW}`);
-    console.log("            적중률    Brier     로그손실");
-    console.log(`   w=0      ${(base.acc * 100).toFixed(2)}%   ${base.brier.toFixed(4)}   ${base.ll.toFixed(4)}`);
-    console.log(`   w=${String(bestW).padEnd(6)} ${(tuned.acc * 100).toFixed(2)}%   ${tuned.brier.toFixed(4)}   ${tuned.ll.toFixed(4)}`);
-    const win = tuned.brier < base.brier && tuned.ll < base.ll;
-    console.log(`   -> ${win ? "홀드아웃에서도 Brier·로그손실 둘 다 개선. 채택 가능." : "홀드아웃에서 개선 못 함. 채택 불가."}`);
+    const win = allPass;
+    console.log(
+      `   => ${win ? "4개 분할 전부 통과. 채택 가능." : "일부 분할에서 실패. 채택하지 않는다."}`,
+    );
   }
 }
 
