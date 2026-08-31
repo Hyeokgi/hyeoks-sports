@@ -27,7 +27,7 @@ const lines: string[] = [];
 const say = (...a: unknown[]) => {
   const s = a.map(String).join(" ");
   lines.push(s);
-  say(s);
+  process.stdout.write(s + "\n");
 };
 
 const UA = { "User-Agent": "Mozilla/5.0", Referer: "https://m.sports.naver.com/" };
@@ -156,7 +156,9 @@ async function main() {
   }
 }
 
-main().then(() => {
+function flush(err?: unknown) {
+  if (err) lines.push(`\n!! 도중 실패: ${(err as Error).stack ?? String(err)}`);
   writeFileSync(OUT, lines.join("\n") + "\n");
-  console.log(`\n${OUT}에 저장`);
-});
+  process.stdout.write(`\n${OUT}에 저장 (${lines.length}줄)\n`);
+}
+main().then(() => flush()).catch((e) => { flush(e); process.exitCode = 1; });

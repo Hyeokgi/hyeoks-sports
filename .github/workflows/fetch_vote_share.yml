@@ -523,6 +523,7 @@ jobs:
       - name: Probe KBO series field
         run: npx tsx scripts/probe_kbo_series.ts
       - name: Commit probe output
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
