@@ -146,8 +146,16 @@ async function main() {
           for (const [k, v] of Object.entries(raw)) {
             if (Array.isArray(v) && v.length) {
               say(`    ${k}: ${v.length}건  샘플=${JSON.stringify(v[0]).slice(0, 500)}`);
-              if (!s.length) s = v as any[];
             }
+          }
+          // 컬럼 지향 테이블이다: keys(컬럼명 52개) + datas(행 배열). 열 이름을 붙여
+          // 객체로 되돌린다. 농구 샘플에 "승",1.34,"-",0,"패",2.56이 들어 있었으니
+          // 확정배당이 붙는 구조다 - 야구 행이 있는지, 몇 택인지를 여기서 확정한다.
+          const keys: string[] = Array.isArray((raw as any).keys) ? (raw as any).keys : [];
+          const datas: any[][] = Array.isArray((raw as any).datas) ? (raw as any).datas : [];
+          if (keys.length && datas.length) {
+            say(`    컬럼명 전체: ${keys.join(", ")}`);
+            s = datas.map((row) => Object.fromEntries(keys.map((k, i) => [k, row[i]])));
           }
         }
         if (j.sportsItemList) say(`  취급 종목=${JSON.stringify(j.sportsItemList).slice(0, 400)}`);
@@ -169,6 +177,21 @@ async function main() {
           if (Number(g.winAllot ?? 0) > 0 || Number(g.loseAllot ?? 0) > 0) withOdds++;
         }
         if (s.length) say(`  종목 분포=${[...sports.entries()].map(([k, n]) => `${k} ${n}`).join(" / ")}  배당필드 보유=${withOdds}/${s.length}`);
+
+        // 프로토 계열: 종목 x 베팅종류별로 몇 건인지, 야구 행의 실제 배당이 얼마인지.
+        // '야구 승패 2택에 배당이 붙는가'가 이 조사의 최종 질문이다.
+        if (j.compSchedules && s.length) {
+          const byType = new Map<string, number>();
+          for (const g of s) {
+            const t = `${g.itemCode ?? "?"} | ${g.gameSubject ?? g.betTypeName ?? "?"} | ${g.betType ?? "?"}`;
+            byType.set(t, (byType.get(t) ?? 0) + 1);
+          }
+          say(`  [프로토] 종목x베팅종류:`);
+          for (const [t, n] of [...byType.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) say(`    ${t}  ${n}건`);
+          const bs = s.filter((g) => String(g.itemCode) === "BS");
+          say(`  [프로토] 야구(BS) 행 ${bs.length}건`);
+          for (const g of bs.slice(0, 6)) say(`    ${JSON.stringify(g)}`);
+        }
       }
       } catch (e) {
         say(`  !! ${t} 조사 중 예외: ${(e as Error).message}`);
