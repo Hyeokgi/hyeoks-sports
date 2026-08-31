@@ -67,9 +67,18 @@ async function fetchSeason(understat: string, season: string): Promise<any[]> {
     console.log(`  !! ${understat} ${season}: HTTP ${res.status}`);
     return [];
   }
-  const rows = parseDatesData(await res.text());
+  const html = await res.text();
+  const rows = parseDatesData(html);
   if (!rows) {
-    console.log(`  !! ${understat} ${season}: datesData 파싱 실패 (페이지 구조 변경 가능성)`);
+    // 추측하지 말고 실제로 뭘 받았는지 남긴다. 봇 차단 페이지인지, 구조가 바뀐 건지,
+    // 변수명이 다른 건지는 응답을 봐야만 구분된다.
+    console.log(`  !! ${understat} ${season}: datesData 파싱 실패`);
+    console.log(`     길이 ${html.length}B, content-type=${res.headers.get("content-type")}`);
+    const title = html.match(/<title[^>]*>([\s\S]{0,120}?)<\/title>/i)?.[1]?.trim();
+    console.log(`     <title>: ${title ?? "(없음)"}`);
+    const vars = [...html.matchAll(/var\s+([A-Za-z_$][\w$]*)\s*=\s*JSON\.parse/g)].map((m) => m[1]);
+    console.log(`     JSON.parse로 주입된 변수: ${vars.length ? vars.join(", ") : "(없음)"}`);
+    console.log(`     앞 300자: ${html.slice(0, 300).replace(/\s+/g, " ")}`);
     return [];
   }
   return rows;
