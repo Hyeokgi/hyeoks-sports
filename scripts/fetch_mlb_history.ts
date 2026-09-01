@@ -14,7 +14,7 @@
 // 실행: npx tsx scripts/fetch_mlb_history.ts [시즌...]   (러너 전용 - 샌드박스는 statsapi 차단)
 import { writeFileSync } from "node:fs";
 
-const SEASONS = process.argv.slice(2).length ? process.argv.slice(2).map(Number) : [2023, 2024, 2025];
+const SEASONS = process.argv.slice(2).length ? process.argv.slice(2).map(Number) : [2023, 2024, 2025, 2026];
 const OUT = "seed/mlb_games.json";
 
 interface Game {
@@ -89,8 +89,16 @@ function verify(games: Game[]): void {
   console.log(`  ${games.length}경기 (기준 2430), 팀 ${counts.length}개 (기준 30)`);
   console.log(`  팀당 최소 ${Math.min(...counts.map((c) => c[1]))} / 최대 ${Math.max(...counts.map((c) => c[1]))} (기준 162)`);
   if (counts.length !== 30) console.log(`  ** 팀이 30개가 아니다`);
-  const off = counts.filter(([, n]) => Math.abs(n - 162) > 3);
-  if (off.length) console.log(`  ** 162에서 3경기 넘게 벗어남: ${off.map(([t, n]) => `${t} ${n}`).join(" / ")}`);
+  // 진행중 시즌은 2430/162와 대조하면 정상인데 문제처럼 보인다.
+  const last = games.length ? new Date(games.at(-1)!.date + "T00:00:00Z").getTime() : 0;
+  if (Date.now() - last < 14 * 24 * 3600 * 1000) {
+    console.log(`  (진행중 시즌 - 2430/162 대조는 건너뛴다)`);
+    const spread = Math.max(...counts.map((c) => c[1])) - Math.min(...counts.map((c) => c[1]));
+    if (spread > 15) console.log(`  ** 팀간 경기수 편차 ${spread} - 진행중이라도 이만큼 벌어지진 않는다`);
+  } else {
+    const off = counts.filter(([, n]) => Math.abs(n - 162) > 3);
+    if (off.length) console.log(`  ** 162에서 3경기 넘게 벗어남: ${off.map(([t, n]) => `${t} ${n}`).join(" / ")}`);
+  }
   if (games.length) console.log(`  기간: ${games[0].date} ~ ${games.at(-1)!.date}`);
   const withStarter = games.filter((g) => g.homeStarter && g.awayStarter).length;
   console.log(`  선발투수 양쪽 확보: ${withStarter}/${games.length}`);

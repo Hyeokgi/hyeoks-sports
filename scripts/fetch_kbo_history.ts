@@ -29,7 +29,7 @@
 // 실행: npx tsx scripts/fetch_kbo_history.ts [시즌...]   (러너 전용 - 샌드박스는 네이버 차단)
 import { writeFileSync } from "node:fs";
 
-const SEASONS = process.argv.slice(2).length ? process.argv.slice(2).map(Number) : [2023, 2024, 2025];
+const SEASONS = process.argv.slice(2).length ? process.argv.slice(2).map(Number) : [2023, 2024, 2025, 2026];
 const PAGE_SIZE = 100;
 const CONCURRENCY = 8;
 const OUT = "seed/kbo_games.json";
@@ -156,6 +156,14 @@ async function fetchSeason(year: number): Promise<Game[]> {
   return games;
 }
 
+// 진행중 시즌인지 판단한다. 마지막 경기가 오늘에 가까우면 아직 안 끝난 것이고,
+// 그때 720/144와 대조해 경고를 찍으면 정상인데 문제처럼 보인다.
+function seasonInProgress(games: Game[]): boolean {
+  if (!games.length) return false;
+  const last = new Date(games.at(-1)!.date + "T00:00:00Z").getTime();
+  return Date.now() - last < 14 * 24 * 3600 * 1000;
+}
+
 function verify(year: number, games: Game[]): void {
   const perTeam = new Map<string, number>();
   for (const g of games) {
@@ -170,9 +178,15 @@ function verify(year: number, games: Game[]): void {
   // 기준에서 벗어나면 조용히 넘기지 않는다. 우천 취소가 끝내 편성되지 않으면
   // 720/144에 못 미칠 수 있으므로 '틀렸다'가 아니라 '얼마나 벗어났나'를 찍는다.
   if (counts.length !== 10) console.log(`  ** 팀이 10개가 아니다(${counts.length}개) - 정규시즌이 아닌 경기가 남았을 수 있다`);
-  const off = counts.filter(([, n]) => Math.abs(n - 144) > 3);
-  if (off.length) console.log(`  ** 팀당 144에서 3경기 넘게 벗어남: ${off.map(([t, n]) => `${t} ${n}`).join(" / ")}`);
-  if (Math.abs(games.length - 720) > 15) console.log(`  ** 총 720에서 15경기 넘게 벗어남`);
+  if (seasonInProgress(games)) {
+    console.log(`  (진행중 시즌 - 720/144 대조는 건너뛴다. 팀당 경기수가 고르면 정상이다)`);
+    const spread = Math.max(...counts.map((c) => c[1])) - Math.min(...counts.map((c) => c[1]));
+    if (spread > 12) console.log(`  ** 팀간 경기수 편차 ${spread} - 진행중이라도 이만큼 벌어지진 않는다`);
+  } else {
+    const off = counts.filter(([, n]) => Math.abs(n - 144) > 3);
+    if (off.length) console.log(`  ** 팀당 144에서 3경기 넘게 벗어남: ${off.map(([t, n]) => `${t} ${n}`).join(" / ")}`);
+    if (Math.abs(games.length - 720) > 15) console.log(`  ** 총 720에서 15경기 넘게 벗어남`);
+  }
   const withStarter = games.filter((g) => g.homeStarter && g.awayStarter).length;
   console.log(`  선발투수 양쪽 확보: ${withStarter}/${games.length}`);
 }
