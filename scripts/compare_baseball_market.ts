@@ -201,6 +201,7 @@ function runLeague(name: string, seed: Seed[], odds: Odds[]) {
   }
   const toSeedName = (kr: string) => (name === "MLB" ? map.get(kr) ?? "" : kr);
 
+  const joined: Array<{ date: string; pm: number; pe: number; y: 0 | 1 }> = [];
   const market: Array<{ p: number; y: 0 | 1 }> = [];
   const model: Array<{ p: number; y: 0 | 1 }> = [];
   const base: Array<{ p: number; y: 0 | 1 }> = [];
@@ -225,6 +226,7 @@ function runLeague(name: string, seed: Seed[], odds: Odds[]) {
 
     const pm = devig2(o.winAllot, o.loseAllot);
     const pe = 1 / (1 + Math.pow(10, -(rec.diff + ha) / 400));
+    joined.push({ date: o.date, pm, pe, y });
     market.push({ p: pm, y });
     model.push({ p: pe, y });
     base.push({ p: pFixed, y });
@@ -269,6 +271,64 @@ function runLeague(name: string, seed: Seed[], odds: Odds[]) {
   console.log(`\n  A - E 로그손실 차이 ${d.toFixed(4)}  -> ${d < 0 ? "배당이 낫다" : "우리 모델이 낫다"}`);
   const mc = mcnemar(mHit, eHit);
   console.log(`  McNemar: 배당만 맞힌 경기 ${mc.a} / 모델만 맞힌 경기 ${mc.b}  ${mc.note}`);
+
+  tuneWeight(name, joined);
+}
+
+// 앱에 넣을 marketWeight를 고른다. 위 표를 눈으로 보고 제일 좋은 w를 집으면 그건 고른
+// 데이터에서 잰 값이라 순환이다(축구에서 measure_h2h_weight가 정확히 그 함정에 빠졌다).
+// 레포의 채택 프로토콜을 그대로 쓴다 - 시간순 4분할, train에서 로그손실로 w를 고르고
+// test에서만 평가, 그리고 적중률을 기준에 반드시 포함한다(argmax 픽으로 돈이 오간다).
+function tuneWeight(name: string, joined: Array<{ date: string; pm: number; pe: number; y: 0 | 1 }>) {
+  const xs = [...joined].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const GRID = Array.from({ length: 21 }, (_, i) => i / 20);
+  const SPLITS = [0.5, 0.6, 0.7, 0.8];
+  const at = (w: number, arr: typeof xs) => metrics(arr.map((x) => ({ p: w * x.pm + (1 - w) * x.pe, y: x.y })));
+
+  console.log(`\n  [marketWeight 선택] 시간순 4분할, train에서 고르고 test에서만 평가`);
+  let wins = 0;
+  const picked: number[] = [];
+  for (const frac of SPLITS) {
+    const cut = Math.floor(xs.length * frac);
+    const tr = xs.slice(0, cut), te = xs.slice(cut);
+    if (tr.length < 60 || te.length < 40) { console.log(`    분할 ${frac}: 표본 부족(train ${tr.length} / test ${te.length}) - 건너뜀`); continue; }
+    let best = { w: 0, ll: Infinity };
+    for (const w of GRID) {
+      const m = at(w, tr);
+      if (m.logloss < best.ll) best = { w, ll: m.logloss };
+    }
+    picked.push(best.w);
+    const mw = at(best.w, te), m0 = at(0, te);
+    const better = mw.acc >= m0.acc && mw.logloss <= m0.logloss && mw.brier <= m0.brier;
+    if (better) wins++;
+    console.log(`    분할 ${frac}: 선택 w=${best.w.toFixed(2)}  test 적중 ${(m0.acc * 100).toFixed(2)}% -> ${(mw.acc * 100).toFixed(2)}%  로그손실 ${m0.logloss.toFixed(4)} -> ${mw.logloss.toFixed(4)}  ${better ? "통과" : "미달"}`);
+  }
+  // argmin w만 보고 정하면 '제품으로 쓸 수 있는 값'을 못 고른다. w=1.0은 모델을 통째로
+  // 버리는 것이고 그러면 확신도 등급의 근거가 사라진다(등급은 모델 확률의 1위-2위 격차로
+  // 백테스트한 값이다). 축구에서 측정 최적이 1.0인데 0.8을 택한 것과 같은 이유다.
+  // 그래서 고정 w들이 각 test 분할에서 w=0 대비 어떤지 표로 낸다.
+  console.log(`    고정 w별 test 성적 (w=0 대비, 4분할 모두 통과해야 채택):`);
+  for (const w of [0.4, 0.6, 0.8, 1.0]) {
+    const cells: string[] = [];
+    let pass = 0, n = 0;
+    for (const frac of SPLITS) {
+      const cut = Math.floor(xs.length * frac);
+      const tr = xs.slice(0, cut), te = xs.slice(cut);
+      if (tr.length < 60 || te.length < 40) continue;
+      n++;
+      const mw = at(w, te), m0 = at(0, te);
+      const ok = mw.acc >= m0.acc && mw.logloss <= m0.logloss && mw.brier <= m0.brier;
+      if (ok) pass++;
+      cells.push(`${(mw.acc * 100).toFixed(1)}%/${mw.logloss.toFixed(4)}${ok ? "" : "*"}`);
+    }
+    console.log(`      w=${w.toFixed(1)}  ${cells.join("  ")}   ${pass}/${n} 통과`);
+  }
+  console.log(`      (*는 그 분할에서 w=0보다 나쁨)`);
+
+  if (!picked.length) { console.log(`    표본이 부족해 가중치를 정하지 않는다.`); return; }
+  const med = [...picked].sort((a, b) => a - b)[Math.floor(picked.length / 2)];
+  console.log(`    선택된 w: ${picked.map((w) => w.toFixed(2)).join(" / ")}  (중앙값 ${med.toFixed(2)})`);
+  console.log(`    ${wins}/${picked.length} 통과 -> ${wins === picked.length ? `채택 가능, ${name} marketWeight = ${med.toFixed(2)}` : "채택 기준 미달. 블렌딩 없이(w=0) 간다"}`);
 }
 
 function main() {
