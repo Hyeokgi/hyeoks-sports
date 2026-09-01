@@ -35,6 +35,35 @@ interface Odds {
 }
 
 const load = <T,>(p: string): T[] => JSON.parse(readFileSync(p, "utf8"));
+
+// 조인 키는 gameKey를 쪼갠 것이다. homeName은 'LG트윈스'처럼 정식명이라 우리 데이터('LG')와
+// 안 맞는다 - probe_baseball_overlap.ts에서 이름 매칭이 0%였던 게 정확히 이것인데,
+// 비교 스크립트를 짜면서 그걸 잊고 homeName을 썼다가 KBO까지 조인 0건이 나왔다.
+//   gameKey "LG:한화"    -> KBO는 우리 데이터 표기와 정확히 같다
+//   gameKey "뉴욕메츠:미네트윈" -> MLB는 4자 축약이라 대응표 학습이 필요하다
+// MLB는 날짜가 하루 어긋난다. statsapi는 미국 현지 경기일로 기록하고 프로토 타임스탬프는
+// KST로 떨어지므로, 미국 야간 경기는 KST에서 다음 날이 된다(실측: 프로토 2026-04-22
+// 뉴욕메츠:미네트윈 3:5 = seed 2026-04-21 Minnesota Twins@New York Mets 3:5).
+// 어느 방향인지 코드에 박지 않는다. 다만 무조건 앞뒤를 다 열면 KBO가 망가진다 -
+// 같은 두 팀이 3연전을 하므로 하루 밀린 날짜에도 같은 대진이 있어 '유일하지 않음'으로
+// 걸러진다(실제로 KBO 조인이 318 -> 38로 떨어졌다). 그래서 정확한 날짜를 먼저 보고,
+// 거기서 못 찾을 때만 앞뒤 하루를 본다. KBO는 정확일치로, MLB는 하루 보정으로 붙는다.
+const shiftDay = (d: string, n: number) =>
+  new Date(new Date(d + "T00:00:00Z").getTime() + n * 86400000).toISOString().slice(0, 10);
+
+// 정확한 날짜에서 유일하게 찾으면 그것, 없으면 앞뒤 하루에서 유일할 때만 채택한다.
+function pickUnique<T>(date: string, lookup: (d: string) => T[]): T | null {
+  const exact = lookup(date);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return null;
+  const alt = [shiftDay(date, -1), shiftDay(date, 1)].flatMap(lookup);
+  return alt.length === 1 ? alt[0] : null;
+}
+
+function keyPair(gameKey: string): [string, string] | null {
+  const parts = String(gameKey).split(":");
+  return parts.length === 2 && parts[0] && parts[1] ? [parts[0], parts[1]] : null;
+}
 const seasonOf = (d: string) => Number(d.slice(0, 4));
 
 // 시간순 Elo. 각 경기의 '경기 전' 격차와 그 시점의 소화 경기수를 기록한다.
@@ -90,10 +119,12 @@ function learnNameMap(odds: Odds[], seed: Seed[], scoreIsHomeFirst: boolean) {
     if (!o.score || !/^\d+:\d+$/.test(o.score)) continue;
     const [a, b] = o.score.split(":").map(Number);
     const [hs, as_] = scoreIsHomeFirst ? [a, b] : [b, a];
-    const cands = (byDate.get(o.date) ?? []).filter((g) => g.hs === hs && g.as === as_);
-    if (cands.length !== 1) continue; // 애매하면 표를 주지 않는다
-    vote(o.home, cands[0].home);
-    vote(o.away, cands[0].away);
+    const kp = keyPair(o.gameKey);
+    if (!kp) continue;
+    const hit = pickUnique(o.date, (d) => (byDate.get(d) ?? []).filter((g) => g.hs === hs && g.as === as_));
+    if (!hit) continue; // 같은 스코어가 여럿이면 애매하므로 표를 주지 않는다
+    vote(kp[0], hit.home);
+    vote(kp[1], hit.away);
   }
   const map = new Map<string, string>();
   for (const [kr, m] of votes) {
@@ -183,8 +214,10 @@ function runLeague(name: string, seed: Seed[], odds: Odds[]) {
   for (const o of odds) {
     if (o.league !== name) continue;
     if (!(o.winAllot > 0 && o.loseAllot > 0)) { noOdds++; continue; }
-    const h = toSeedName(o.home), a = toSeedName(o.away);
-    const rec = h && a ? tl.get(`${o.date}|${h}|${a}`) : undefined;
+    const kp = keyPair(o.gameKey);
+    if (!kp) { noJoin++; continue; }
+    const h = toSeedName(kp[0]), a = toSeedName(kp[1]);
+    const rec = h && a ? pickUnique(o.date, (d) => { const r = tl.get(`${d}|${h}|${a}`); return r ? [r] : []; }) : null;
     if (!rec) { noJoin++; continue; }
     if (!rec.warm) { noWarm++; continue; }
     if (rec.g.hs === rec.g.as) { tie++; continue; }
@@ -209,6 +242,27 @@ function runLeague(name: string, seed: Seed[], odds: Odds[]) {
   console.log(`  E 모델만    ${fmt(metrics(model))}`);
   console.log(`  기준 무조건홈 ${fmt(metrics(base))}  (2026 이전 홈승률 ${(pFixed * 100).toFixed(2)}% 고정)`);
   for (const b of blends) console.log(`  F 블렌딩 w=${b.w.toFixed(1)}  ${fmt(metrics(b.xs))}`);
+
+  // 조인된 경기가 그 기간 전체를 대표하는지 확인한다. 배당이 안 붙은 경기가 빠지므로
+  // 표본이 한쪽으로 쏠릴 수 있고, 그러면 절대 적중률을 기간 전체의 실력으로 읽으면 안 된다.
+  // (A와 E는 같은 경기에서 재므로 둘의 '비교'는 이 편향과 무관하게 유효하다.)
+  {
+    const lo = odds.filter((o) => o.league === name).map((o) => o.date).sort();
+    const from = lo[0], to = lo.at(-1)!;
+    const all = seed.filter((r) => r.date >= from && r.date <= to && r.hs !== r.as && tl.get(`${r.date}|${r.home}|${r.away}`)?.warm);
+    let hit = 0;
+    for (const r of all) {
+      const p = 1 / (1 + Math.pow(10, -(tl.get(`${r.date}|${r.home}|${r.away}`)!.diff + ha) / 400));
+      if ((p >= 0.5 ? 1 : 0) === (r.hs > r.as ? 1 : 0)) hit++;
+    }
+    const allAcc = hit / (all.length || 1);
+    const subAcc = metrics(model).acc;
+    console.log(`\n  표본 대표성: 같은 기간 전체 ${all.length}경기에서 모델 적중 ${(allAcc * 100).toFixed(2)}% vs 조인된 ${market.length}경기에서 ${(subAcc * 100).toFixed(2)}%`);
+    if (Math.abs(allAcc - subAcc) > 0.02) {
+      console.log(`  ** ${((subAcc - allAcc) * 100).toFixed(1)}%p 차이가 난다. 배당이 붙은 경기가 ${subAcc > allAcc ? "더 쉬운" : "더 어려운"} 쪽으로 쏠려 있다는 뜻이므로`);
+      console.log(`     아래 절대 적중률을 '이 리그에서 우리가 내는 실력'으로 읽으면 안 된다. A와 E의 비교만 유효하다.`);
+    }
+  }
 
   const mm = metrics(market), me = metrics(model);
   const d = mm.logloss - me.logloss;
