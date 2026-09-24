@@ -27,7 +27,8 @@ async function findRoundMasterSeq(gameYear, gameRound) {
   const url = `https://www.wisetoto.com/index.htm?tab_type=toto&game_type=sc&game_category=sc1&game_year=${gameYear}&game_round=${gameRound}`;
   const html = await fetchText(url);
   const m = html.match(/'toto','sc1','(\d+)','(\d+)','','','(\d+)',now_sports/);
-  return m && m[3] ? m[3] : null;
+  // 발매 전 회차는 master_seq가 "0"으로 온다. 문자열 "0"은 truthy라 따로 걸러야 한다.
+  return m && m[3] && Number(m[3]) !== 0 ? m[3] : null;
 }
 
 // round_no를 모르는 회차(수동 생성 등)를 위한 폴백.
@@ -94,45 +95,50 @@ function normalizeTeamName(name) {
   return name.replace(/\s+/g, "").replace(/FC$|FC1995$|2008$/i, "");
 }
 
-async function main() {
-  if (!ADMIN_TOKEN) throw new Error("ADMIN_TOKEN 환경변수가 필요합니다");
+// 배당을 모을 회차를 고른다. 예전엔 rounds[0](가장 최근 등록 회차) 하나만 봤는데, betman은
+// 여러 회차를 동시에 발매한다. 2026-09-24에 53~57회차가 한꺼번에 등록되자 57회차만 배당을
+// 받고 실제 발매중이던 55·56회차는 전 경기가 배당 없이 '근거없음(36/27/36)'으로 남았다.
+// 이제는 아직 킥오프 전 경기가 하나라도 남은 진행중 회차를 전부 돈다.
+// 킥오프가 지난 경기는 건드리지 않는다 - 경기 전 배당이 경기 후 값으로 덮이면 사후 비교가 오염된다.
+const KICKOFF_GRACE_MS = 5 * 60 * 1000;
 
-  const roundsRes = await fetch(`${WORKER_BASE_URL}/api/rounds`);
-  if (!roundsRes.ok) throw new Error(`/api/rounds 조회 실패: ${roundsRes.status}`);
-  const { rounds } = await roundsRes.json();
-  if (!rounds || rounds.length === 0) throw new Error("등록된 회차가 없습니다");
-  const round = rounds[0];
+function isBeforeKickoff(m, now) {
+  if (!m.kickoff_at) return true; // 시각을 모르면 수집 대상에 넣는다(기존 동작)
+  const k = Date.parse(m.kickoff_at);
+  return !Number.isFinite(k) || k - KICKOFF_GRACE_MS > now;
+}
+
+async function collectRound(round) {
+  const roundRes = await fetch(`${WORKER_BASE_URL}/api/rounds/${round.id}`);
+  if (!roundRes.ok) throw new Error(`/api/rounds/${round.id} 조회 실패: ${roundRes.status}`);
+  const { matches } = await roundRes.json();
+  const now = Date.now();
+  const open = matches.filter((m) => isBeforeKickoff(m, now));
+  if (open.length === 0) return { skipped: "all_kicked_off" };
 
   let gameYear = String(new Date().getUTCFullYear());
   let gameRound = round.round_no != null ? String(round.round_no) : null;
   let masterSeq = gameRound ? await findRoundMasterSeq(gameYear, gameRound) : null;
-  if (masterSeq) {
-    console.log(`wisetoto ${gameRound}회차 조회 (${gameYear}년, master_seq=${masterSeq})`);
-  } else {
+  if (!masterSeq) {
+    if (gameRound) {
+      // 회차번호를 아는데 못 찾으면 폴백하지 않는다. 여러 회차를 도는 지금은 '현재 회차'로
+      // 폴백하면 다른 회차 배당을 엉뚱한 회차에 넣을 수 있다(팀명 대조가 막아주긴 하지만).
+      console.log(`  ${gameRound}회차를 wisetoto에서 찾지 못해 스킵`);
+      return { skipped: "not_found" };
+    }
     const cur = await discoverCurrentRound();
     ({ gameYear, gameRound, masterSeq } = cur);
-    console.log(
-      `앱 회차(${round.round_no ?? "번호없음"})를 wisetoto에서 못 찾아 현재 회차로 폴백: ` +
-        `${gameRound} (${gameYear}년, master_seq=${masterSeq})`,
-    );
+    console.log(`  회차번호 없는 회차(id=${round.id}) - wisetoto 현재 회차 ${gameRound}로 폴백`);
   }
+  console.log(`wisetoto ${gameRound}회차 조회 (${gameYear}년, master_seq=${masterSeq}, 킥오프 전 ${open.length}경기)`);
 
   const games = await fetchGameList(gameYear, gameRound, masterSeq);
-  console.log(`${games.length}경기 발견`);
-
-  const roundRes = await fetch(`${WORKER_BASE_URL}/api/rounds/${round.id}`);
-  if (!roundRes.ok) throw new Error(`/api/rounds/${round.id} 조회 실패: ${roundRes.status}`);
-  const { matches } = await roundRes.json();
-
-  const bySig = new Map(matches.map((m) => [`${normalizeTeamName(m.home)}|${normalizeTeamName(m.away)}`, m.seq]));
+  const bySig = new Map(open.map((m) => [`${normalizeTeamName(m.home)}|${normalizeTeamName(m.away)}`, m.seq]));
 
   const oddsPayload = [];
   for (const g of games) {
     const seq = bySig.get(`${normalizeTeamName(g.home)}|${normalizeTeamName(g.away)}`);
-    if (!seq) {
-      console.log(`  스킵(회차 매치 안됨): ${g.home} vs ${g.away}`);
-      continue;
-    }
+    if (!seq) continue; // 킥오프가 지났거나 회차 매치가 안 되는 경기
     const odds = await fetchOdds(g.scheduleInfoSeq);
     if (!odds) {
       console.log(`  배당 없음: ${g.home} vs ${g.away}`);
@@ -146,8 +152,8 @@ async function main() {
   }
 
   if (oddsPayload.length === 0) {
-    console.log("매칭된 배당 데이터가 없어 저장을 건너뜁니다.");
-    return;
+    console.log("  매칭된 배당 데이터가 없어 저장을 건너뜁니다.");
+    return { written: 0 };
   }
 
   const writeRes = await fetch(`${WORKER_BASE_URL}/api/admin/rounds/${round.id}/market-odds`, {
@@ -157,7 +163,32 @@ async function main() {
   });
   if (!writeRes.ok) throw new Error(`저장 실패: ${writeRes.status} ${await writeRes.text()}`);
   const result = await writeRes.json();
-  console.log(`round ${round.id}: ${result.written}경기 배당 저장 완료`);
+  console.log(`  round ${round.id}(${gameRound}회차): ${result.written}경기 배당 저장 완료`);
+  return { written: result.written };
+}
+
+async function main() {
+  if (!ADMIN_TOKEN) throw new Error("ADMIN_TOKEN 환경변수가 필요합니다");
+
+  const roundsRes = await fetch(`${WORKER_BASE_URL}/api/rounds`);
+  if (!roundsRes.ok) throw new Error(`/api/rounds 조회 실패: ${roundsRes.status}`);
+  const { rounds } = await roundsRes.json();
+  if (!rounds || rounds.length === 0) throw new Error("등록된 회차가 없습니다");
+
+  const targets = rounds.filter((r) => r.status === "upcoming");
+  console.log(`진행중 회차 ${targets.length}개: ${targets.map((r) => r.round_no ?? `id${r.id}`).join(", ")}`);
+
+  // 한 회차가 실패해도 나머지는 계속 모은다. 전부 끝난 뒤 실패가 있으면 잡을 실패로 표시한다.
+  const failures = [];
+  for (const round of targets) {
+    try {
+      await collectRound(round);
+    } catch (e) {
+      console.error(`  ${round.round_no}회차 실패: ${e.message}`);
+      failures.push(round.round_no ?? round.id);
+    }
+  }
+  if (failures.length > 0) throw new Error(`배당 수집 실패 회차: ${failures.join(", ")}`);
 }
 
 main().catch((err) => {

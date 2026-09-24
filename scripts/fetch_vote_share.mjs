@@ -37,17 +37,7 @@ async function fetchGameInfo(gmTs) {
   }
 }
 
-async function main() {
-  if (!ADMIN_TOKEN) throw new Error("ADMIN_TOKEN 환경변수가 필요합니다");
-
-  const roundsRes = await fetch(`${WORKER_BASE_URL}/api/rounds`);
-  if (!roundsRes.ok) throw new Error(`/api/rounds 조회 실패: ${roundsRes.status}`);
-  const { rounds } = await roundsRes.json();
-  const round = (rounds ?? []).find((r) => r.status === "upcoming" && r.round_no_confirmed);
-  if (!round) {
-    console.log("발매중인 확정 회차가 없어 스킵합니다.");
-    return;
-  }
+async function collectRound(round) {
 
   const gmTs = Number(`26${String(round.round_no).padStart(4, "0")}`);
   console.log(`betman gmTs=${gmTs} (round_no=${round.round_no}) 조회 시도`);
@@ -103,6 +93,33 @@ async function main() {
   if (!writeRes.ok) throw new Error(`저장 실패: ${writeRes.status} ${await writeRes.text()}`);
   const result = await writeRes.json();
   console.log(`round ${round.id}: ${result.written}경기 투표율 저장 완료`);
+}
+
+// 예전엔 진행중 회차 중 가장 최근 등록(id DESC 첫 번째) 하나만 봤다. betman은 여러 회차를
+// 동시에 발매하므로, 53~57회차가 한꺼번에 등록된 뒤로 실제 발매중이던 55·56회차가 빠졌다.
+// 진행중이면서 회차번호가 확정된 회차를 전부 돈다. 끝난 회차는 betman이 빈 응답을 주고 스킵된다.
+async function main() {
+  if (!ADMIN_TOKEN) throw new Error("ADMIN_TOKEN 환경변수가 필요합니다");
+
+  const roundsRes = await fetch(`${WORKER_BASE_URL}/api/rounds`);
+  if (!roundsRes.ok) throw new Error(`/api/rounds 조회 실패: ${roundsRes.status}`);
+  const { rounds } = await roundsRes.json();
+  const targets = (rounds ?? []).filter((r) => r.status === "upcoming" && r.round_no_confirmed);
+  if (targets.length === 0) {
+    console.log("발매중인 확정 회차가 없어 스킵합니다.");
+    return;
+  }
+
+  const failures = [];
+  for (const round of targets) {
+    try {
+      await collectRound(round);
+    } catch (e) {
+      console.error(`${round.round_no}회차 실패: ${e.message}`);
+      failures.push(round.round_no);
+    }
+  }
+  if (failures.length > 0) throw new Error(`투표율 수집 실패 회차: ${failures.join(", ")}`);
 }
 
 main().catch((err) => {
