@@ -14,9 +14,15 @@ import { predictMatch, DEFAULT_TOGGLES, FALLBACK_DRAW_RATE } from "../src/lib/pr
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
 
 const HEADERS = { "User-Agent": "Mozilla/5.0", Referer: "https://www.wisetoto.com/index.htm" };
+// get_toto_list.htm은 X-Requested-With가 없으면 403("잘못된 접근입니다.[code:gtoto_xrw]")이다.
+// 2026-09-24 실측(seed/wisetoto_403_probe.txt). 엔드포인트로 갈라 붙인다 - index.htm에
+// 붙이는 조합은 검증하지 않았다.
+const AJAX_HEADERS = { ...HEADERS, "X-Requested-With": "XMLHttpRequest" };
+const headersFor = (u: string | URL) => (String(u).includes("/util/gameinfo/") ? AJAX_HEADERS : HEADERS);
+
 
 async function fetchText(url: string): Promise<string> {
-  const res = await fetch(url, { headers: HEADERS });
+  const res = await fetch(url, { headers: headersFor(url) });
   if (!res.ok) throw new Error(`fetch 실패 ${res.status}: ${url}`);
   return new TextDecoder("utf-8").decode(await res.arrayBuffer());
 }

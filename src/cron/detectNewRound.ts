@@ -7,17 +7,86 @@ import { NAME_MAP, leagueOfKr, isModelLeague } from "../lib/nameMap";
 import { sendTelegramMessage } from "../lib/telegram";
 import type { Env } from "../types";
 
-export async function detectNewRound(env: Env): Promise<{ created: boolean; roundId?: number; reason?: string }> {
+// 한 번 실행에 따라잡을 최대 회차 수. 밀린 걸 메우되 wisetoto를 과하게 두드리지 않는 선.
+const MAX_CATCHUP = 4;
+
+/**
+ * 발매된 회차를 찾아 등록한다. 밀려 있으면 여러 회차를 따라잡는다.
+ *
+ * 종전에는 MAX(round_no)+1 한 회차만 시도하고 실패하면 그대로 끝냈다. 그 결과 53회차가
+ * 경기목록 403으로 실패한 뒤 54~56회차는 시도조차 되지 않아, 앱이 52회차에 4주 넘게
+ * 멈춰 있었다(2026-09-24 확인). 한 회차의 일시적 실패가 파이프라인을 영구히 세우는 구조였다.
+ *
+ * 이제는 '아직 발매 전'일 때만 멈춘다. 그건 위쪽에 회차가 없다는 뜻이라 더 볼 이유가 없다.
+ * 그 외 실패(403, 빈 응답 등)는 건너뛰고 다음 회차를 계속 시도한다 - 최신 회차를 보여주는
+ * 게 마감이 있는 서비스에서 더 중요하다. 건너뛴 회차는 조용히 두지 않고 텔레그램으로 알린다.
+ */
+export async function detectNewRound(
+  env: Env,
+): Promise<{ created: boolean; roundId?: number; reason?: string; createdRounds?: number[] }> {
   const maxRow = await env.DB.prepare(
     "SELECT MAX(round_no) as max_round_no FROM rounds WHERE round_no IS NOT NULL",
   ).first<{ max_round_no: number | null }>();
-  const roundNo = (maxRow?.max_round_no ?? 0) + 1;
+  const base = maxRow?.max_round_no ?? 0;
   const gameYear = String(new Date().getUTCFullYear());
 
+  const createdRounds: number[] = [];
+  const skipped: Array<{ roundNo: number; reason: string }> = [];
+  let lastRoundId: number | undefined;
+  let lastReason: string | undefined;
+
+  for (let i = 1; i <= MAX_CATCHUP; i++) {
+    const roundNo = base + i;
+    const r = await registerRound(env, roundNo, gameYear);
+    if (r.created) {
+      createdRounds.push(roundNo);
+      lastRoundId = r.roundId;
+      if (r.reason) lastReason = r.reason;
+      continue;
+    }
+    lastReason = r.reason;
+    if (r.reason === "round_not_yet_open") break; // 위쪽에 회차가 없다 - 정상 종료
+    skipped.push({ roundNo, reason: r.reason ?? "unknown" });
+  }
+
+  if (skipped.length > 0) {
+    console.error(`detectNewRound: 건너뛴 회차 ${skipped.map((s) => `${s.roundNo}(${s.reason})`).join(", ")}`);
+    await sendTelegramMessage(
+      env,
+      `⚠️ <b>등록에 실패한 회차가 있습니다</b>\n\n` +
+        `${skipped.map((s) => `· ${s.roundNo}회차 — ${s.reason}`).join("\n")}\n\n` +
+        `이후 회차는 계속 등록했습니다(빠진 회차는 비어 있습니다). ` +
+        `같은 사유가 반복되면 wisetoto 응답이 바뀐 것이므로 확인이 필요합니다.`,
+    );
+  }
+
+  if (createdRounds.length === 0) return { created: false, reason: lastReason ?? "unknown" };
+  return {
+    created: true,
+    roundId: lastRoundId,
+    createdRounds,
+    ...(lastReason && lastReason !== "round_not_yet_open" ? { reason: lastReason } : {}),
+  };
+}
+
+async function registerRound(
+  env: Env,
+  roundNo: number,
+  gameYear: string,
+): Promise<{ created: boolean; roundId?: number; reason?: string }> {
   const masterSeq = await discoverRoundMasterSeq(gameYear, String(roundNo));
   if (!masterSeq) return { created: false, reason: "round_not_yet_open" };
 
-  const wtFixtures = await fetchRoundFixtures(gameYear, String(roundNo), masterSeq);
+  // fetchRoundFixtures는 HTTP 실패 시 throw한다. 여기서 잡지 않으면 예외가 루프를 뚫고
+  // 올라가 나머지 회차가 다시 시도되지 않는다 - 그게 이번 403 사고의 전파 경로였다.
+  let wtFixtures;
+  try {
+    wtFixtures = await fetchRoundFixtures(gameYear, String(roundNo), masterSeq);
+  } catch (e) {
+    const msg = (e as Error).message;
+    console.error(`detectNewRound: ${roundNo}회차 경기목록 요청 실패 - ${msg}`);
+    return { created: false, reason: `fetch_failed:${msg.slice(0, 120)}` };
+  }
   if (wtFixtures.length === 0) {
     console.error(`detectNewRound: wisetoto ${roundNo}회차 경기목록을 가져오지 못해 스킵`);
     return { created: false, reason: "empty_fetch" };

@@ -2,12 +2,23 @@
 // (scripts/fetch_market_odds.mjs에서 이미 검증된 파싱 패턴과 동일 계열)
 const HEADERS = { "User-Agent": "Mozilla/5.0", Referer: "https://www.wisetoto.com/index.htm" };
 
+// get_toto_list.htm은 AJAX 전용으로 굳어져 X-Requested-With가 없으면 403을 준다.
+// 본문이 "잘못된 접근입니다.[code:gtoto_xrw]"인데 코드 뒤 xrw가 X-Requested-With를 가리킨다.
+// 2026-09-24에 이걸로 53회차 등록이 막혀 앱이 52회차에 4주 넘게 멈춰 있었다
+// (index.htm은 200이라 masterSeq는 정상 탐색돼서 '발매 전'처럼 보였다).
+// 조합을 실측해 갈랐다(seed/wisetoto_403_probe.txt): 브라우저 UA만으로는 여전히 403이고,
+// X-Requested-With를 넣는 순간 200 + 24,336자가 온다. 쿠키·Referer는 필요 없었다.
+// index.htm에는 붙이지 않는다 - 그 조합은 검증하지 않았고 지금 잘 돌고 있다.
+const AJAX_HEADERS = { ...HEADERS, "X-Requested-With": "XMLHttpRequest" };
+
 // 상대가 응답을 안 주면 이 호출을 품고 있는 크론(refreshHistory/detectNewRound) 전체가 매달린다.
 // 실제로 admin/sync가 17분 넘게 반환되지 않는 일이 있었다. 응답 없으면 포기하고 다음 주기에 재시도한다.
 const FETCH_TIMEOUT_MS = 15000;
 
 async function fetchText(url: string): Promise<string> {
-  const res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  // 엔드포인트별로 필요한 헤더가 다르다. 호출부가 매번 고르게 하면 한 군데를 빼먹는다.
+  const headers = url.includes("/util/gameinfo/") ? AJAX_HEADERS : HEADERS;
+  const res = await fetch(url, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`wisetoto fetch 실패 ${res.status}: ${url}`);
   const buf = await res.arrayBuffer();
   return new TextDecoder("utf-8").decode(buf);
