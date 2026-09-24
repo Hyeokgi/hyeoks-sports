@@ -85,7 +85,15 @@ async function main() {
     const hgIx = [ix("HG"), ix("FTHG")].find((i) => i >= 0) ?? -1;
     const agIx = [ix("AG"), ix("FTAG")].find((i) => i >= 0) ?? -1;
     const oddsSets: Array<[number, number, number]> = [];
-    for (const [h, d, a] of [["AvgH", "AvgD", "AvgA"], ["PH", "PD", "PA"], ["B365H", "B365D", "B365A"]]) {
+    // 이 파일들은 종가 배당만 있다(열 이름 끝의 C = closing). 1차 실행에서 AvgH 같은
+    // 개장 배당 열만 찾다가 0세트가 나왔다 - 헤더: PSCH, AvgCH, B365CH, MaxCH, BFECH ...
+    // 앱은 종가가 아니라 wisetoto 스냅샷을 쓰므로 종가는 약간 낙관적인 대리값이다.
+    // 다만 유럽에서 개장(Avg 53.82%)과 종가(B365 54.54%)의 차이가 0.7%p였으므로
+    // (seed/bookmaker_comparison.json) 가중치 방향을 정하는 데는 충분하다.
+    for (const [h, d, a] of [
+      ["AvgH", "AvgD", "AvgA"], ["PH", "PD", "PA"], ["B365H", "B365D", "B365A"],
+      ["AvgCH", "AvgCD", "AvgCA"], ["PSCH", "PSCD", "PSCA"], ["B365CH", "B365CD", "B365CA"],
+    ]) {
       if (ix(h) >= 0 && ix(d) >= 0 && ix(a) >= 0) oddsSets.push([ix(h), ix(d), ix(a)]);
     }
     console.log(`  열 위치: Date ${dateIx} / Home ${homeIx} / Away ${awayIx} / HG ${hgIx} / AG ${agIx} / 배당세트 ${oddsSets.length}개`);

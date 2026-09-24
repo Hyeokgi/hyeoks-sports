@@ -534,6 +534,19 @@ jobs:
         run: npm ci
       - name: Probe KBO series field
         run: npx tsx scripts/probe_kbo_series.ts
+      - name: Commit probe output
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seed/kbo_series_probe.txt
+          git diff --staged --quiet || git commit -m "KBO 시리즈 구분 조사 결과 (자동)"
+          # 러너가 도는 동안 브랜치가 앞서 나갈 수 있다. 그냥 push하면 non-fast-forward로
+          # 거절되고, 조사 결과가 조용히 사라진다(실제로 한 번 그렇게 잃었다).
+          # --autostash: playwright 설치 스텝이 package.json/lock을 건드려 두면
+          # 그냥 rebase는 'unstaged changes'로 거절된다(probe-baseball-products가 이걸로 죽었다).
+          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
+          git push origin HEAD:${GITHUB_REF_NAME}
 
   probe-baseball-products:
     if: github.event_name == 'workflow_dispatch' && inputs.task == 'probe-baseball-products'
@@ -553,6 +566,19 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Probe baseball products
         run: npx tsx scripts/probe_baseball_products.ts
+      - name: Commit probe output
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seed/baseball_products.txt
+          git diff --staged --quiet || git commit -m "야구 조합 상품 조사 결과 (자동)"
+          # 러너가 도는 동안 브랜치가 앞서 나갈 수 있다. 그냥 push하면 non-fast-forward로
+          # 거절되고, 조사 결과가 조용히 사라진다(실제로 한 번 그렇게 잃었다).
+          # --autostash: playwright 설치 스텝이 package.json/lock을 건드려 두면
+          # 그냥 rebase는 'unstaged changes'로 거절된다(probe-baseball-products가 이걸로 죽었다).
+          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
+          git push origin HEAD:${GITHUB_REF_NAME}
 
   probe-baseball-overlap:
     if: github.event_name == 'workflow_dispatch' && inputs.task == 'probe-baseball-overlap'
@@ -572,6 +598,15 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Probe baseball overlap
         run: npx tsx scripts/probe_baseball_overlap.ts
+      - name: Commit probe output
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seed/baseball_overlap.txt
+          git diff --staged --quiet || git commit -m "야구토토-프로토 겹침 조사 결과 (자동)"
+          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
+          git push origin HEAD:${GITHUB_REF_NAME}
 
   fetch-proto-odds:
     if: github.event_name == 'workflow_dispatch' && inputs.task == 'fetch-proto-odds'
@@ -703,28 +738,6 @@ jobs:
         run: npm ci
       - name: Measure market weight for non-European leagues
         run: npx tsx scripts/measure_market_weight_extra.ts
-      - name: Commit probe output
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add seed/baseball_overlap.txt
-          git diff --staged --quiet || git commit -m "야구토토-프로토 겹침 조사 결과 (자동)"
-          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
-          git push origin HEAD:${GITHUB_REF_NAME}
-      - name: Commit probe output
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add seed/baseball_products.txt
-          git diff --staged --quiet || git commit -m "야구 조합 상품 조사 결과 (자동)"
-          # 러너가 도는 동안 브랜치가 앞서 나갈 수 있다. 그냥 push하면 non-fast-forward로
-          # 거절되고, 조사 결과가 조용히 사라진다(실제로 한 번 그렇게 잃었다).
-          # --autostash: playwright 설치 스텝이 package.json/lock을 건드려 두면
-          # 그냥 rebase는 'unstaged changes'로 거절된다(probe-baseball-products가 이걸로 죽었다).
-          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
-          git push origin HEAD:${GITHUB_REF_NAME}
 
   backtest-baseball:
     if: github.event_name == 'workflow_dispatch' && inputs.task == 'backtest-baseball'
@@ -738,19 +751,6 @@ jobs:
         run: npm ci
       - name: Backtest baseball
         run: npx tsx scripts/backtest_baseball.ts
-      - name: Commit probe output
-        if: always()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add seed/kbo_series_probe.txt
-          git diff --staged --quiet || git commit -m "KBO 시리즈 구분 조사 결과 (자동)"
-          # 러너가 도는 동안 브랜치가 앞서 나갈 수 있다. 그냥 push하면 non-fast-forward로
-          # 거절되고, 조사 결과가 조용히 사라진다(실제로 한 번 그렇게 잃었다).
-          # --autostash: playwright 설치 스텝이 package.json/lock을 건드려 두면
-          # 그냥 rebase는 'unstaged changes'로 거절된다(probe-baseball-products가 이걸로 죽었다).
-          git pull --rebase --autostash origin ${GITHUB_REF_NAME}
-          git push origin HEAD:${GITHUB_REF_NAME}
 
   fetch-kbo-history:
     if: github.event_name == 'workflow_dispatch' && inputs.task == 'fetch-kbo-history'
