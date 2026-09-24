@@ -27,6 +27,8 @@ interface MatchData {
   };
   // 회차가 정산되면 채워짐(경기 전이면 null) - 적중현황 표시용.
   result: { actual: "H" | "D" | "A"; hg: number; ag: number } | null;
+  // 킥오프 이후에 등록돼 예측에 결과가 섞인 경기. 적중/실패를 매기지 않는다(구버전 API면 undefined).
+  predictedAfterKickoff?: boolean;
   // betman 투표(매수)율 최신 스냅샷 %. 발매 전/미수집이면 null - 독식 픽 계산에 사용.
   voteShare: { home: number; draw: number; away: number } | null;
 }
@@ -216,9 +218,16 @@ function renderToggles() {
 }
 
 function renderRoundSummary() {
-  const settled = currentMatches.filter((m) => m.result);
+  // 사후 등록 경기는 답을 본 뒤의 예측이라 적중률에 넣지 않는다.
+  const late = currentMatches.filter((m) => m.result && m.predictedAfterKickoff).length;
+  const settled = currentMatches.filter((m) => m.result && !m.predictedAfterKickoff);
   if (settled.length === 0) {
-    roundSummaryEl.hidden = true;
+    if (late > 0) {
+      roundSummaryEl.hidden = false;
+      roundSummaryEl.innerHTML = `<span class="summary-note">경기가 끝난 뒤 등록된 회차라 적중 집계에서 제외했습니다 (${late}경기)</span>`;
+    } else {
+      roundSummaryEl.hidden = true;
+    }
     return;
   }
   let correct = 0;
@@ -227,11 +236,12 @@ function renderRoundSummary() {
     if (prediction.rankedPicks[0] === RESULT_LABEL[m.result!.actual]) correct++;
   }
   const pct = ((correct / settled.length) * 100).toFixed(1);
-  const ongoing = currentMatches.length - settled.length;
+  const ongoing = currentMatches.filter((m) => !m.result).length;
   roundSummaryEl.hidden = false;
   roundSummaryEl.innerHTML =
     `<span class="summary-stat">${icon("check")}${correct}/${settled.length} 적중 (${pct}%)</span>` +
-    (ongoing > 0 ? `<span class="summary-note">진행중 ${ongoing}경기 제외</span>` : "");
+    (ongoing > 0 ? `<span class="summary-note">진행중 ${ongoing}경기 제외</span>` : "") +
+    (late > 0 ? `<span class="summary-note">사후 등록 ${late}경기 제외</span>` : "");
 }
 
 // 헤지(복식/삼복식)는 확신도가 낮은 경기부터 넣는 게 확률상 최적이다(combinations.ts와 동일 기준).
@@ -296,7 +306,11 @@ function renderMatches() {
           : `<span class="kickoff-badge">${k.text} <em>KST</em></span>`;
       }
     }
-    if (m.result) {
+    if (m.result && m.predictedAfterKickoff) {
+      // 킥오프 뒤에 계산된 예측은 결과를 이미 품고 있다. 적중/실패 대신 그 사실을 보여준다.
+      resultBadge =
+        `<span class="result-badge late" title="경기가 끝난 뒤 등록돼 예측에 결과가 반영됨 - 적중 집계 제외">사후 등록</span>`;
+    } else if (m.result) {
       const hit = prediction.rankedPicks[0] === RESULT_LABEL[m.result.actual];
       // 스코어는 배지가 아니라 대진줄 가운데(중계 화면처럼)에 둔다 - 팀명 사이에 있어야
       // 어느 팀이 몇 점인지 바로 읽힌다. 배지는 우리 픽의 적중 여부만 말한다.

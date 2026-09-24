@@ -380,6 +380,11 @@ main {
   background: rgba(239, 68, 68, 0.14);
   color: var(--away);
 }
+/* 사후 등록: 적중/실패 어느 쪽도 아니라 중립색 */
+.result-badge.late {
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--muted);
+}
 
 .round-summary {
   display: flex;

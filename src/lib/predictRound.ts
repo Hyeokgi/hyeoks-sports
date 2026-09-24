@@ -20,6 +20,9 @@ export interface MatchWithPrediction {
   calibration: { bucket: CalibrationBucket | null; tier: ConfidenceTier };
   // 모델픽-시장픽 합의여부/조건부 역배당 신호(참고용, upsetSignal.ts 주석 참고).
   upsetSignal: UpsetSignal;
+  // 예측 성분이 킥오프 이후에 계산됐는가. 그렇다면 Elo·폼에 그 경기 결과가 이미 들어 있어
+  // 적중/실패를 매기면 안 된다(predictedAfterKickoff 주석 참고).
+  predictedAfterKickoff: boolean;
   raw: {
     eloDiff: number;
     formDiff: number;
@@ -37,6 +40,24 @@ export interface MatchWithPrediction {
 // 표시되므로(격차 0 + 홈어드밴티지라는 가짜 신호), 규칙을 한 곳에 두고 테스트로 고정한다.
 export function resolveMarketOnly(storedMarketOnly: number | null | undefined, league: string): boolean {
   return storedMarketOnly == null ? !isModelLeague(league) : storedMarketOnly === 1;
+}
+
+/**
+ * 예측 성분(round_predictions.computed_at)이 킥오프 이후에 만들어졌는지.
+ *
+ * 성분은 회차 등록 시점의 Elo·폼·H2H로 한 번 고정된다. 보통은 발매 중에 등록되니 문제가
+ * 없지만, 회차 감지가 멈췄다가 따라잡으면(2026-09-24: 52회차에서 4주 멈춘 뒤 53~57회차를
+ * 한꺼번에 등록) 이미 끝난 경기를 그 결과가 반영된 Elo로 '예측'하게 된다. 그걸 적중으로
+ * 세면 답을 보고 맞힌 걸 모델 성적으로 보여주는 셈이다. 화면과 시트에서 집계를 빼기 위한 판정.
+ *
+ * 킥오프 시각을 모르면(파싱 실패) 판단 근거가 없으니 기존처럼 집계에 넣는다.
+ */
+export function predictedAfterKickoff(computedAt: string | null | undefined, kickoffAt: string | null | undefined): boolean {
+  if (!computedAt || !kickoffAt) return false;
+  const c = Date.parse(computedAt);
+  const k = Date.parse(kickoffAt);
+  if (!Number.isFinite(c) || !Number.isFinite(k)) return false;
+  return c >= k;
 }
 
 export async function buildRoundPredictions(
@@ -93,6 +114,7 @@ export async function buildRoundPredictions(
       prediction,
       calibration,
       upsetSignal,
+      predictedAfterKickoff: predictedAfterKickoff(raw.computed_at, m.kickoff_at),
       raw: {
         eloDiff: raw.elo_diff,
         formDiff: raw.form_diff,
