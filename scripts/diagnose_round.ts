@@ -16,7 +16,28 @@
 //   기준회차 생략 시 CURRENT_ROUND 상수를 쓴다. 앞뒤 2회차를 함께 조회한다.
 const HEADERS = { "User-Agent": "Mozilla/5.0", Referer: "https://www.wisetoto.com/index.htm" };
 const MASTER_SEQ_RE = /'toto','sc1','(\d+)','(\d+)','','','(\d+)',now_sports/;
-const CURRENT_ROUND = 46; // D1에 등록된 최신 회차(대조군 기준점)
+const BASE = process.env.WORKER_BASE_URL ?? "https://kleague-toto-predictor.hyeoks.workers.dev";
+const FALLBACK_ROUND = 46; // 워커를 못 읽을 때만 쓰는 값
+
+// 기준 회차를 상수로 박아두면 안 된다. 46으로 고정돼 있어서 앱이 52에 멈춰 있는데도
+// 진단이 46~48만 훑고 "정상"이라고 말하고 있었다. 앱에 실제로 등록된 최신 회차를 읽어
+// 스스로 기준을 잡는다 - 그래야 다음에 또 밀렸을 때도 이 스크립트가 잡아낸다.
+async function latestRegisteredRound(): Promise<{ round: number | null; rounds: number[] }> {
+  try {
+    const res = await fetch(`${BASE}/api/rounds`, { signal: AbortSignal.timeout(20000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data: any = await res.json();
+    const list: any[] = Array.isArray(data) ? data : (data?.rounds ?? []);
+    const rounds = list
+      .map((r) => Number(r.round_no ?? r.roundNo ?? r.round))
+      .filter((n) => Number.isFinite(n))
+      .sort((a, b) => a - b);
+    return { round: rounds.length ? rounds[rounds.length - 1] : null, rounds };
+  } catch (e) {
+    console.log(`(앱 회차 조회 실패: ${(e as Error).message} - 기준을 인자/기본값에서 가져온다)`);
+    return { round: null, rounds: [] };
+  }
+}
 
 async function probe(gameYear: string, round: number) {
   const url = `https://www.wisetoto.com/index.htm?tab_type=toto&game_type=sc&game_category=sc1&game_year=${gameYear}&game_round=${round}`;
@@ -51,13 +72,18 @@ async function probe(gameYear: string, round: number) {
 }
 
 async function main() {
-  const base = Number(process.argv[2]) || CURRENT_ROUND;
+  const { round: latest, rounds } = await latestRegisteredRound();
+  if (rounds.length) {
+    console.log(`앱(D1)에 등록된 회차: ${rounds.slice(-8).join(", ")}${rounds.length > 8 ? " (최근 8개)" : ""}`);
+  }
+  const base = Number(process.argv[2]) || latest || FALLBACK_ROUND;
   const gameYear = String(new Date().getUTCFullYear());
-  console.log(`기준 회차 ${base} / game_year ${gameYear}\n`);
+  console.log(`기준 회차 ${base}${latest && !process.argv[2] ? " (앱 최신 회차에서 자동 산출)" : ""} / game_year ${gameYear}\n`);
   console.log("wisetoto 회차별 조회:");
 
+  // 앞뒤 2회차만 보면 여러 회차가 밀린 상황을 놓친다. 뒤로 넉넉히 훑는다.
   const results = [];
-  for (const r of [base - 1, base, base + 1, base + 2]) {
+  for (const r of [base - 1, base, base + 1, base + 2, base + 3, base + 4]) {
     results.push(await probe(gameYear, r));
     await new Promise((res) => setTimeout(res, 700));
   }
@@ -78,10 +104,17 @@ async function main() {
     console.log(`    다음 회차(${base + 1})가 아직 발매 전이라 감지되지 않는 것이다.`);
     console.log("    발매되면 Worker 크론(6시간)이 자동으로 등록한다.");
   } else {
-    const hit = future.find((r) => r.ok)!;
+    const openFuture = future.filter((r) => r.ok);
+    const hit = openFuture[0];
     console.log(`  ● ${hit.round}회차가 이미 발매됐다(masterSeq=${hit.masterSeq}).`);
-    console.log("    등록이 안 됐다면 발매 문제가 아니라 팀명 매핑(NAME_MAP) 누락일 수 있다.");
-    console.log("    generate_round.yml을 실행해 detect-round 응답의 reason을 확인할 것.");
+    if (openFuture.length > 1) {
+      console.log(`    발매됐는데 앱에 없는 회차가 ${openFuture.length}개다: ${openFuture.map((r) => r.round).join(", ")}`);
+      console.log("    한 회차만 밀린 게 아니므로 '아직 발매 전'으로는 설명되지 않는다.");
+    }
+    console.log("    파서는 살아 있으니 등록 단계에서 막힌 것이다. 다음을 순서대로 본다:");
+    console.log("      1) 워커 크론이 도는가 (배포 상태, CRON 트리거)");
+    console.log("      2) detect-round 응답의 reason (팀명 매핑 누락이면 그 표기가 찍힌다)");
+    console.log("      3) NAME_MAP에 없는 팀이 있으면 배당 기반으로라도 등록되는지");
   }
 }
 
