@@ -6,6 +6,14 @@ import { NAME_MAP } from "../lib/nameMap";
 import { settleRounds } from "../lib/settlement";
 import type { Env, League } from "../types";
 
+// D1 batch 한 번에 넣을 문장 수. 너무 크면 한 트랜잭션이 길어지니 적당히 자른다.
+const INSERT_CHUNK = 100;
+
+// 코너 수집은 경기마다 FotMob 외부 요청이 하나씩 나간다. 오래 밀렸다가 한꺼번에 들어오면
+// 외부 요청 한도를 넘길 수 있어 한 번에 이만큼만 처리한다. 나머지는 코너가 비어 남는다
+// (피처가 없을 때의 기본값으로 처리되고, 이 경기들은 INSERT OR IGNORE라 다시 오지 않는다).
+const MAX_CORNER_FETCHES = 20;
+
 interface NewK2Match {
   fotmobId: number;
   date: string;
@@ -17,21 +25,31 @@ export async function refreshHistory(env: Env): Promise<{ inserted: number; leag
   let inserted = 0;
   const newK2Matches: NewK2Match[] = [];
 
+  // FotMob 페이지는 시즌 전체 종료 경기를 돌려준다(8개 리그 합계 수천 건). 예전엔 경기마다
+  // INSERT를 한 번씩 날렸는데, 워커는 호출 한 번에 D1 요청을 1,000회까지만 허용해서 시즌이
+  // 쌓이자 "Too many API requests by single Worker invocation"으로 sync 전체가 500이 났다
+  // (2026-09-24 확인, diagnose-sync 잡). 그러면 뒤에 오는 Elo 재계산·정산까지 통째로 멈춘다.
+  // batch는 묶음 하나가 요청 1회로 계산되므로 청크로 나눠 보낸다. 결과 배열 순서가 입력과
+  // 같아서 경기별 meta.changes로 '새로 들어간 경기'를 그대로 가려낼 수 있다.
   for (const [leagueName, leagueId] of Object.entries(LEAGUE_IDS)) {
     const finished = await fetchFinishedMatches(leagueId);
-    for (const m of finished) {
-      const result = await env.DB.prepare(
-        "INSERT OR IGNORE INTO matches (league, date, home, away, hg, ag) VALUES (?, ?, ?, ?, ?, ?)",
-      )
-        .bind(leagueName, m.date, m.home, m.away, m.hg, m.ag)
-        .run();
-      if (result.meta.changes > 0) {
+    for (let i = 0; i < finished.length; i += INSERT_CHUNK) {
+      const chunk = finished.slice(i, i + INSERT_CHUNK);
+      const results = await env.DB.batch(
+        chunk.map((m) =>
+          env.DB.prepare(
+            "INSERT OR IGNORE INTO matches (league, date, home, away, hg, ag) VALUES (?, ?, ?, ?, ?, ?)",
+          ).bind(leagueName, m.date, m.home, m.away, m.hg, m.ag),
+        ),
+      );
+      chunk.forEach((m, j) => {
+        if ((results[j]?.meta.changes ?? 0) === 0) return;
         inserted++;
         // 코너킥은 K리그2 한정 실증 검증된 피처(다른 리그는 백테스트 결과 무효/역효과) - 그 리그만 수집
         if (leagueName === "K리그2" && m.id) {
           newK2Matches.push({ fotmobId: m.id, date: m.date, home: m.home, away: m.away });
         }
-      }
+      });
     }
   }
 
@@ -47,7 +65,7 @@ export async function refreshHistory(env: Env): Promise<{ inserted: number; leag
 }
 
 async function fetchAndStoreK2Corners(env: Env, matches: NewK2Match[]): Promise<void> {
-  for (const m of matches) {
+  for (const m of matches.slice(-MAX_CORNER_FETCHES)) {
     const corners = await fetchMatchCorners(m.fotmobId);
     if (!corners) continue;
     await env.DB.prepare(

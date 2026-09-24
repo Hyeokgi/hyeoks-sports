@@ -27,6 +27,9 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
       .all<{ round_match_id: number }>();
     const settledIds = new Set((alreadySettled ?? []).map((r) => r.round_match_id));
 
+    // 쓰기는 모아서 회차당 batch 한 번으로 보낸다. 워커 호출 하나당 D1 요청 1,000회 한도가
+    // 있어서, 경기마다 따로 쓰면 밀린 회차가 여러 개일 때 sync 전체가 500으로 죽는다.
+    const writes: D1PreparedStatement[] = [];
     for (const rm of roundMatches) {
       if (settledIds.has(rm.id)) continue;
       const homeEn = NAME_MAP[rm.home_kr];
@@ -45,11 +48,11 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
       if (!match) continue;
 
       const actual = match.hg > match.ag ? "H" : match.hg === match.ag ? "D" : "A";
-      await env.DB.prepare(
-        "INSERT OR REPLACE INTO round_results (round_match_id, actual, hg, ag, settled_at) VALUES (?, ?, ?, ?, ?)",
-      )
-        .bind(rm.id, actual, match.hg, match.ag, new Date().toISOString())
-        .run();
+      writes.push(
+        env.DB.prepare(
+          "INSERT OR REPLACE INTO round_results (round_match_id, actual, hg, ag, settled_at) VALUES (?, ?, ?, ?, ?)",
+        ).bind(rm.id, actual, match.hg, match.ag, new Date().toISOString()),
+      );
       settledIds.add(rm.id);
       matchesUpdated++;
     }
@@ -78,11 +81,11 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
           for (const rm of unsettled) {
             const r = wt.get(rm.seq);
             if (!r) continue;
-            await env.DB.prepare(
-              "INSERT OR REPLACE INTO round_results (round_match_id, actual, hg, ag, settled_at) VALUES (?, ?, ?, ?, ?)",
-            )
-              .bind(rm.id, r.actual, r.hg, r.ag, new Date().toISOString())
-              .run();
+            writes.push(
+              env.DB.prepare(
+                "INSERT OR REPLACE INTO round_results (round_match_id, actual, hg, ag, settled_at) VALUES (?, ?, ?, ?, ?)",
+              ).bind(rm.id, r.actual, r.hg, r.ag, new Date().toISOString()),
+            );
             settledIds.add(rm.id);
             matchesUpdated++;
           }
@@ -94,9 +97,10 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
     }
 
     if (settledIds.size === roundMatches.length) {
-      await env.DB.prepare("UPDATE rounds SET status = 'settled' WHERE id = ?").bind(round.id).run();
+      writes.push(env.DB.prepare("UPDATE rounds SET status = 'settled' WHERE id = ?").bind(round.id));
       roundsSettled++;
     }
+    if (writes.length > 0) await env.DB.batch(writes);
   }
 
   return { settled: roundsSettled, matchesUpdated };
