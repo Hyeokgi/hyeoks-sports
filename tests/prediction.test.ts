@@ -8,6 +8,7 @@ import {
   marketWeightForLeague,
 } from "../src/lib/prediction";
 import fixture from "./fixtures/round42_prediction_v2.json";
+import { parseMasterSeq } from "../src/lib/wisetoto";
 
 const LEAGUE_DRAW_RATE: Record<string, number> = {
   "K리그1": 0.2849,
@@ -152,5 +153,24 @@ describe("리그별 marketWeight", () => {
     const low = predictMatch({ ...base, league: "EPL" }, { ...DEFAULT_TOGGLES, marketWeight: 0.4 });
     const high = predictMatch({ ...base, league: "EPL" }, { ...DEFAULT_TOGGLES, marketWeight: 0.8 });
     expect(Math.abs(high.pHome - market.pHome)).toBeLessThan(Math.abs(low.pHome - market.pHome));
+  });
+});
+
+describe("wisetoto master_seq 파싱", () => {
+  const line = (seq: string) => `foo('toto','sc1','2026','57','','','${seq}',now_sports);bar`;
+
+  it("정상 회차는 master_seq를 돌려준다", () => {
+    expect(parseMasterSeq(line("31586"))).toBe("31586");
+  });
+
+  it("발매 전 회차는 master_seq가 0으로 오는데 null로 처리한다", () => {
+    // 2026-09-24 실측: 57회차는 31586인데 58~60회차는 전부 0이었다.
+    // 문자열 "0"은 truthy라 그냥 쓰면 '발매됨'으로 오판하고, 따라잡기 루프가 매 크론마다
+    // 없는 회차를 등록하려 들며 실패 알림을 반복한다.
+    expect(parseMasterSeq(line("0"))).toBeNull();
+  });
+
+  it("매치가 아예 없으면 null", () => {
+    expect(parseMasterSeq("아무 관련 없는 HTML")).toBeNull();
   });
 });

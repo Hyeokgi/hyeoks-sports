@@ -53,7 +53,10 @@ async function probe(gameYear: string, round: number) {
   }
 
   const m = html.match(MASTER_SEQ_RE);
-  const masterSeq = m?.[3] ?? null;
+  // 발매 전 회차는 매치는 되면서 master_seq가 "0"으로 온다. 문자열 "0"이 truthy라
+  // 그냥 쓰면 '발매됨'으로 오판한다(58~60회차에서 실제로 그렇게 찍혔다).
+  const raw = m?.[3] ?? null;
+  const masterSeq = raw && Number(raw) !== 0 ? raw : null;
   console.log(
     `  ${round}회차: HTTP ${status}, HTML ${html.length.toLocaleString()}자, ` +
       `masterSeq ${masterSeq ?? "없음"}`,

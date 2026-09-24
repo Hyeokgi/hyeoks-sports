@@ -28,11 +28,25 @@ async function fetchText(url: string): Promise<string> {
 // 발매회차보다 뒤처질 수 있음이 실측으로 확인됨(42회차 이월 중에도 기본값이 42로 남아있었음).
 // 그래서 "다음 회차 번호를 명시적으로 넣어 존재 여부를 물어보는" 방식을 쓴다 - master_seq가
 // 비어 있으면 아직 해당 회차가 열리지 않은 것.
+/**
+ * index.htm HTML에서 master_seq를 뽑는다. 아직 열리지 않은 회차면 null.
+ *
+ * 발매되지 않은 회차는 정규식이 매치되면서 master_seq가 "0"으로 온다(2026-09-24 실측:
+ * 57회차는 31586인데 58~60회차는 전부 0). 종전 코드는 `m[3] ? m[3] : null`이었는데
+ * 문자열 "0"은 자바스크립트에서 truthy라 이걸 "발매됨"으로 봤다. 그러면 존재하지 않는
+ * 회차를 등록하려 들고, 따라잡기 루프에서는 매 크론마다 실패·알림을 반복하게 된다.
+ * 네트워크를 타지 않는 순수 함수로 떼어내 테스트로 고정한다.
+ */
+export function parseMasterSeq(html: string): string | null {
+  const m = html.match(/'toto','sc1','(\d+)','(\d+)','','','(\d+)',now_sports/);
+  const seq = m?.[3];
+  if (!seq || Number(seq) === 0) return null;
+  return seq;
+}
+
 export async function discoverRoundMasterSeq(gameYear: string, gameRound: string): Promise<string | null> {
   const url = `https://www.wisetoto.com/index.htm?tab_type=toto&game_type=sc&game_category=sc1&game_year=${gameYear}&game_round=${gameRound}`;
-  const html = await fetchText(url);
-  const m = html.match(/'toto','sc1','(\d+)','(\d+)','','','(\d+)',now_sports/);
-  return m && m[3] ? m[3] : null;
+  return parseMasterSeq(await fetchText(url));
 }
 
 export interface WisetotoFixture {
