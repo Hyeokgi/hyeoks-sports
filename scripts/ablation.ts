@@ -64,7 +64,12 @@ import {
   type MarketProbs,
   type Metrics,
 } from "./lib/evalHarness";
-import { DEFAULT_FORM_WEIGHT, DEFAULT_H2H_WEIGHT, DEFAULT_MARKET_WEIGHT } from "../src/lib/prediction";
+import {
+  DEFAULT_FORM_WEIGHT,
+  DEFAULT_H2H_WEIGHT,
+  DEFAULT_MARKET_WEIGHT,
+  marketWeightForLeague,
+} from "../src/lib/prediction";
 import type { MatchRow } from "../src/lib/elo";
 
 const LEAGUES = [
@@ -192,15 +197,44 @@ const ARMS: Arm[] = [
       ),
   },
   {
+    // 종전에는 이 arm이 DEFAULT_MARKET_WEIGHT(0.4)를 썼는데, 유럽 4대리그는 0.8로 올렸고
+    // 이 데이터셋이 바로 그 네 리그다. 즉 '앱 실제 구성'이라는 라벨이 더 이상 맞지 않았다.
+    // 호출부와 같은 함수(marketWeightForLeague)를 써서 배포 구성과 어긋나지 않게 한다.
     key: "F",
-    label: `F. E + 배당 블렌딩 ${DEFAULT_MARKET_WEIGHT} (=앱 실제 구성)`,
+    label: "F. E + 배당 블렌딩 (리그별 가중치 = 앱 실제 구성)",
     predict: (f) => {
       const m = toProbs(
         f.eloDiff + f.homeAdv + DEFAULT_FORM_WEIGHT * f.formDiff + DEFAULT_H2H_WEIGHT * f.h2hDiff,
         f.drawBase,
         Math.abs(f.eloDiff),
       );
-      return f.market ? blend(m, f.market, DEFAULT_MARKET_WEIGHT) : null;
+      return f.market ? blend(m, f.market, marketWeightForLeague(f.league)) : null;
+    },
+  },
+  {
+    // 배포 구성에서 H2H만 뺀다. 모델 단독(D->E)에서는 H2H가 4개 분할 전부 적중률을
+    // 떨어뜨렸는데(52.51->52.33 / 52.67->52.46 / 51.90->51.61 / 51.92->51.07) 그 측정은
+    // 배당 블렌딩이 없는 구성이었다. 블렌딩이 모델 항을 20%로 희석하므로 배포 구성에서
+    // 실제로 얼마나 남는지 다시 봐야 제거를 정당화할 수 있다.
+    key: "G",
+    label: "G. F에서 H2H 제거",
+    predict: (f) => {
+      const m = toProbs(
+        f.eloDiff + f.homeAdv + DEFAULT_FORM_WEIGHT * f.formDiff,
+        f.drawBase,
+        Math.abs(f.eloDiff),
+      );
+      return f.market ? blend(m, f.market, marketWeightForLeague(f.league)) : null;
+    },
+  },
+  {
+    // 최근폼까지 뺀 것. 절제 사다리에서 폼의 증분이 로그손실 -0.0001로 사실상 0이었다.
+    // 둘 다 빼면 모델이 C(Elo+홈이점)만 남는데, 그게 배포 구성에서 더 나은지 본다.
+    key: "H",
+    label: "H. F에서 H2H·최근폼 모두 제거 (모델은 Elo+홈이점만)",
+    predict: (f) => {
+      const m = toProbs(f.eloDiff + f.homeAdv, f.drawBase, Math.abs(f.eloDiff));
+      return f.market ? blend(m, f.market, marketWeightForLeague(f.league)) : null;
     },
   },
 ];
