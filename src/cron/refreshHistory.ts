@@ -4,6 +4,7 @@ import { computeEloAndHistory } from "../lib/elo";
 import { getAllMatches } from "../lib/db";
 import { NAME_MAP } from "../lib/nameMap";
 import { settleRounds } from "../lib/settlement";
+import { refreshNationalElo, snapshotNationalEloDiffs } from "../lib/nationalEloStore";
 import type { Env, League } from "../types";
 
 // D1 batch 한 번에 넣을 문장 수. 너무 크면 한 트랜잭션이 길어지니 적당히 자른다.
@@ -59,6 +60,13 @@ export async function refreshHistory(env: Env): Promise<{ inserted: number; leag
 
   await fetchAndStoreK2Corners(env, newK2Matches);
   await refreshXgForActiveRounds(env);
+  // 국가대표 Elo는 부가 기능이다. 원본 CSV를 못 받아도 정산·Elo 갱신까지 막지 않는다.
+  try {
+    await refreshNationalElo(env);
+    await snapshotNationalEloDiffs(env);
+  } catch (e) {
+    console.error(`refreshHistory: 국가대표 Elo 갱신 실패 - ${(e as Error).message}`);
+  }
   await settleRounds(env);
 
   return { inserted, leagues: Object.keys(LEAGUE_IDS) };

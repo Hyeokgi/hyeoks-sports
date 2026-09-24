@@ -32,6 +32,7 @@ export interface MatchWithPrediction {
     market: { pHome: number; pDraw: number; pAway: number; nBookmakers: number } | null;
     xgDiff: number | null;
     cornersDiff: number | null;
+    nationalEloDiff: number | null;
   };
 }
 
@@ -101,6 +102,7 @@ export async function buildRoundPredictions(
         // 팀명을 추가했을 때 성분이 0으로 저장된 경기가 "모델 예측"으로 뒤집힌다.
         // market_only 컬럼이 없던 시절(0008 이전) 회차는 NULL이라 리그 기준으로 폴백한다.
         marketOnly: resolveMarketOnly(raw.market_only, m.league),
+        nationalEloDiff: raw.nat_elo_diff ?? null,
       },
       { ...merged, marketWeight: explicitMarketWeight ?? marketWeightForLeague(m.league) },
     );
@@ -124,6 +126,7 @@ export async function buildRoundPredictions(
         market,
         xgDiff: raw.xg_diff,
         cornersDiff: raw.corners_diff,
+        nationalEloDiff: raw.nat_elo_diff ?? null,
       },
     };
   });

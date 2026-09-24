@@ -5,6 +5,7 @@ import { discoverRoundMasterSeq, fetchRoundFixtures } from "../lib/wisetoto";
 import { createRoundFromFixtures, type RoundFixture } from "../lib/createRound";
 import { NAME_MAP, leagueOfKr, isModelLeague } from "../lib/nameMap";
 import { sendTelegramMessage } from "../lib/telegram";
+import { snapshotNationalEloDiffs } from "../lib/nationalEloStore";
 import type { Env } from "../types";
 
 // 한 번 실행에 따라잡을 최대 회차 수. 밀린 걸 메우되 wisetoto를 과하게 두드리지 않는 선.
@@ -58,6 +59,15 @@ export async function detectNewRound(
         `이후 회차는 계속 등록했습니다(빠진 회차는 비어 있습니다). ` +
         `같은 사유가 반복되면 wisetoto 응답이 바뀐 것이므로 확인이 필요합니다.`,
     );
+  }
+
+  // 새로 등록된 국가대표 경기에 바로 Elo 격차를 붙인다(3시간 크론을 기다리면 그 사이 근거없음).
+  if (createdRounds.length > 0) {
+    try {
+      await snapshotNationalEloDiffs(env);
+    } catch (e) {
+      console.error(`detectNewRound: 국가대표 Elo 스냅샷 실패 - ${(e as Error).message}`);
+    }
   }
 
   if (createdRounds.length === 0) return { created: false, reason: lastReason ?? "unknown" };

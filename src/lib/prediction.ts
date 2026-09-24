@@ -1,4 +1,5 @@
 // Elo/최근폼/상대전적/홈어드밴티지/리그별 무승부율을 토글 가능한 가중치로 결합해 승무패 확률을 계산
+import { nationalProbs, NATIONAL_HOME_ADV } from "./nationalElo";
 import { HOME_ADV, homeAdvForLeague } from "./elo";
 import { closenessAdjustedDrawRate } from "./drawCurve";
 
@@ -39,6 +40,10 @@ export interface PredictionInputs {
   // 성립하지 않는다 - 이때 eloDiff=0으로 두고 블렌딩하면 "홈어드밴티지만 반영된 가짜 모델"이
   // 배당을 60% 희석시킨다. 그래서 섞지 않고 배당을 그대로 쓴다.
   marketOnly?: boolean;
+  // 국가대표 경기의 Elo 격차(홈-원정, 홈어드밴티지 제외). marketOnly이면서 배당이 아직 없을 때만
+  // 쓴다(nationalElo.ts). 배당이 있으면 배당을 그대로 쓴다 - 국가대표 과거 배당 데이터가 없어
+  // 둘을 섞는 비율을 검증할 수 없기 때문이다. 검증 안 된 블렌딩보다 검증된 한쪽을 쓴다.
+  nationalEloDiff?: number | null;
 }
 
 export interface PredictionToggles {
@@ -124,8 +129,10 @@ export const DEFAULT_TOGGLES: PredictionToggles = {
 // 백테스트 근거가 없는 확률을 있는 것처럼 보이게 하지 않는다.
 //   model  : Elo+폼+H2H(+배당 블렌딩). 리그별 실측 캘리브레이션이 존재한다.
 //   market : 배당 암시확률 그대로. 캘리브레이션 없음.
+//   national: 국가대표 Elo(배당이 아직 없는 국가대표 경기). 4분할 백테스트로 대칭 폴백보다
+//            낫다는 것만 검증됐고, 확신도 구간별 캘리브레이션은 없다.
 //   none   : 배당도 아직 없음. 아래 확률은 리그 평균 사전확률일 뿐 예측이 아니다.
-export type PredictionBasis = "model" | "market" | "none";
+export type PredictionBasis = "model" | "market" | "national" | "none";
 
 export interface MatchPrediction {
   pHome: number;
@@ -162,6 +169,10 @@ export function predictMatch(
     if (inputs.marketOdds) {
       const m = inputs.marketOdds;
       return rank(m.pHome, m.pDraw, m.pAway, "market");
+    }
+    if (inputs.nationalEloDiff != null) {
+      const p = nationalProbs(inputs.nationalEloDiff + (toggles.useHomeAdvantage ? NATIONAL_HOME_ADV : 0));
+      return rank(p.pHome, p.pDraw, p.pAway, "national");
     }
     const d = inputs.leagueDrawRate || FALLBACK_DRAW_RATE;
     return rank((1 - d) / 2, d, (1 - d) / 2, "none");

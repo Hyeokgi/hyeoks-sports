@@ -24,6 +24,8 @@ interface MatchData {
     market: { pHome: number; pDraw: number; pAway: number; nBookmakers: number } | null;
     xgDiff: number | null;
     cornersDiff: number | null;
+    // 국가대표 경기의 Elo 격차(배당이 없을 때 쓰는 근거). 구버전 API면 undefined.
+    nationalEloDiff?: number | null;
   };
   // 회차가 정산되면 채워짐(경기 전이면 null) - 적중현황 표시용.
   result: { actual: "H" | "D" | "A"; hg: number; ag: number } | null;
@@ -176,6 +178,7 @@ function toInputs(m: MatchData): PredictionInputs {
     // UCL/UEL처럼 Elo(리그 내 상대평가)가 성립하지 않는 대회는 배당만 쓴다.
     // 서버(predictRound.ts)와 같은 판단 기준을 써야 화면과 API가 갈리지 않는다.
     marketOnly: !isModelLeague(m.league),
+    nationalEloDiff: m.raw.nationalEloDiff ?? null,
   };
 }
 
@@ -280,9 +283,11 @@ function renderMatches() {
         ? `이번 회차는 전 경기가 <b>${esc(comps.join("·"))}</b>입니다.`
         : `이번 회차 ${marketOnlyCount}경기가 <b>${esc(comps.join("·"))}</b>입니다.`;
     notice.innerHTML =
-      `${scope} 서로 다른 리그의 클럽이 붙는 대회라 우리 Elo(같은 리그 안에서만 의미가 있는 상대평가)를 ` +
-      `쓸 수 없어, 해당 경기는 <b>해외 북메이커 배당</b>에서 마진을 뺀 확률을 그대로 씁니다. ` +
-      `모델이 분석한 결과가 아니고, 이 대회에 대한 백테스트 적중률 근거도 없습니다. ` +
+      `${scope} 리그 안에서만 의미가 있는 우리 클럽 Elo를 쓸 수 없어, 해당 경기는 ` +
+      `<b>해외 북메이커 배당</b>에서 마진을 뺀 확률을 그대로 씁니다. ` +
+      (currentMatches.some((m) => m.raw.nationalEloDiff != null)
+        ? `국가대표 경기는 배당이 올라오기 전까지 <b>국가대표 Elo</b>(1872년~ A매치 전체 결과)로 대신 예측합니다. `
+        : "") +
       `조합·독식 계산은 이 확률 위에서 평소와 같이 동작합니다.`;
     matchList.appendChild(notice);
   }
@@ -328,6 +333,8 @@ function renderMatches() {
     const basisBadge =
       prediction.basis === "market"
         ? `<span class="basis-badge" title="이 대회는 Elo(리그 내 상대평가)가 성립하지 않아 해외배당 암시확률을 그대로 씁니다">배당 기반</span>`
+        : prediction.basis === "national"
+          ? `<span class="basis-badge" title="배당이 아직 없어 국가대표 Elo(A매치 전체 결과 기반)로 예측합니다. 배당이 수집되면 배당으로 바뀝니다">국가대표 Elo</span>`
         : prediction.basis === "none"
           ? `<span class="basis-badge waiting" title="배당이 아직 수집되지 않았습니다">배당 대기</span>`
           : "";
@@ -340,7 +347,7 @@ function renderMatches() {
     const confBadge =
       prediction.basis === "none"
         ? ""
-        : prediction.basis === "market"
+        : prediction.basis === "market" || prediction.basis === "national"
           ? `<span class="confidence-badge t-근거없음" title="1위와 2위 픽의 확률 차이입니다. 이 대회는 백테스트가 없어 등급(확신픽/보통/불확실)은 붙이지 않습니다"><i class="tier-dot"></i>확신도 ${gapText}</span>`
           : `<span class="confidence-badge t-${tier}"><i class="tier-dot"></i>${tier} · ${gapText}</span>`;
     // 메타줄을 두 줄로 나눈다. 예전엔 배지 5개(연번·리그 / 배당기반 / 헤지 / 확신도 / 일정)를
@@ -411,6 +418,8 @@ function renderMatches() {
     pick.className = "pick-line";
     if (prediction.basis === "none") {
       pick.innerHTML = `<span class="market-note">배당 수집 대기 - 아직 추천할 근거가 없습니다</span>`;
+    } else if (prediction.basis === "national") {
+      pick.innerHTML = `국가대표 Elo 추천 <b>${top}</b> <span class="market-note">배당 수집 전</span>`;
     } else if (prediction.basis === "market") {
       pick.innerHTML =
         `배당 기반 추천 <b>${top}</b>` +
@@ -435,6 +444,11 @@ function renderMatches() {
       calibLine.textContent =
         `참고: 아래 확률은 배당이 붙기 전 임시값(평균 무승부율 기준)이며 예측이 아닙니다. ` +
         `배당이 수집되면 자동으로 갱신됩니다.`;
+    } else if (prediction.basis === "national") {
+      // 수치는 scripts/backtest_national_elo.ts(seed/national_elo_backtest.json) 4분할 테스트 구간.
+      calibLine.textContent =
+        `참고: 국가대표 Elo는 2019년 이후 공식전에서 적중률 약 61%(네이션스리그만 53~58%), ` +
+        `대칭 확률(46%)보다 4분할 모두 나았습니다. 확신도 구간별 적중률은 아직 없습니다. 배당이 수집되면 배당으로 바뀝니다.`;
     } else if (prediction.basis === "market") {
       // 이 대회는 백테스트 자체를 한 적이 없다. "데이터가 부족합니다"는 있는데 적다는 뜻으로
       // 읽히므로, 없다고 분명히 쓴다.
@@ -476,8 +490,17 @@ function renderMatches() {
       // 이 경기들은 Elo/폼/H2H를 아예 계산하지 않았다(전부 0으로 저장). 0을 나열하면
       // "전력이 호각"이라는 뜻으로 읽히므로 계산하지 않았다는 사실을 그대로 쓴다.
       evidenceBody.innerHTML = `
-        <div>${esc(m.league)}는 서로 다른 리그의 클럽이 붙는 대회라 Elo·최근폼·상대전적을 계산하지 않았습니다.</div>
-        <div>우리 Elo는 같은 리그 안에서만 의미가 있는 상대평가라, 국가가 다른 두 팀의 점수를 직접 비교할 수 없습니다.</div>
+        ${
+          m.raw.nationalEloDiff != null
+            ? `<div>국가대표 경기라 클럽 Elo·최근폼·상대전적 대신 국가대표 Elo(1872년~ A매치 전체 결과, eloratings.net 방식)를 씁니다.</div>`
+            : `<div>${esc(m.league)}는 서로 다른 리그의 클럽이 붙는 대회라 Elo·최근폼·상대전적을 계산하지 않았습니다.</div>
+        <div>우리 Elo는 같은 리그 안에서만 의미가 있는 상대평가라, 국가가 다른 두 팀의 점수를 직접 비교할 수 없습니다.</div>`
+        }
+        ${
+          m.raw.nationalEloDiff != null
+            ? `<div>국가대표 Elo 격차: ${m.raw.nationalEloDiff.toFixed(0)}점 (${esc(m.raw.nationalEloDiff >= 0 ? m.home : m.away)} 우세, 홈 +100 별도)</div>`
+            : ""
+        }
         ${
           m.raw.market
             ? `<div>해외배당 암시확률(${m.raw.market.nBookmakers}개사 평균, 마진 제거): 홈 ${(m.raw.market.pHome * 100).toFixed(1)}% / 무 ${(m.raw.market.pDraw * 100).toFixed(1)}% / 원정 ${(m.raw.market.pAway * 100).toFixed(1)}%</div>`
