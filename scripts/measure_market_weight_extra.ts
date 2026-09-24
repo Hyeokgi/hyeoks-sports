@@ -174,6 +174,34 @@ async function main() {
     const med = [...picks].sort((a, b) => a - b)[Math.floor(picks.length / 2)];
     console.log(`   선택 w: ${picks.map((w) => w.toFixed(2)).join(" / ")} (중앙값 ${med.toFixed(2)})`);
     console.log(`   ${pass}/${SPLITS.length} 통과 -> ${pass === SPLITS.length ? `${src.league} marketWeight를 ${med.toFixed(2)}로 올릴 근거가 있다` : "현행 0.4를 유지한다"}`);
+
+    // 로그손실로 고르면 세 리그 모두 train에서 w=1.0이 뽑히는데 test 적중률은 떨어졌다.
+    // 배당이 확률 '보정'은 좋게 하지만 1순위 '픽'은 개선하지 못한다는 뜻이다. 승무패는
+    // 1순위 픽으로 돈이 오가므로 선택 기준 자체를 적중률로 두는 게 상품에 맞다.
+    // 이 기준은 test를 보기 전에 상품 구조에서 정한 것이다(세션 내내 '적중률 필수 포함'으로
+    // 써온 원칙). test 표를 보고 좋아 보이는 w를 집는 것과는 다르다.
+    console.log(`\n  [적중률 기준] train에서 적중률 최대 w(동률이면 로그손실 낮은 쪽)를 골라 test 평가:`);
+    let pass2 = 0;
+    const picks2: number[] = [];
+    for (const frac of SPLITS) {
+      const cut = Math.floor(common.length * frac);
+      const tr = common.slice(0, cut), te = common.slice(cut);
+      let best = { w: 0.4, acc: -1, ll: Infinity };
+      for (const w of [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]) {
+        const m = at(w, tr);
+        if (m.acc > best.acc + 1e-9 || (Math.abs(m.acc - best.acc) <= 1e-9 && m.logloss < best.ll)) {
+          best = { w, acc: m.acc, ll: m.logloss };
+        }
+      }
+      picks2.push(best.w);
+      const mw = at(best.w, te), cur = at(0.4, te);
+      const ok = mw.acc >= cur.acc && mw.logloss <= cur.logloss;
+      if (ok) pass2++;
+      console.log(`   분할 ${frac}: 선택 w=${best.w.toFixed(2)}  적중 ${(cur.acc * 100).toFixed(2)} -> ${(mw.acc * 100).toFixed(2)}%  로그손실 ${cur.logloss.toFixed(4)} -> ${mw.logloss.toFixed(4)}  ${ok ? "통과" : "미달"}`);
+    }
+    const med2 = [...picks2].sort((a, b) => a - b)[Math.floor(picks2.length / 2)];
+    console.log(`   선택 w: ${picks2.map((w) => w.toFixed(2)).join(" / ")} (중앙값 ${med2.toFixed(2)})`);
+    console.log(`   ${pass2}/${SPLITS.length} 통과 -> ${pass2 === SPLITS.length ? `${src.league} marketWeight를 ${med2.toFixed(2)}로 바꿀 근거가 있다` : "현행 0.4를 유지한다"}`);
   }
 }
 
