@@ -22,7 +22,9 @@ interface NewK2Match {
   away: string;
 }
 
-export async function refreshHistory(env: Env): Promise<{ inserted: number; leagues: string[] }> {
+export async function refreshHistory(
+  env: Env,
+): Promise<{ inserted: number; leagues: string[]; national: Record<string, unknown> }> {
   let inserted = 0;
   const newK2Matches: NewK2Match[] = [];
 
@@ -61,15 +63,18 @@ export async function refreshHistory(env: Env): Promise<{ inserted: number; leag
   await fetchAndStoreK2Corners(env, newK2Matches);
   await refreshXgForActiveRounds(env);
   // 국가대표 Elo는 부가 기능이다. 원본 CSV를 못 받아도 정산·Elo 갱신까지 막지 않는다.
+  // 결과를 응답에 싣는다 - 실패를 삼키기만 하면 화면에 근거없음이 남아도 원인을 알 수 없다.
+  let national: Record<string, unknown> = {};
   try {
-    await refreshNationalElo(env);
-    await snapshotNationalEloDiffs(env);
+    national = { ...(await refreshNationalElo(env)) };
+    national.snapshotted = await snapshotNationalEloDiffs(env);
   } catch (e) {
-    console.error(`refreshHistory: 국가대표 Elo 갱신 실패 - ${(e as Error).message}`);
+    national.error = (e as Error).message.slice(0, 300);
+    console.error(`refreshHistory: 국가대표 Elo 갱신 실패 - ${national.error}`);
   }
   await settleRounds(env);
 
-  return { inserted, leagues: Object.keys(LEAGUE_IDS) };
+  return { inserted, leagues: Object.keys(LEAGUE_IDS), national };
 }
 
 async function fetchAndStoreK2Corners(env: Env, matches: NewK2Match[]): Promise<void> {
