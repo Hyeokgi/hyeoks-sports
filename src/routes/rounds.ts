@@ -37,6 +37,8 @@ export async function handleGetRound(env: Env, roundId: number): Promise<Respons
         prediction: p.prediction,
         calibration: p.calibration,
         upsetSignal: p.upsetSignal,
+        // true면 이미 끝난 경기를 결과가 반영된 데이터로 사후 등록한 것 - 적중 집계에서 뺀다.
+        predictedAfterKickoff: p.predictedAfterKickoff,
         // 회차가 정산되면 채워짐(round_results). 진행중이면 null.
         result: result ? { actual: result.actual, hg: result.hg, ag: result.ag } : null,
         // betman 투표율 최신 스냅샷. 아직 발매 전/미수집이면 null.

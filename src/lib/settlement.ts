@@ -1,11 +1,12 @@
 // upcoming 라운드의 round_matches를 matches 테이블의 실제 결과와 대조해 정산(round_results 채움)
 import { NAME_MAP } from "./nameMap";
+import { discoverRoundMasterSeq, fetchRoundResults } from "./wisetoto";
 import type { Env } from "../types";
 
 export async function settleRounds(env: Env): Promise<{ settled: number; matchesUpdated: number }> {
   const { results: upcomingRounds } = await env.DB.prepare(
-    "SELECT id FROM rounds WHERE status = 'upcoming'",
-  ).all<{ id: number }>();
+    "SELECT id, round_no FROM rounds WHERE status = 'upcoming'",
+  ).all<{ id: number; round_no: number | null }>();
   if (!upcomingRounds || upcomingRounds.length === 0) return { settled: 0, matchesUpdated: 0 };
 
   let matchesUpdated = 0;
@@ -13,10 +14,10 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
 
   for (const round of upcomingRounds) {
     const { results: roundMatches } = await env.DB.prepare(
-      "SELECT rm.id, rm.league, rm.home_kr, rm.away_kr, rm.kickoff_at FROM round_matches rm WHERE rm.round_id = ?",
+      "SELECT rm.id, rm.seq, rm.league, rm.home_kr, rm.away_kr, rm.kickoff_at FROM round_matches rm WHERE rm.round_id = ?",
     )
       .bind(round.id)
-      .all<{ id: number; league: string; home_kr: string; away_kr: string; kickoff_at: string | null }>();
+      .all<{ id: number; seq: number; league: string; home_kr: string; away_kr: string; kickoff_at: string | null }>();
     if (!roundMatches || roundMatches.length === 0) continue;
 
     const { results: alreadySettled } = await env.DB.prepare(
@@ -26,6 +27,9 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
       .all<{ round_match_id: number }>();
     const settledIds = new Set((alreadySettled ?? []).map((r) => r.round_match_id));
 
+    // 쓰기는 모아서 회차당 batch 한 번으로 보낸다. 워커 호출 하나당 D1 요청 1,000회 한도가
+    // 있어서, 경기마다 따로 쓰면 밀린 회차가 여러 개일 때 sync 전체가 500으로 죽는다.
+    const writes: D1PreparedStatement[] = [];
     for (const rm of roundMatches) {
       if (settledIds.has(rm.id)) continue;
       const homeEn = NAME_MAP[rm.home_kr];
@@ -44,19 +48,59 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
       if (!match) continue;
 
       const actual = match.hg > match.ag ? "H" : match.hg === match.ag ? "D" : "A";
-      await env.DB.prepare(
-        "INSERT OR REPLACE INTO round_results (round_match_id, actual, hg, ag, settled_at) VALUES (?, ?, ?, ?, ?)",
-      )
-        .bind(rm.id, actual, match.hg, match.ag, new Date().toISOString())
-        .run();
+      writes.push(
+        env.DB.prepare(
+          "INSERT OR REPLACE INTO round_results (round_match_id, actual, hg, ag, settled_at) VALUES (?, ?, ?, ?, ?)",
+        ).bind(rm.id, actual, match.hg, match.ag, new Date().toISOString()),
+      );
       settledIds.add(rm.id);
       matchesUpdated++;
     }
 
+    // FotMob 백필(matches 테이블)로 못 채운 경기가 남으면 wisetoto 결과표를 폴백으로 쓴다.
+    // UCL/UEL처럼 NAME_MAP도 백필도 없는 대회는 이 경로가 유일한 정산 근거다. 회차번호를
+    // 모르면 조회할 수 없으므로 그때는 그냥 다음 주기를 기다린다.
+    // 아직 안 끝난 경기까지 매 주기(3시간)마다 wisetoto에 물어보면, 발매중인 회차가 있는 동안
+    // 계속 무의미한 요청을 보내게 된다. 킥오프 + 여유시간이 지난 경기가 하나라도 있을 때만 조회한다.
+    const FINISH_BUFFER_MS = 2.5 * 60 * 60 * 1000; // 킥오프 후 경기가 끝나기까지의 여유
+    const now = Date.now();
+    const unsettled = roundMatches.filter(
+      (rm) =>
+        !settledIds.has(rm.id) &&
+        // kickoff_at이 없으면(파싱 실패) 판단 근거가 없으니 조회 대상에 포함한다.
+        (rm.kickoff_at == null || Date.parse(rm.kickoff_at) + FINISH_BUFFER_MS <= now),
+    );
+    if (unsettled.length > 0 && round.round_no != null) {
+      const gameYear = String(new Date().getUTCFullYear());
+      try {
+        const masterSeq = await discoverRoundMasterSeq(gameYear, String(round.round_no));
+        if (masterSeq) {
+          const wt = new Map(
+            (await fetchRoundResults(gameYear, String(round.round_no), masterSeq)).map((r) => [r.seq, r]),
+          );
+          for (const rm of unsettled) {
+            const r = wt.get(rm.seq);
+            if (!r) continue;
+            writes.push(
+              env.DB.prepare(
+                "INSERT OR REPLACE INTO round_results (round_match_id, actual, hg, ag, settled_at) VALUES (?, ?, ?, ?, ?)",
+              ).bind(rm.id, r.actual, r.hg, r.ag, new Date().toISOString()),
+            );
+            settledIds.add(rm.id);
+            matchesUpdated++;
+          }
+        }
+      } catch (e) {
+        // 정산 폴백이 실패해도 다른 회차 정산까지 막지는 않는다. 다음 주기에 재시도된다.
+        console.error(`settleRounds: wisetoto ${round.round_no}회차 결과 조회 실패 - ${(e as Error).message}`);
+      }
+    }
+
     if (settledIds.size === roundMatches.length) {
-      await env.DB.prepare("UPDATE rounds SET status = 'settled' WHERE id = ?").bind(round.id).run();
+      writes.push(env.DB.prepare("UPDATE rounds SET status = 'settled' WHERE id = ?").bind(round.id));
       roundsSettled++;
     }
+    if (writes.length > 0) await env.DB.batch(writes);
   }
 
   return { settled: roundsSettled, matchesUpdated };

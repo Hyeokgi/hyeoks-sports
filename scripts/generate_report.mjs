@@ -26,15 +26,21 @@ export function buildPrompt(roundLabel, matches) {
       return (
         `${i + 1}. ${m.league} ${m.home} vs ${m.away} - ` +
         `홈${(p.pHome * 100).toFixed(0)}% 무${(p.pDraw * 100).toFixed(0)}% 원정${(p.pAway * 100).toFixed(0)}% ` +
-        `(확신도 ${(p.confidenceGap * 100).toFixed(1)}%p, 모델추천 ${p.rankedPicks[0]}${formatCalibrationNote(m.calibration?.bucket)})`
+        `(확신도 ${(p.confidenceGap * 100).toFixed(1)}%p, ${p.basis === "model" ? "모델추천" : "배당기반추천"} ${p.rankedPicks[0]}${formatCalibrationNote(m.calibration?.bucket)})`
       );
     })
     .join("\n");
 
   const leagues = [...new Set(matches.map((m) => m.league))].join("/");
+  // UCL/UEL처럼 모델이 없는 대회가 섞이면 리포트가 그 경기까지 "모델 분석"으로 서술하게 된다.
+  // 근거가 다른 경기가 있다는 사실을 프롬프트에 명시해 그렇게 쓰지 않도록 한다.
+  const marketOnly = matches.filter((m) => m.prediction.basis !== "model");
+  const marketNote = marketOnly.length
+    ? `\n\n참고: 위 ${marketOnly.length}경기(${[...new Set(marketOnly.map((m) => m.league))].join("/")})는 서로 다른 리그의 클럽이 맞붙는 대회라 Elo 전력차를 계산할 수 없어, 통계 모델이 아니라 해외 북메이커 배당에서 마진을 제거한 확률을 그대로 사용했습니다. 이 경기들에 대해서는 "모델이 분석했다"고 쓰지 말고 배당 기준임을 밝히고, 과거 적중률 근거가 없다는 점도 언급하십시오.`
+    : "";
   return `당신은 HYEOKS 스포츠 분석 센터의 축구 데이터 애널리스트입니다. 아래는 축구토토 승무패 ${roundLabel} ${matches.length}경기(${leagues})에 대한 통계 모델(Elo 전력차 + 최근 폼 + 상대전적 + 리그별 실측 무승부율) 예측 결과입니다.
 
-${lines}
+${lines}${marketNote}
 
 이 데이터를 바탕으로 5~7문장 이내의 짧은 리포트를 작성하십시오. 확신도가 높은 "안전 픽" 경기, 확신도가 낮아 이변 가능성이 있는 경기, 무승부 비중이 높아 보이는 경기를 각각 짚어주고, 이 예측은 통계적 참고용일 뿐 배당 대비 확실한 수익을 보장하지 않는다는 점을 마지막에 자연스럽게 덧붙이세요. 문어체, 존댓말로 작성하고 문장을 콜론(:)으로 끝내지 마세요.`;
 }

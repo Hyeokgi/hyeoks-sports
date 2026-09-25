@@ -10,7 +10,10 @@ export interface Env {
   ADMIN_TOKEN?: string;
 }
 
-export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A" | "라리가" | "분데스리가";
+// 리그 정의는 nameMap.ts 한 곳에만 둔다(예전엔 두 파일에 같은 유니온이 복사돼 있었다).
+export type { ModelLeague, League } from "./lib/nameMap";
+export { MODEL_LEAGUES, isModelLeague } from "./lib/nameMap";
+import type { League } from "./lib/nameMap";
 
 export interface RoundRow {
   id: number;
@@ -40,5 +43,10 @@ export interface RoundPredictionRow {
   league_draw_rate: number;
   xg_diff: number | null;
   corners_diff: number | null;
+  // 국가대표 경기의 Elo 격차(홈-원정, 홈어드밴티지 제외). 킥오프 전까지만 갱신(migration 0009).
+  nat_elo_diff?: number | null;
+  // 등록 시점에 배당만으로 예측했는지(1) 아닌지(0). 매번 다시 판단하지 않는 이유는
+  // migrations/0008_market_only.sql 주석 참고. 0008 이전에 등록된 회차는 NULL일 수 있다.
+  market_only: number | null;
   computed_at: string;
 }

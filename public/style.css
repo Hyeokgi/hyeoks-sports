@@ -14,6 +14,8 @@
   --home: #22c55e;
   --draw: #f2a93b;
   --away: #ef4444;
+  --shadow-card: 0 10px 28px rgba(0, 0, 0, 0.38);
+  --shadow-pop: 0 16px 40px rgba(0, 0, 0, 0.5);
   --radius-lg: 20px;
   --radius-md: 14px;
   --radius-sm: 10px;
@@ -23,9 +25,17 @@
   box-sizing: border-box;
 }
 
+/* body 배경이 background-attachment:fixed라 뷰포트 밖은 안 칠해진다.
+   html에 단색을 깔아 스크롤 중 흰 배경이 비치는 일이 없게 한다. */
+html {
+  background-color: var(--bg-0);
+}
+
 body {
   margin: 0;
-  font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  font-family: "Pretendard Variable", "Pretendard", -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  font-feature-settings: "tnum" 1; /* 확률/금액 숫자 폭 고정 - 표가 흔들리지 않게 */
   color: var(--ink);
   background:
     radial-gradient(1200px 600px at 15% -10%, rgba(242, 169, 59, 0.16), transparent 60%),
@@ -48,7 +58,7 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 14px 18px;
+  padding: 14px max(18px, calc((100% - 760px) / 2));
   background: rgba(10, 12, 18, 0.72);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -256,19 +266,36 @@ main {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
+/* 메타줄 두 줄 구조. 배지를 한 줄에 다 넣으면 리그명이 긴 회차(세리에A/분데스리가)에서
+   가로로 넘치고 줄이 제멋대로 흩어진다. 윗줄은 "무엇을 언제", 아랫줄은 "우리 판단". */
 .match-card .meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.73rem;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.match-card .meta-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.73rem;
-  color: var(--muted);
-  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.match-card .meta-tags {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .league-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  white-space: nowrap;
   padding: 3px 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.07);
@@ -278,17 +305,72 @@ main {
 }
 
 .confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 3px 9px;
   border-radius: 999px;
   background: var(--gold-soft);
   color: var(--gold-bright);
   font-weight: 700;
+  /* 배당 기반 회차는 "확신도 41.1%p"라 라벨이 길어진다. 좁은 화면에서 알약 안에서 두 줄로
+     접히면 배지 높이가 들쭉날쭉해지므로 한 줄로 고정한다. */
+  white-space: nowrap;
+}
+
+/* 티어 신호등을 이모지 대신 CSS 점으로 - 이모지는 OS마다 크기/색이 다르다 */
+.confidence-badge .tier-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.confidence-badge.t-확신픽 { background: rgba(34, 197, 94, 0.14); color: #4ade80; }
+.confidence-badge.t-확신픽 .tier-dot { background: var(--home); box-shadow: 0 0 7px 1px rgba(34, 197, 94, 0.6); }
+.confidence-badge.t-보통 .tier-dot { background: var(--gold); }
+.confidence-badge.t-불확실 { background: rgba(239, 68, 68, 0.13); color: #f87171; }
+.confidence-badge.t-불확실 .tier-dot { background: var(--away); }
+/* 그 대회를 백테스트한 적이 없어 "이 확신도면 몇 % 맞았다"를 말할 근거가 없는 경우.
+   초록/노랑/빨강 신호등과 섞이지 않게 무채색으로 둔다. */
+.confidence-badge.t-근거없음 { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; }
+.confidence-badge.t-근거없음 .tier-dot { background: #94a3b8; }
+
+.round-summary .summary-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.round-summary .summary-stat .icon { width: 0.95em; height: 0.95em; stroke-width: 2.4; }
+
+.league-badge b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.09);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--muted);
 }
 
 .result-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 3px 9px;
   border-radius: 999px;
   font-weight: 700;
+  /* 메타줄이 꽉 차면 알약 안에서 "적"/"중"으로 접히던 것 방지 */
+  white-space: nowrap;
+}
+
+.result-badge .icon {
+  width: 0.9em;
+  height: 0.9em;
+  stroke-width: 2.6;
 }
 .result-badge.hit {
   background: rgba(34, 197, 94, 0.14);
@@ -297,6 +379,11 @@ main {
 .result-badge.miss {
   background: rgba(239, 68, 68, 0.14);
   color: var(--away);
+}
+/* 사후 등록: 적중/실패 어느 쪽도 아니라 중립색 */
+.result-badge.late {
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--muted);
 }
 
 .round-summary {
@@ -318,34 +405,195 @@ main {
   font-size: 0.75rem;
 }
 
-.match-card .teams {
-  font-weight: 800;
-  font-size: 1.02rem;
-  margin-bottom: 11px;
+/* 홈 / VS / 원정 3분할. 가운데 열을 고정폭으로 둬서 카드마다 VS 위치가 흔들리지 않는다. */
+.match-card .fixture {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.match-card .fixture .team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  font-weight: 700;
+  font-size: 0.95rem;
   letter-spacing: -0.01em;
+  color: var(--muted);
+  min-width: 0;
+  transition: color 0.15s ease;
+}
+
+.match-card .fixture .team-name {
+  overflow-wrap: anywhere;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* 팀 마크: 정식 엠블럼을 넣으면 img, 아니면 팀명에서 만든 모노그램 */
+.crest {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+}
+
+.crest img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* 정식 엠블럼은 밝은 원판 위에 올린다. 구단 엠블럼 중엔 남색/검정 계열이 많아
+   어두운 배경에 그대로 얹으면 형체가 사라진다. */
+.crest.logo {
+  background: rgba(255, 255, 255, 0.92);
+  padding: 3px;
+}
+
+.crest.mono {
+  background: linear-gradient(140deg, var(--crest-a), var(--crest-b));
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* 모델이 찍은 팀을 강조한다. 다만 실제 엠블럼은 탈색시키면 이미지가 깨진 것처럼 보여서
+   모노그램만 확실히 가라앉히고, 엠블럼은 투명도만 살짝 준다. */
+.match-card .fixture .team:not(.picked) .crest.mono {
+  opacity: 0.5;
+  filter: saturate(0.65);
+}
+
+.match-card .fixture .team:not(.picked) .crest.logo {
+  opacity: 0.82;
+}
+
+/* 찍은 팀에는 금색 링을 둘러 한눈에 구분되게 */
+.match-card .fixture .team.picked .crest {
+  border-color: rgba(242, 169, 59, 0.55);
+  box-shadow: 0 0 0 2px rgba(242, 169, 59, 0.18), 0 3px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* 모델이 찍은 쪽만 밝게 - "누구를 찍었는지"가 카드에서 바로 읽히게 */
+.match-card .fixture .team.picked {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.match-card .fixture .vs {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--muted-2);
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.03);
+  white-space: nowrap;
+}
+
+/* 종료 경기의 스코어보드 - 중계 화면처럼 팀명 사이에 큼직하게. VS 알약과 같은 자리를
+   쓰지만 테두리 없이 숫자만 세워 카드에서 결과가 먼저 읽히게 한다. */
+.match-card .fixture .score {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 2px 6px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.match-card .fixture .score .sc {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--muted);
+  letter-spacing: -0.02em;
+}
+
+/* 이긴 쪽 숫자만 밝게 - 무승부면 둘 다 기본 톤으로 남는다 */
+.match-card .fixture .score .sc.won {
+  color: var(--ink);
+}
+
+.match-card .fixture .score i {
+  font-style: normal;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--muted-2);
+}
+
+.match-card .fixture .vs.picked {
+  color: var(--gold-bright);
+  border-color: rgba(242, 169, 59, 0.45);
+  background: var(--gold-soft);
 }
 
 .prob-bar {
   display: flex;
-  height: 27px;
-  border-radius: 8px;
+  height: 10px;
+  border-radius: 999px;
   overflow: hidden;
-  font-size: 0.74rem;
-  font-weight: 800;
-  color: #0a0c12;
-  margin-bottom: 7px;
+  margin-bottom: 9px;
   gap: 2px;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .prob-bar span {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  white-space: nowrap;
-  overflow: hidden;
-  border-radius: 6px;
-  transition: width 0.25s ease;
+  border-radius: 999px;
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 2px;
 }
+
+/* 확률 숫자는 막대 밖 범례로. 좁은 구간에서 숫자가 잘리던 문제 해소. */
+.prob-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 9px;
+  font-size: 0.76rem;
+  color: var(--muted);
+}
+
+.prob-legend .leg {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+
+.prob-legend .leg i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.prob-legend .leg.home i { background: var(--home); }
+.prob-legend .leg.draw i { background: var(--draw); }
+.prob-legend .leg.away i { background: var(--away); }
+
+.prob-legend .leg b {
+  font-weight: 800;
+  color: #cdd3de;
+}
+
+.prob-legend .leg.picked { color: var(--ink); }
+.prob-legend .leg.home.picked b { color: var(--home); }
+.prob-legend .leg.draw.picked b { color: var(--draw); }
+.prob-legend .leg.away.picked b { color: var(--away); }
 
 .prob-bar .home { background: linear-gradient(180deg, #34d67e, var(--home)); }
 .prob-bar .draw { background: linear-gradient(180deg, var(--gold-bright), var(--draw)); color: #241a05; }
@@ -587,6 +835,10 @@ main {
   color: var(--gold-bright);
   font-weight: 700;
   font-size: 0.76rem;
+  white-space: nowrap; /* "모델 적중/률"처럼 단어 중간에서 끊기지 않게 - 넘치면 가로 스크롤로 */
+  position: sticky;
+  top: 0;
+  background: #12151e;
 }
 
 .calib-table td {
@@ -658,11 +910,14 @@ main {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--card-border);
-  padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
+  /* 본문은 max-width:760px로 가운데 정렬인데 탭바만 화면 끝까지 퍼져서
+     넓은 화면에서 버튼 간격이 벌어져 보였다. 같은 컬럼 폭에 맞춘다. */
+  padding: 6px max(6px, calc((100% - 760px) / 2)) calc(6px + env(safe-area-inset-bottom, 0px));
 }
 
 .tab-btn {
-  flex: 1;
+  flex: 1 1 0;
+  max-width: 140px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -696,4 +951,394 @@ main {
   .topbar h1 {
     font-size: 0.86rem;
   }
+}
+
+/* 신뢰도 표는 리그가 늘면 가로로 길어져 자체 스크롤 컨테이너에 담는다(본문은 가로 스크롤 금지) */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 8px 0 14px;
+  /* 오른쪽 끝 페이드로 "더 있다"를 알린다. 스크롤을 끝까지 밀면 사라진다.
+     (background-attachment: local 두 장 + 고정 그라디언트 한 장의 고전적 조합) */
+  background:
+    linear-gradient(90deg, var(--bg-1) 30%, rgba(16, 19, 28, 0)) left center / 24px 100% no-repeat local,
+    linear-gradient(90deg, rgba(16, 19, 28, 0), var(--bg-1) 70%) right center / 24px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0)) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0)) right center / 12px 100% no-repeat scroll;
+}
+
+/* 스크롤바를 얇게 - 데스크톱에서 두꺼운 기본 스크롤바가 표 밑에 붙으면 지저분하다 */
+.table-scroll::-webkit-scrollbar { height: 6px; }
+.table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+}
+.table-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.table-scroll .calib-table {
+  margin: 0;
+  min-width: 460px;
+}
+
+.calib-table .calib-league {
+  text-align: left;
+  white-space: nowrap;
+  font-weight: 700;
+  color: #d7dbe3;
+}
+
+.calib-n {
+  color: var(--muted-2);
+  font-size: 0.7rem;
+}
+
+.calib-table .edge-good { color: var(--home); font-weight: 700; }
+.calib-table .edge-weak { color: var(--muted-2); }
+
+
+/* ============================================================
+   아이콘 시스템
+   이모지를 SVG로 교체. stroke 기반 + currentColor라 부모 색을 그대로 따라간다.
+   ============================================================ */
+.icon-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.icon-sprite symbol {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex-shrink: 0;
+  vertical-align: -0.14em;
+}
+
+.tab-page h2 .icon,
+.info-block h3 .icon {
+  color: var(--gold);
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.info-block h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* ============================================================
+   상단바 브랜드
+   ============================================================ */
+.topbar .brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.topbar .brand-sub {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--muted-2);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.topbar .brand-glyph {
+  width: 18px;
+  height: 18px;
+  color: #2a1c05;
+  stroke-width: 1.9;
+}
+
+.round-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.round-picker label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+/* ============================================================
+   로딩 스켈레톤
+   fetch 동안 빈 화면 대신 카드 윤곽을 먼저 보여준다.
+   ============================================================ */
+@keyframes skeleton-sheen {
+  from { background-position: -180% 0; }
+  to { background-position: 180% 0; }
+}
+
+.skeleton-card {
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-md);
+  padding: 14px 15px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.skeleton-line {
+  height: 11px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.05) 75%
+  );
+  background-size: 180% 100%;
+  animation: skeleton-sheen 1.25s ease-in-out infinite;
+}
+
+.skeleton-line + .skeleton-line { margin-top: 9px; }
+.skeleton-line.w-40 { width: 40%; }
+.skeleton-line.w-70 { width: 70%; }
+.skeleton-line.bar { height: 27px; border-radius: 8px; margin-top: 13px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line { animation: none; }
+  .tab-page { animation: none; }
+}
+
+/* 데이터가 아예 없을 때 */
+.empty-state {
+  text-align: center;
+  padding: 34px 18px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.empty-state .icon {
+  width: 30px;
+  height: 30px;
+  color: var(--muted-2);
+  display: block;
+  margin: 0 auto 10px;
+}
+
+/* ============================================================
+   접이식 설명(explainer)
+   근거 문단이 길어 정작 픽이 스크롤 한참 아래로 밀려나 있었다.
+   내용을 지우지 않고 접어서, 읽고 싶은 사람만 펴 보게 한다.
+   ============================================================ */
+.explainer {
+  margin: 10px 0 0;
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.022);
+  overflow: hidden;
+}
+
+.explainer > summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 9px 12px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.explainer > summary::-webkit-details-marker { display: none; }
+
+.explainer > summary::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.explainer[open] > summary::before { transform: rotate(45deg); }
+
+.explainer > summary:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.explainer > .hint {
+  margin: 0;
+  padding: 0 12px 11px;
+}
+
+.explainer > .hint + .hint { padding-top: 9px; }
+
+/* 핵심 한 줄은 접지 않고 항상 보이게 */
+.hint.lead {
+  color: #c3cad6;
+  font-size: 0.84rem;
+}
+
+/* 킥오프 시각(KST). 결과가 나오면 이 자리에 적중/실패 배지가 대신 들어간다. */
+.kickoff-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid var(--card-border);
+  color: #b9c1cf;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.kickoff-badge em {
+  font-style: normal;
+  font-size: 0.86em;
+  font-weight: 700;
+  color: var(--muted-2);
+}
+
+.kickoff-badge.pending {
+  color: var(--muted-2);
+}
+
+/* ============================================================
+   헤지 우선순위 배지 / 구매표
+   46회차에서 확신도 0.6%p 경기를 단식으로 두고 27%p 경기에 헤지를 걸어
+   보험이 통째로 낭비된 일이 있었다. 어디를 덮어야 하는지 화면에서 바로 보이게 한다.
+   ============================================================ */
+.hedge-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.16);
+  border: 1px solid rgba(129, 140, 248, 0.4);
+  color: #a5b4fc;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.purchase-sheet {
+  margin-top: 12px;
+}
+
+.purchase-sheet .sheet-rows {
+  padding: 2px 10px 4px;
+}
+
+.sheet-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.82rem;
+}
+
+.sheet-row:last-child { border-bottom: none; }
+
+/* 헤지한 경기는 한눈에 구분되게 - 입력할 때 여기만 여러 개 찍으면 된다 */
+.sheet-row.hedged {
+  background: rgba(99, 102, 241, 0.07);
+  border-radius: 6px;
+}
+
+.sheet-seq {
+  color: var(--muted-2);
+  font-weight: 800;
+  font-size: 0.74rem;
+  text-align: right;
+}
+
+.sheet-teams {
+  color: #cdd3de;
+  overflow-wrap: anywhere;
+}
+
+.sheet-teams em {
+  font-style: normal;
+  color: var(--muted-2);
+  font-size: 0.78em;
+  margin: 0 2px;
+}
+
+.sheet-marks {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.sheet-marks .mark {
+  min-width: 24px;
+  text-align: center;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 0.76rem;
+}
+
+.sheet-marks .mark.홈승 { background: rgba(34, 197, 94, 0.18); color: #4ade80; }
+.sheet-marks .mark.무승부 { background: rgba(242, 169, 59, 0.18); color: var(--gold-bright); }
+.sheet-marks .mark.원정승 { background: rgba(239, 68, 68, 0.18); color: #f87171; }
+
+.purchase-sheet .copy-btn {
+  margin: 4px 10px 12px;
+  padding: 9px 14px;
+  font-size: 0.8rem;
+  width: calc(100% - 20px);
+}
+
+/* ============================================================
+   예측 근거 표시(배당 기반)
+   UCL/UEL처럼 Elo가 성립하지 않는 대회는 확률이 배당에서 그대로 온다.
+   모델이 분석한 것처럼 보이면 안 되므로 카드마다 출처를 명시한다.
+   ============================================================ */
+.basis-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.14);
+  border: 1px solid rgba(56, 189, 248, 0.38);
+  color: #7dd3fc;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.basis-badge.waiting {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.35);
+  color: #cbd5e1;
+}
+
+/* 회차 전체가 배당 기반일 때 목록 위에 한 번 설명한다(카드마다 반복하면 읽히지 않는다). */
+.round-notice {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--text-1);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.round-notice b {
+  color: #7dd3fc;
 }

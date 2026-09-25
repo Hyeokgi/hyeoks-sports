@@ -30,8 +30,19 @@ export interface FotmobFinishedMatch {
   ag: number;
 }
 
+// Workers의 fetch는 기본 타임아웃이 없다. refreshHistory는 이 함수를 리그 8개 + 경기별
+// 코너킥까지 수십 번 호출하는데, 하나라도 응답이 안 오면 크론 전체가 무한정 매달린다
+// (2026-08-24 admin/sync가 반환되지 않은 사례). 한 건을 포기하고 나머지를 진행하는 편이 낫다.
+const FETCH_TIMEOUT_MS = 15000;
+
 async function fetchNextData(url: string): Promise<any | null> {
-  const res = await fetch(url, { headers: HEADERS });
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  } catch (e) {
+    console.error(`fotmob fetch 실패(스킵): ${url} - ${(e as Error).message}`);
+    return null;
+  }
   if (!res.ok) return null;
   const text = await res.text();
   const startTag = '<script id="__NEXT_DATA__" type="application/json">';
@@ -190,7 +201,13 @@ interface FotmobStatListEntry {
 }
 
 async function fetchStatList(url: string): Promise<FotmobStatListEntry[]> {
-  const res = await fetch(url, { headers: HEADERS });
+  let res: Response;
+  try {
+    res = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+  } catch (e) {
+    console.error(`fotmob stat fetch 실패(스킵): ${url} - ${(e as Error).message}`);
+    return [];
+  }
   if (!res.ok) return [];
   const data: any = await res.json();
   return data?.TopLists?.[0]?.StatList ?? [];

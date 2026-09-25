@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-08-28T00:26:08.390Z",
+  "roundNo": 47,
+  "settled": 14,
+  "baseHit": 7,
+  "exHit": 7,
+  "upsetCount": 3,
+  "probRetention": 0.20597466426821295,
+  "baseCrowdShare": 0.0001332675506493246,
+  "pickCrowdShare": 0.000001961393434226504,
+  "winnerCrowdShare": 3.322160216731807e-7,
+  "misses": [
+    {
+      "seq": 3,
+      "league": "UCL",
+      "home": "NK첼레",
+      "away": "슬로반브",
+      "actual": "무승부",
+      "basePick": "홈승",
+      "exPick": "홈승",
+      "isUpset": false,
+      "tier": "근거없음",
+      "gap": 0.0005807355046388851,
+      "modelProbOfActual": 0.29092194883595324,
+      "bucketAccuracy": null,
+      "kinds": [
+        "배당 기반 픽이 빗나감(UCL, 모델 미지원 대회)"
+      ]
+    },
+    {
+      "seq": 5,
+      "league": "UEL",
+      "home": "이베리아",
+      "away": "야기엘로",
+      "actual": "원정승",
+      "basePick": "원정승",
+      "exPick": "홈승",
+      "isUpset": true,
+      "tier": "근거없음",
+      "gap": 0.26032647595299124,
+      "modelProbOfActual": 0.5102398928678628,
+      "bucketAccuracy": null,
+      "kinds": [
+        "독식 이변이 빗나감",
+        "기본픽은 맞았는데 이변으로 놓침",
+        "배당 기반 픽이 빗나감(UEL, 모델 미지원 대회)"
+      ]
+    },
+    {
+      "seq": 8,
+      "league": "UEL",
+      "home": "릴레스트",
+      "away": "에그나티",
+      "actual": "무승부",
+      "basePick": "홈승",
+      "exPick": "홈승",
+      "isUpset": false,
+      "tier": "근거없음",
+      "gap": 0.4500456474127615,
+      "modelProbOfActual": 0.20839344758589046,
+      "bucketAccuracy": null,
+      "kinds": [
+        "배당 기반 픽이 빗나감(UEL, 모델 미지원 대회)"
+      ]
+    },
+    {
+      "seq": 10,
+      "league": "UEL",
+      "home": "카우노잘",
+      "away": "베식타시",
+      "actual": "홈승",
+      "basePick": "원정승",
+      "exPick": "원정승",
+      "isUpset": false,
+      "tier": "근거없음",
+      "gap": 0.5209121601544038,
+      "modelProbOfActual": 0.1065149041060225,
+      "bucketAccuracy": null,
+      "kinds": [
+        "배당 기반 픽이 빗나감(UEL, 모델 미지원 대회)"
+      ]
+    },
+    {
+      "seq": 11,
+      "league": "UEL",
+      "home": "FC툰",
+      "away": "L포즈난",
+      "actual": "무승부",
+      "basePick": "원정승",
+      "exPick": "홈승",
+      "isUpset": true,
+      "tier": "근거없음",
+      "gap": 0.09140790685866373,
+      "modelProbOfActual": 0.24366920280656787,
+      "bucketAccuracy": null,
+      "kinds": [
+        "독식 이변이 빗나감",
+        "배당 기반 픽이 빗나감(UEL, 모델 미지원 대회)"
+      ]
+    },
+    {
+      "seq": 12,
+      "league": "UEL",
+      "home": "C소피아",
+      "away": "OFI크레",
+      "actual": "원정승",
+      "basePick": "홈승",
+      "exPick": "홈승",
+      "isUpset": false,
+      "tier": "근거없음",
+      "gap": 0.3236314462915238,
+      "modelProbOfActual": 0.19228824872921166,
+      "bucketAccuracy": null,
+      "kinds": [
+        "배당 기반 픽이 빗나감(UEL, 모델 미지원 대회)"
+      ]
+    },
+    {
+      "seq": 13,
+      "league": "UEL",
+      "home": "페렌츠바",
+      "away": "트라브존",
+      "actual": "홈승",
+      "basePick": "원정승",
+      "exPick": "원정승",
+      "isUpset": false,
+      "tier": "근거없음",
+      "gap": 0.15500826339947177,
+      "modelProbOfActual": 0.29241114962432985,
+      "bucketAccuracy": null,
+      "kinds": [
+        "배당 기반 픽이 빗나감(UEL, 모델 미지원 대회)"
+      ]
+    }
+  ],
+  "missKindTally": {
+    "배당 기반 픽이 빗나감(UCL, 모델 미지원 대회)": 1,
+    "독식 이변이 빗나감": 2,
+    "기본픽은 맞았는데 이변으로 놓침": 1,
+    "배당 기반 픽이 빗나감(UEL, 모델 미지원 대회)": 6
+  }
+}

@@ -1,5 +1,29 @@
 // 한글 팀명 <-> FotMob 영문 팀명 매핑 (predict_round42_v2.py NAME_MAP 이식)
-export type League = "K리그1" | "K리그2" | "J1리그" | "MLS" | "EPL" | "세리에A" | "라리가" | "분데스리가";
+// 모델(Elo+최근폼+H2H)이 실제로 백테스트된 리그 목록. 이 목록에 없는 대회(UCL/UEL 등)는
+// 리그 내 상대평가인 Elo를 쓸 수 없어 배당만으로 예측한다(isModelLeague 참고).
+export const MODEL_LEAGUES = [
+  "K리그1",
+  "K리그2",
+  "J1리그",
+  "MLS",
+  "EPL",
+  "세리에A",
+  "라리가",
+  "분데스리가",
+] as const;
+export type ModelLeague = (typeof MODEL_LEAGUES)[number];
+
+// 리그명은 wisetoto 원문을 그대로 담는다("UCL", "UEL", ...). 알려진 8개는 자동완성이 되고
+// 그 밖의 대회명도 값으로 들어올 수 있게 열어둔다 - 새 대회가 조용히 K리그2로 오분류되는
+// 사고(예전 leagueOfKr 기본값)를 막기 위해 타입에서부터 "모르는 리그가 있을 수 있음"을 인정한다.
+export type League = ModelLeague | (string & {});
+
+const MODEL_LEAGUE_SET: ReadonlySet<string> = new Set(MODEL_LEAGUES);
+
+/** Elo/폼/H2H 모델이 검증된 리그인가. false면 배당 기반(marketOnly) 경로로 간다. */
+export function isModelLeague(league: string): boolean {
+  return MODEL_LEAGUE_SET.has(league);
+}
 
 export interface TeamMapEntry {
   nameKr: string;
@@ -139,13 +163,21 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   { nameKr: "토리노", nameEn: "Torino", league: "세리에A" },
   // FotMob 세리에A는 짧은 표기 사용("Milan"/"Inter"/"Roma") - 2026-08-22 현재시즌 실측 확인
   { nameKr: "AC밀란", nameEn: "Milan", league: "세리에A" },
-  // 세리에A 나머지 6팀(FotMob 2026-27 현재시즌 20팀 실측 기준) - 46회차에 노출되지 않아
-  // wisetoto 실표기 미확인(추정). 노출 시 정정 필요.
+  // 세리에A 나머지 6팀. AS로마/라치오/피오렌티/볼로냐는 1~41회차 실표기에서 확인됨
+  // (각각 10/8/7/10회 등장). 아래 두 팀은 2026-08-22 편입 당시 추정 표기를 넣었다가
+  // 48회차에서 wisetoto 실표기가 다른 것이 드러나 정정했다 - 이 어긋남 때문에 48회차
+  // 등록이 통째로 보류됐다(NAME_MAP 누락 가드).
+  //   인터밀란 -> 실제 "인테르"  (1~41회차에도 10회 등장, 애초에 확인 가능했다)
+  //   몬차     -> 실제 "AC몬차"
+  // 틀린 추정 표기도 별칭으로 남긴다(같은 영문명으로 향하므로 무해하고, 다른 매체 표기가
+  // 들어와도 받아준다).
+  { nameKr: "인테르", nameEn: "Inter", league: "세리에A" },
   { nameKr: "인터밀란", nameEn: "Inter", league: "세리에A" },
   { nameKr: "AS로마", nameEn: "Roma", league: "세리에A" },
   { nameKr: "라치오", nameEn: "Lazio", league: "세리에A" },
   { nameKr: "피오렌티", nameEn: "Fiorentina", league: "세리에A" },
   { nameKr: "볼로냐", nameEn: "Bologna", league: "세리에A" },
+  { nameKr: "AC몬차", nameEn: "Monza", league: "세리에A" },
   { nameKr: "몬차", nameEn: "Monza", league: "세리에A" },
   // 라리가 (2026-08-22 선제 편입). nameKr은 1~41회차 betman/wisetoto 실표기에서 확인된 20팀 -
   // 2025-26 시즌 구성이라 그 시점 소속 기준이다. nameEn은 백필 데이터(FotMob 표기로 통일됨)와
@@ -210,8 +242,11 @@ const LEAGUE_BY_KR: Record<string, League> = Object.fromEntries(
   TEAM_ENTRIES.map((e) => [e.nameKr, e.league]),
 );
 
-export function leagueOfKr(nameKr: string): League {
-  return LEAGUE_BY_KR[nameKr] ?? "K리그2";
+// NAME_MAP에 없는 팀은 우리가 리그를 모르는 팀이다. 예전엔 무조건 "K리그2"로 떨어뜨렸는데,
+// 그러면 UCL/UEL 클럽이 K리그2 팀으로 등록돼 Elo가 조용히 오염된다. 호출자가 아는 리그명
+// (wisetoto가 알려준 원문)을 fallback으로 넘기게 해서 그 사고를 막는다.
+export function leagueOfKr(nameKr: string, fallback: League = "K리그2"): League {
+  return LEAGUE_BY_KR[nameKr] ?? fallback;
 }
 
 export function allTeamMapEntries(): TeamMapEntry[] {

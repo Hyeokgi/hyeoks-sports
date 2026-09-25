@@ -1,0 +1,25 @@
+wisetoto 403 원인 조사 - 53회차 / game_year 2026
+==============================================================================
+
+1) index.htm - masterSeq 탐색 + 쿠키 확보
+  현행 헤더                              HTTP 200   126029자  경기 관련 토큰 있음
+   masterSeq: 31496  / set-cookie: 있음
+
+2) get_toto_list.htm 헤더 조합별 응답
+   https://www.wisetoto.com/util/gameinfo/get_toto_list.htm?game_category=sc1&game_year=2026&game_round=53&game_month=&game_day=&game_info_master_seq=31496&sports=&sort=&tab_type=toto
+  a. 현행(워커와 동일)                      HTTP 403       26자  토큰 없음
+      본문 앞부분: 잘못된 접근입니다.[code:gtoto_xrw]
+  b. 실제 브라우저 UA                      HTTP 403       26자  토큰 없음
+      본문 앞부분: 잘못된 접근입니다.[code:gtoto_xrw]
+  c. b + X-Requested-With            HTTP 200    24336자  경기 관련 토큰 있음
+  d. c + Referer를 탭 주소로              HTTP 200    24336자  경기 관련 토큰 있음
+  e. d + 쿠키                          HTTP 200    24336자  경기 관련 토큰 있음
+  f. e + Accept/Language             HTTP 200    24336자  경기 관련 토큰 있음
+
+=== 판정 ===
+  a가 403이고 다른 조합이 200이면 -> 헤더/쿠키 문제다. src/lib/wisetoto.ts의 HEADERS를
+     200을 만든 조합으로 고치면 워커에서도 풀릴 가능성이 높다.
+  전부 403이면 -> 엔드포인트가 이 경로를 아예 막았거나 우리 쪽 파라미터가 틀렸다.
+     index.htm HTML에서 경기목록을 직접 파싱하는 경로를 찾아야 한다.
+  a가 200이면 -> 러너에서는 되고 워커에서만 막힌 것이다. Cloudflare 출구 IP 차단이므로
+     헤더로는 안 풀린다. 수집을 러너로 옮기고 워커는 D1에 쓰는 역할만 맡는 구조가 필요하다.

@@ -115,6 +115,10 @@ def build_app_rows():
             result = m.get("result")
             if not result:
                 continue  # 아직 경기 전이거나 정산 전 - 이 시트는 확정된 결과만 기록
+            # 킥오프 뒤에 등록된 경기는 예측에 결과가 섞여 있다(회차 감지가 멈췄다 따라잡은 경우).
+            # 모델 성능 시트에 넣으면 답을 보고 맞힌 게 적중으로 집계된다.
+            if m.get("predictedAfterKickoff"):
+                continue
             actual = ACTUAL_LABEL[result["actual"]]
             p = m["prediction"]
             model_pick = p["rankedPicks"][0]
@@ -139,7 +143,10 @@ def build_app_rows():
                 vote_fav, vote_fav_pct, actual_share_pct, vote_upset,
                 model_pick, conf_gap, calib.get("tier", ""), calib_accuracy,
                 "이변" if actual != model_pick else "",
-                "hyeoks-sports 앱(42회차~)",
+                # UCL/UEL처럼 모델이 없는 대회는 확률이 배당 그대로다(prediction.basis).
+                # 출처를 구분해 두지 않으면 이 시트에서 모델 성능으로 집계된다.
+                "hyeoks-sports 앱(42회차~)" if p.get("basis", "model") == "model"
+                else f"hyeoks-sports 앱 · 배당 기반({m['league']}, 모델 미지원 대회)",
             ])
     return rows
 
