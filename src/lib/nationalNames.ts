@@ -130,6 +130,19 @@ export function nationalTeamEn(kr: string): string | null {
   return null;
 }
 
+/**
+ * 잘린 국가명을 글에 쓸 전체 이름으로 되돌린다("슬로베니" → "슬로베니아"). 국가가 아니면 그대로.
+ * 분석 글에서 "슬로베니가"처럼 조사가 어색하게 붙는 것을 막는다. 후보가 여럿이면 가장 짧은 표기.
+ */
+export function nationalDisplayName(kr: string): string {
+  const k = kr.replace(/\s+/g, "");
+  if (NATIONAL_KR[k]) return kr;
+  const en = nationalTeamEn(k);
+  if (!en) return kr;
+  const full = FULL_NAMES.filter((n) => n.startsWith(k) && NATIONAL_KR[n] === en).sort((a, b) => a.length - b.length)[0];
+  return full ?? kr;
+}
+
 export const NATIONAL_EN_NAMES: readonly string[] = [...new Set(Object.values(NATIONAL_KR))];
 
 // 영문 국가명 → 국기 파일 코드(lipis/flag-icons 파일명: ISO 3166-1 alpha-2, 영국 4개 협회는 gb-xxx).

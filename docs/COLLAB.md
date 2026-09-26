@@ -31,7 +31,7 @@
   "leagues": ["U네이션"], "deadline": "9. 27. (일) 22:00",   // 첫 경기(KST)
   "report": "AI 요약 | null",
   "matches": [{
-    "seq": 1, "league": "U네이션", "home": "아르메니", "away": "몬테네그",   // wisetoto 표기(4글자 절단 있음)
+    "seq": 1, "league": "U네이션", "home": "아르메니아", "away": "몬테네그로",   // 국가대표는 전체 이름으로 복원, 클럽은 wisetoto 표기
     "kickoffAt": "ISO|null",
     "pHome": 0.355, "pDraw": 0.289, "pAway": 0.356,
     "pick": "홈승|무승부|원정승",
@@ -41,8 +41,23 @@
     "nBookmakers": 2,
     "vote": { "home": 30, "draw": 20, "away": 50 } ,   // betman 투표율(%) | null
     "result": { "actual": "H|D|A", "hg": 1, "ag": 1 } | null,
-    "predictedAfterKickoff": false    // true면 채점·홍보에 쓰지 말 것
+    "predictedAfterKickoff": false,   // true면 채점·홍보에 쓰지 말 것
+    "detail": {                       // 근거 원자료(끝난 경기는 null). 없는 근거는 null
+      "eloDiff": 120, "formDiff": 0.8, "h2hDiff": 0.6, "nH2h": 4,      // 클럽 모델 경기만
+      "natEloDiff": 90, "natProbs": { "pHome": 0.6, "pDraw": 0.24, "pAway": 0.16 },  // 국가대표만
+      "market": { "pHome": 0.55, "pDraw": 0.26, "pAway": 0.19, "n": 5 },  // 해외 배당(최신)
+      "marketOpen": { "pHome": 0.52, "pDraw": 0.27, "pAway": 0.21 },      // 첫 수집 배당(흐름)
+      "modelOnly": { "pHome": 0.5, "pDraw": 0.27, "pAway": 0.23 },         // 배당 섞기 전 모델
+      "calib": { "accuracy": 0.61, "n": 812, "minGap": 0.2, "maxGap": 0.3 } // 같은 확신 구간 과거 적중률
+    },
+    "analysis": {                     // 규칙으로 만든 분석 문장(숫자는 전부 detail에서 옴, LLM 아님)
+      "reasons": ["근거 문장…"], "risks": ["변수·위험 문장…"],
+      "stance": "단식|단식·여유 시 복식|복식|삼복식 고려|판단 보류",
+      "cover": ["홈승", "무승부"], "verdict": "한 줄 결론"
+    }
   }],
+  "keyMatches": [12, 11, 1],         // 심층 분석 대상 seq(중요도 순)
+  "highlights": ["한눈에 보기 요점…"], "basisSummary": "배당 14경기", "strategy": "단식 권장 …",
   "top": [/* 확신도 상위 3 (matches와 같은 모양) */],
   "hedges": [/* 확신도 하위 4 = 복식 후보 */],
   "crowdSplits": [/* 투표 1위와 우리 픽이 다른 경기 */],
@@ -51,6 +66,7 @@
 }
 ```
 
+- `analysis` 문장은 블로그 본문에 그대로 써도 되는 수준으로 만든다(조사 처리, 과장 표현 없음). 톤·순서·이미지화는 Codex가 편집한다. 새 근거 문장이 필요하면 명세로 요청한다(`src/lib/matchAnalysis.ts`).
 - 끝난 경기의 확률과 픽은 **킥오프 전에 공개했던 값**(예측 스냅샷)이다. 모델이 나중에 바뀌어도 변하지 않는다.
 - 진행 중인 경기는 현재 값이며, 배당이 들어오면(2시간마다) 바뀐다. **이미지와 본문에는 `asOfKst`를 함께 적는다.** 그래야 페이지와 이미지의 시점 차이를 독자가 알 수 있다.
 - CORS가 열려 있다. 로컬 도구나 노트북에서 바로 불러와도 된다.
@@ -113,6 +129,7 @@
 | `data.json` 인터페이스 + 데이터 기준 시각 | Claude | 완료 |
 | 킥오프 전 예측 보존(실제 기록용 스냅샷) | Claude | 완료 |
 | 유입·기능 이용 측정 + 블로그 링크 UTM | Claude | 완료 |
+| 경기별 근거·위험·권장 커버 분석(리포트형 초안) | Claude | 완료 |
 | 한 회차의 본문+이미지 세트(디자인 기준) | Codex | 대기 |
 | 홈 개편·메뉴(홈/경기 분석/조합 만들기/실제 기록) 명세 | Codex | 대기 |
 | 광고·스폰서 자리 명세(광고주 없으면 숨김) | Codex | 대기 |
