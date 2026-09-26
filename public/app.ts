@@ -54,6 +54,9 @@ const TOGGLE_LABELS: { key: keyof PredictionToggles; label: string; kind: "bool"
 let currentMatches: MatchData[] = [];
 let currentToggles: PredictionToggles = { ...DEFAULT_TOGGLES };
 let currentRoundId: number | null = null;
+// 회차 id → 확정 회차번호. 분석 글 링크(/round/:no)를 만들 때 쓴다.
+const roundNoById = new Map<number, number>();
+const articleLink = document.getElementById("round-article-link") as HTMLAnchorElement | null;
 
 const roundSelect = document.getElementById("round-select") as HTMLSelectElement;
 const toggleGrid = document.getElementById("toggle-grid") as HTMLDivElement;
@@ -819,7 +822,13 @@ async function loadRounds() {
     return;
   }
   const now = Date.now();
-  const initial = pickDefaultRound(data.rounds, now) ?? data.rounds[0];
+  // ?round=56 으로 들어오면(분석 글·블로그 링크) 그 회차를 연다. 없으면 마감 임박 회차.
+  const wanted = Number(new URLSearchParams(location.search).get("round"));
+  const initial =
+    (wanted ? data.rounds.find((r: any) => r.round_no === wanted && r.round_no_confirmed) : null) ??
+    pickDefaultRound(data.rounds, now) ??
+    data.rounds[0];
+  for (const r of data.rounds ?? []) if (r.round_no_confirmed && r.round_no != null) roundNoById.set(r.id, r.round_no);
   for (const r of data.rounds ?? []) {
     const opt = document.createElement("option");
     opt.value = String(r.id);
@@ -835,6 +844,11 @@ async function loadRounds() {
 
 async function loadRound(roundId: number) {
   currentRoundId = roundId;
+  const no = roundNoById.get(roundId);
+  if (articleLink) {
+    articleLink.hidden = no == null;
+    if (no != null) articleLink.href = `/round/${no}`;
+  }
   reportText.textContent = "";
   matchList.innerHTML = skeletonCards(5);
   roundSummaryEl.hidden = true;

@@ -5,6 +5,7 @@ import { handleCombinations } from "./routes/combinations";
 import { handleExclusivePick } from "./routes/exclusivePick";
 import { handleReport } from "./routes/report";
 import { handleSettlement } from "./routes/settlement";
+import { handleRoundPage, handleSitemap, handleRobots } from "./routes/roundPage";
 import {
   handleCorrectRoundNo,
   handleSync,
@@ -20,6 +21,8 @@ import { json } from "./lib/http";
 import type { Env } from "./types";
 
 const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report|exclusive-pick))?$/;
+// 회차 분석 페이지(공개)와 블로그 초안. 정적 자산에 없는 경로라 워커로 넘어온다.
+const ROUND_PAGE_RE = /^\/round\/(\d+)(\/draft)?\/?$/;
 const ADMIN_ROUND_RE = /^\/api\/admin\/rounds\/(\d+)$/;
 const ADMIN_ROUND_REPORT_RE = /^\/api\/admin\/rounds\/(\d+)\/report$/;
 const ADMIN_ROUND_MARKET_ODDS_RE = /^\/api\/admin\/rounds\/(\d+)\/market-odds$/;
@@ -87,6 +90,13 @@ export default {
       if (pathname.startsWith("/api/")) {
         return json({ error: "not_found" }, 404);
       }
+
+      const roundPage = pathname.match(ROUND_PAGE_RE);
+      if (roundPage && request.method === "GET") {
+        return await handleRoundPage(env, request, Number(roundPage[1]), Boolean(roundPage[2]));
+      }
+      if (pathname === "/sitemap.xml") return await handleSitemap(env, request);
+      if (pathname === "/robots.txt") return handleRobots(request);
 
       return env.ASSETS.fetch(request);
     } catch (err) {

@@ -53,4 +53,23 @@ describe("generate_report.mjs buildPrompt matches src/lib/gemini.ts buildPrompt"
     expect(a).toContain("배당에서 마진을 제거한 확률");
     expect(buildPromptAction("47회차", matches)).toBe(a);
   });
+
+  // 국가대표 Elo 경기는 "배당 기준"으로 서술되면 안 된다(57회차: 배당 없이 국가대표 Elo로 예측).
+  it("국가대표 Elo·근거없음 경기는 각자의 안내가 붙고, 두 buildPrompt가 같다", () => {
+    const national = predictMatch(
+      { eloDiff: 0, formDiff: 0, h2hDiff: 0, leagueDrawRate: 0.27, marketOnly: true, nationalEloDiff: 150 },
+      DEFAULT_TOGGLES,
+    );
+    const none = predictMatch({ eloDiff: 0, formDiff: 0, h2hDiff: 0, leagueDrawRate: 0.27, marketOnly: true }, DEFAULT_TOGGLES);
+    const matches = [
+      { league: "U네이션", home: "잉글랜드", away: "크로아티", prediction: national, calibration: { bucket: null } },
+      { league: "UCL", home: "A", away: "B", prediction: none, calibration: { bucket: null } },
+    ];
+    const a = buildPromptWorker("57회차", matches);
+    expect(a).toContain("국가대표Elo추천");
+    expect(a).toContain("국가대표 Elo(1872년 이후");
+    expect(a).toContain("근거없음");
+    expect(a).not.toContain("배당기반추천");
+    expect(buildPromptAction("57회차", matches)).toBe(a);
+  });
 });

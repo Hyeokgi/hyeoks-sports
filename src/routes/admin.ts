@@ -5,6 +5,7 @@ import { detectNewRound } from "../cron/detectNewRound";
 import { sendTelegramMessage } from "../lib/telegram";
 import { getRound, getRoundMatches } from "../lib/db";
 import { reportCacheKey, REPORT_CACHE_TTL_SECONDS } from "../lib/reportCache";
+import { loadRoundArticle } from "./roundPage";
 import type { Env } from "../types";
 
 export async function handleSync(env: Env, request: Request): Promise<Response> {
@@ -46,7 +47,47 @@ export async function handleWriteReport(env: Env, roundId: number, request: Requ
   }
 
   await env.KV.put(reportCacheKey(roundId), report.trim(), { expirationTtl: REPORT_CACHE_TTL_SECONDS });
-  return json({ ok: true, round_id: roundId });
+  const draftNotified = await notifyDraftOnce(env, round.id, round.round_no, round.round_no_confirmed, new URL(request.url).origin);
+  return json({ ok: true, round_id: roundId, draftNotified });
+}
+
+// 회차의 첫 리포트가 저장되면 블로그 초안이 준비됐다고 텔레그램으로 한 번만 알린다.
+// 리포트는 6시간마다 다시 만들어지므로 매번 보내면 같은 알림이 쌓인다. 초안 페이지는
+// 항상 최신 리포트로 만들어지니 링크 하나면 충분하다.
+const DRAFT_NOTIFIED_TTL = 60 * 60 * 24 * 30;
+async function notifyDraftOnce(
+  env: Env,
+  roundId: number,
+  roundNo: number | null,
+  confirmed: number,
+  origin: string,
+): Promise<boolean> {
+  if (roundNo == null || !confirmed) return false;
+  const key = `draft_notified:${roundId}`;
+  if (await env.KV.get(key)) return false;
+  try {
+    const a = await loadRoundArticle(env, roundNo, origin);
+    if (!a) return false;
+    const top = a.top.map((m) => `· ${m.seq}. ${m.home} vs ${m.away} → ${m.pick}`).join("\n");
+    const sent = await sendTelegramMessage(
+      env,
+      `📝 <b>${roundNo}회차 블로그 초안 준비</b>\n\n` +
+        `${escapeTg(a.title)}\n` +
+        (a.deadline ? `첫 경기 ${escapeTg(a.deadline)} (KST)\n` : "") +
+        (top ? `\n확신도 상위\n${escapeTg(top)}\n` : "") +
+        `\n초안(복사용): ${a.draftUrl}\n공개 페이지: ${a.pageUrl}`,
+    );
+    if (sent) await env.KV.put(key, new Date().toISOString(), { expirationTtl: DRAFT_NOTIFIED_TTL });
+    return sent;
+  } catch (e) {
+    // 알림 실패가 리포트 저장을 실패로 만들지 않게 한다.
+    console.error(`블로그 초안 알림 실패: ${(e as Error).message}`);
+    return false;
+  }
+}
+
+function escapeTg(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // GitHub Actions(scripts/fetch_market_odds.mjs)가 wisetoto에서 수집한 해외 배당 암시확률을
