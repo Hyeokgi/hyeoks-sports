@@ -27,7 +27,9 @@ function parseSaleWindow(text) {
 async function fetchGameInfo(gmTs) {
   const browser = await chromium.launch();
   try {
-    const page = await browser.newPage({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" });
+    // betman은 발매기간을 접속 브라우저의 시간대로 그린다. 러너(UTC) 기본값이면 KST 23:00이 14:00으로 나와
+    // parseSaleWindow가 9시간을 한 번 더 빼 마감이 9시간 이르게 저장됐다(2026-09-26 56·57회차). 서울 시간대로 고정한다.
+    const page = await browser.newPage({ userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", timezoneId: "Asia/Seoul", locale: "ko-KR" });
     let gameInfo = null;
     page.on("response", async (res) => {
       if (res.url().includes("/buyPsblGame/gameInfoInq.do") && res.request().method() === "POST") {
