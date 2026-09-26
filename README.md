@@ -2,6 +2,8 @@
 
 FotMob 데이터 기반 Elo/최근폼/상대전적/리그별 무승부율 모델로 승무패 회차를 예측하고, 예산별 구매 조합·독식(단독 당첨) 지향 픽·Gemini 분석 리포트를 제공하는 Cloudflare Worker 앱. 지원 리그는 K리그1·K리그2·J1리그(일본)·MLS(미국)·EPL(잉글랜드)·세리에A(이탈리아)·라리가(스페인)·분데스리가(독일) 8개다. UCL·UEL처럼 서로 다른 리그의 클럽이 맞붙는 대회는 Elo(리그 내 상대평가)가 성립하지 않아 해외 배당 암시확률을 그대로 쓰고, 화면에 "배당 기반"으로 명시한다(백테스트 근거 없음).
 
+> 전체 구조·결정·최근 변경은 [`docs/HANDOFF.md`](docs/HANDOFF.md)에 정리돼 있다.
+
 ## 로컬 개발
 
 ```bash
@@ -99,5 +101,5 @@ python seed/export_history_to_sql.py
 
 ## 알려진 제약
 
-- betman.co.kr 공식 회차 확인은 세션 게이트가 있어 Worker에서 직접 스크래핑 불가. `detectNewRound` 크론은 FotMob 예정 경기로 "다음 14경기 묶음"을 추정만 하며, 실제 회차번호는 위 관리자 API로 수동 보정해야 한다.
+- 회차 감지(`detectNewRound`)는 wisetoto에서 확정 회차번호·경기목록을 그대로 가져온다. betman은 세션 게이트가 있어 투표율만 GitHub Actions(Playwright)로 수집한다.
 - 통계 모델은 참고용이며 배당 마진 대비 실질적 우위를 보장하지 않는다.
