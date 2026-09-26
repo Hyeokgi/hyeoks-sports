@@ -16,7 +16,8 @@ binding = "KV"
 id = "4eddcce52bd645d3ac728fb93e3b4892"
 
 [triggers]
-crons = ["0 */3 * * *", "0 */6 * * *"]
+# */10: 마감 12·6·3·1시간 전 배당·투표율 수집 호출(src/cron/deadlineTrigger.ts)
+crons = ["0 */3 * * *", "0 */6 * * *", "*/10 * * * *"]
 
 [vars]
 ENVIRONMENT = "production"
