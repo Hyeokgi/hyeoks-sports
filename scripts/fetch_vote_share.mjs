@@ -11,6 +11,19 @@ function normalizeTeamName(name) {
   return (name ?? "").replace(/\s+/g, "").replace(/FC$|FC1995$|2008$/i, "");
 }
 
+// 구매투표지 상단 "발매기간 26.09.27(일) 08:00 ~ 26.09.28(월) 23:00"(KST)을 UTC ISO로 바꾼다.
+// 마감은 첫 경기 시각과 다르다(56회차: 마감 9/28 23:00, 첫 경기 9/29 01:00). 발매 전이라
+// closedGameSlip.do로 넘어가도 발매기간은 표시되므로 투표가 없어도 저장할 수 있다.
+function parseSaleWindow(text) {
+  const m = (text ?? "").match(
+    /발매기간\s*(\d{2})\.(\d{2})\.(\d{2})\([^)]*\)\s*(\d{2}):(\d{2})\s*~\s*(\d{2})\.(\d{2})\.(\d{2})\([^)]*\)\s*(\d{2}):(\d{2})/,
+  );
+  if (!m) return null;
+  const iso = (y, mo, d, h, mi) =>
+    new Date(Date.UTC(2000 + Number(y), Number(mo) - 1, Number(d), Number(h) - 9, Number(mi))).toISOString();
+  return { saleStartAt: iso(m[1], m[2], m[3], m[4], m[5]), saleEndAt: iso(m[6], m[7], m[8], m[9], m[10]) };
+}
+
 async function fetchGameInfo(gmTs) {
   const browser = await chromium.launch();
   try {
@@ -31,7 +44,8 @@ async function fetchGameInfo(gmTs) {
       timeout: 30000,
     });
     await page.waitForTimeout(1500);
-    return gameInfo;
+    const saleWindow = parseSaleWindow(await page.evaluate(() => document.body.innerText));
+    return { gameInfo, saleWindow };
   } finally {
     await browser.close();
   }
@@ -41,7 +55,19 @@ async function collectRound(round) {
 
   const gmTs = Number(`26${String(round.round_no).padStart(4, "0")}`);
   console.log(`betman gmTs=${gmTs} (round_no=${round.round_no}) 조회 시도`);
-  const gameInfo = await fetchGameInfo(gmTs);
+  const { gameInfo, saleWindow } = await fetchGameInfo(gmTs);
+  // 발매기간은 투표 유무와 상관없이 먼저 저장한다(마감 12·6·3·1시간 전 수집이 이 값을 기준으로 돈다).
+  if (saleWindow) {
+    const swRes = await fetch(`${WORKER_BASE_URL}/api/admin/rounds/${round.id}/sale-window`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${ADMIN_TOKEN}` },
+      body: JSON.stringify(saleWindow),
+    });
+    if (swRes.ok) console.log(`발매기간 저장: ${saleWindow.saleStartAt} ~ ${saleWindow.saleEndAt}`);
+    else console.log(`발매기간 저장 실패(계속 진행): ${swRes.status} ${await swRes.text()}`);
+  } else {
+    console.log("구매투표지에서 발매기간을 찾지 못했습니다.");
+  }
   if (!gameInfo) {
     console.log("betman에서 유효한 gameInfoInq 응답을 받지 못했습니다(발매 전/마감/차단 등). 이번 회차는 스킵합니다.");
     return;
