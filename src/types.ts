@@ -8,6 +8,10 @@ export interface Env {
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_CHAT_ID?: string;
   ADMIN_TOKEN?: string;
+  // 마감 12·6·3·1시간 전 수집 호출용 GitHub 토큰(fine-grained, 이 저장소 Actions: Read and write).
+  // 없으면 src/cron/deadlineTrigger.ts가 조용히 건너뛴다.
+  GH_DISPATCH_TOKEN?: string;
+  GH_REPO?: string;
 }
 
 // 리그 정의는 nameMap.ts 한 곳에만 둔다(예전엔 두 파일에 같은 유니온이 복사돼 있었다).
@@ -25,6 +29,9 @@ export interface RoundRow {
   // listRounds에서만 채워진다(회차 경기들의 첫/마지막 킥오프, UTC ISO).
   first_kickoff_at?: string | null;
   last_kickoff_at?: string | null;
+  // betman 발매기간(UTC ISO, migration 0010). 마감은 첫 경기 시각과 다르다. 수집 전이면 null.
+  sale_start_at?: string | null;
+  sale_end_at?: string | null;
 }
 
 export interface RoundMatchRow {

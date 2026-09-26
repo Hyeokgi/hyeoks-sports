@@ -16,9 +16,11 @@ import {
   handleWriteReport,
   handleWriteMarketOdds,
   handleWriteVoteShare,
+  handleWriteSaleWindow,
 } from "./routes/admin";
 import { refreshHistory } from "./cron/refreshHistory";
 import { detectNewRound } from "./cron/detectNewRound";
+import { runDeadlineTrigger } from "./cron/deadlineTrigger";
 import { json } from "./lib/http";
 import type { Env } from "./types";
 
@@ -30,6 +32,7 @@ const ADMIN_ROUND_RE = /^\/api\/admin\/rounds\/(\d+)$/;
 const ADMIN_ROUND_REPORT_RE = /^\/api\/admin\/rounds\/(\d+)\/report$/;
 const ADMIN_ROUND_MARKET_ODDS_RE = /^\/api\/admin\/rounds\/(\d+)\/market-odds$/;
 const ADMIN_ROUND_VOTE_SHARE_RE = /^\/api\/admin\/rounds\/(\d+)\/vote-share$/;
+const ADMIN_ROUND_SALE_WINDOW_RE = /^\/api\/admin\/rounds\/(\d+)\/sale-window$/;
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -71,6 +74,11 @@ export default {
       const adminVoteShareMatch = pathname.match(ADMIN_ROUND_VOTE_SHARE_RE);
       if (adminVoteShareMatch && request.method === "POST") {
         return await handleWriteVoteShare(env, Number(adminVoteShareMatch[1]), request);
+      }
+
+      const adminSaleWindowMatch = pathname.match(ADMIN_ROUND_SALE_WINDOW_RE);
+      if (adminSaleWindowMatch && request.method === "POST") {
+        return await handleWriteSaleWindow(env, Number(adminSaleWindowMatch[1]), request);
       }
 
       const adminMatch = pathname.match(ADMIN_ROUND_RE);
@@ -138,6 +146,10 @@ export default {
     } else if (controller.cron === "0 */6 * * *") {
       const result = await detectNewRound(env);
       console.log(`detectNewRound: ${JSON.stringify(result)}`);
+    } else if (controller.cron === "*/10 * * * *") {
+      // 마감 12·6·3·1시간 전 배당·투표율 수집 호출(토큰 없으면 건너뜀)
+      const result = await runDeadlineTrigger(env);
+      if (result.reason !== "none_due") console.log(`deadlineTrigger: ${JSON.stringify(result)}`);
     }
   },
 } satisfies ExportedHandler<Env>;
