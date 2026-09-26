@@ -69,7 +69,14 @@ async function main() {
     console.log("등록된 회차가 없어 리포트를 생성하지 않습니다.");
     return;
   }
-  const round = rounds[0]; // listRounds는 id DESC 정렬 -> 최신 회차
+  // 가장 최근 등록 회차가 아니라 '마감이 가장 임박한 발매중 회차'의 리포트를 만든다.
+  // betman은 여러 회차를 동시에 발매해서, 최신 회차만 보면 곧 마감인 회차에 리포트가 없다.
+  // src/lib/roundPick.ts의 pickDefaultRound 1순위와 같은 규칙(이 스크립트는 node로 돌아 TS를 못 가져온다).
+  const now = Date.now();
+  const onSale = rounds
+    .filter((r) => r.status === "upcoming" && r.first_kickoff_at && Date.parse(r.first_kickoff_at) > now)
+    .sort((a, b) => Date.parse(a.first_kickoff_at) - Date.parse(b.first_kickoff_at));
+  const round = onSale[0] ?? rounds[0];
 
   const roundRes = await fetch(`${WORKER_BASE_URL}/api/rounds/${round.id}`);
   if (!roundRes.ok) throw new Error(`/api/rounds/${round.id} 조회 실패: ${roundRes.status}`);

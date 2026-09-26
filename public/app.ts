@@ -5,7 +5,9 @@ import { findCalibrationBucket, confidenceTier, CALIBRATION, CALIBRATION_OVERALL
 import { computeUpsetSignal } from "../src/lib/upsetSignal";
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
 import { TEAM_LOGOS } from "../src/lib/teamLogos";
+import { nationalFlagUrl } from "../src/lib/nationalNames";
 import { isModelLeague } from "../src/lib/nameMap";
+import { pickDefaultRound, roundPhase } from "../src/lib/roundPick";
 
 interface MatchData {
   seq: number;
@@ -118,7 +120,19 @@ function monoCrest(name: string): string {
 
 function teamCrest(name: string): string {
   const url = TEAM_LOGOS[name];
-  if (!url) return monoCrest(name);
+  if (!url) {
+    // 국가대표 경기는 국기를 엠블럼으로 쓴다(구단 엠블럼 목록에 없을 때만 - 클럽이 우선).
+    const flag = nationalFlagUrl(name);
+    if (flag) {
+      return (
+        `<span class="crest flag">` +
+        `<img src="${esc(flag)}" alt="" loading="lazy" decoding="async" ` +
+        `onerror="this.closest('.crest').outerHTML=this.dataset.fb" ` +
+        `data-fb="${esc(monoCrest(name))}" /></span>`
+      );
+    }
+    return monoCrest(name);
+  }
   // 이미지가 404여도 빈 칸이 남지 않도록, 실패하면 모노그램으로 갈아끼운다.
   return (
     `<span class="crest logo">` +
@@ -804,15 +818,19 @@ async function loadRounds() {
     matchList.innerHTML = emptyState("matches", "아직 등록된 회차가 없습니다.");
     return;
   }
+  const now = Date.now();
+  const initial = pickDefaultRound(data.rounds, now) ?? data.rounds[0];
   for (const r of data.rounds ?? []) {
     const opt = document.createElement("option");
     opt.value = String(r.id);
-    opt.textContent = r.round_no_confirmed
-      ? `${r.round_no}회차`
-      : `${r.round_no ?? "추정"}회차 (미확정, #${r.id})`;
+    const phase = roundPhase(r, now);
+    opt.textContent =
+      (r.round_no_confirmed ? `${r.round_no}회차` : `${r.round_no ?? "추정"}회차 (미확정, #${r.id})`) +
+      (phase ? ` · ${phase}` : "");
+    if (r.id === initial.id) opt.selected = true;
     roundSelect.appendChild(opt);
   }
-  await loadRound(data.rounds[0].id);
+  await loadRound(initial.id);
 }
 
 async function loadRound(roundId: number) {
@@ -846,7 +864,11 @@ async function loadRound(roundId: number) {
       market: m.raw.market ?? null,
       xgDiff: m.raw.xgDiff ?? null,
       cornersDiff: m.raw.cornersDiff ?? null,
+      // 이 두 필드를 여기서 빠뜨려 화면에서 국가대표 Elo가 적용되지 않고(36/27/36 그대로),
+      // 사후 등록 경기에 적중/실패가 붙었다. API 필드를 추가하면 이 매핑도 같이 늘려야 한다.
+      nationalEloDiff: m.raw.nationalEloDiff ?? null,
     },
+    predictedAfterKickoff: m.predictedAfterKickoff ?? false,
     result: m.result ?? null,
     voteShare: m.voteShare ?? null,
   }));
