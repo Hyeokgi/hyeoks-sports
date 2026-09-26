@@ -64,9 +64,10 @@ async function loadRecent(env: Env, beforeId: number): Promise<RecentRecord[]> {
   )
     .bind(beforeId, RECENT_ROUNDS + 3) // 사후 등록뿐인 회차(n=0)는 걸러지므로 여유 있게
     .all<{ id: number; round_no: number }>();
+  // 회차별 조회를 동시에 보낸다. 순서대로 보내면 첫 로딩이 5초쯤 걸렸다(실측).
+  const loaded = await Promise.all((rounds ?? []).map(async (r) => ({ r, ms: await loadMatches(env, r.id) })));
   const out: RecentRecord[] = [];
-  for (const r of rounds ?? []) {
-    const ms = await loadMatches(env, r.id);
+  for (const { r, ms } of loaded) {
     const scored = ms.filter((m) => m.result && !m.predictedAfterKickoff);
     if (scored.length === 0) continue;
     out.push({
