@@ -45,6 +45,8 @@ export interface ArticleInput {
   // 데이터 기준 시각(가장 최근 배당 갱신 시각, ISO). 페이지·초안·블로그 이미지가 같은 시점의
   // 데이터인지 확인할 수 있게 모든 산출물에 같이 찍는다.
   asOf?: string | null;
+  // betman 발매 마감(UTC ISO, rounds.sale_end_at). 첫 경기와 다르므로 따로 받는다. 수집 전이면 null.
+  saleEndAt?: string | null;
   now?: number;
 }
 
@@ -53,7 +55,10 @@ export interface RoundArticle {
   title: string;
   description: string;
   leagues: string[];
-  deadline: string | null; // KST 표기
+  deadline: string | null; // 첫 경기 KST 표기
+  // betman 발매 마감. 블로그 자동 갱신(마감 12·6·3·1시간 전)이 이 값을 기준으로 돈다. 수집 전이면 null.
+  saleEndAt: string | null; // UTC ISO
+  saleDeadline: string | null; // KST 표기
   matches: ArticleMatch[];
   report: string | null;
   top: ArticleMatch[]; // 확신도 상위(근거 있는 경기만)
@@ -122,6 +127,8 @@ export function buildRoundArticle(input: ArticleInput): RoundArticle {
   const kicks = matches.map((m) => (m.kickoffAt ? Date.parse(m.kickoffAt) : NaN)).filter(Number.isFinite);
   const first = kicks.length ? new Date(Math.min(...kicks)).toISOString() : null;
   const deadline = formatKst(first);
+  const saleEndAt = input.saleEndAt ?? null;
+  const saleDeadline = formatKst(saleEndAt);
 
   // 근거 없는 경기(배당도 모델도 없음)는 상위·하위 어디에도 넣지 않는다 - 확률이 임시값이다.
   const grounded = matches.filter((m) => m.basis !== "none" && !m.result);
@@ -198,6 +205,7 @@ export function buildRoundArticle(input: ArticleInput): RoundArticle {
   const description =
     `${roundNo}회차 승무패 ${matches.length}경기(${lg}) 경기별 확률과 판단 근거(배당·배당 흐름·전력 지수·대중 투표), ` +
     `변수와 위험, 단식·복식 전략, 지난 회차 실제 성적을 정리한 분석 리포트입니다.` +
+    (saleDeadline ? ` 발매 마감 ${saleDeadline}(KST).` : "") +
     (deadline ? ` 첫 경기 ${deadline}(KST).` : "");
   const tags = ["축구토토", "승무패", `승무패${roundNo}회차`, `${roundNo}회차`, "토토분석", "스포츠토토", ...leagues];
 
@@ -207,6 +215,8 @@ export function buildRoundArticle(input: ArticleInput): RoundArticle {
     description,
     leagues,
     deadline,
+    saleEndAt,
+    saleDeadline,
     matches: analyzed,
     report: input.report,
     top: top.map((m) => A(m.seq)),
@@ -263,7 +273,11 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
   parts.push(`<h2>이번 회차 한눈에 보기</h2>`);
   parts.push(
     `<p>${e(`${a.roundNo}회차 축구토토 승무패는 ${a.leagues.join("·")} ${a.matches.length}경기로 구성됩니다.`)}` +
-      (a.deadline ? ` ${e(`첫 경기는 ${a.deadline}(한국시간)이며, 발매는 그 직전에 마감됩니다.`)}` : "") +
+      (a.saleDeadline
+        ? ` ${e(`발매 마감은 ${a.saleDeadline}${a.deadline ? `, 첫 경기는 ${a.deadline}` : ""}(한국시간)입니다.`)}`
+        : a.deadline
+          ? ` ${e(`첫 경기는 ${a.deadline}(한국시간)이며, 발매는 그 전에 마감됩니다.`)}`
+          : "") +
       `</p>`,
   );
   parts.push(
@@ -358,7 +372,7 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
 export function renderArticlePlainText(a: RoundArticle, source: LinkSource = "blog"): string {
   const L: string[] = [];
   L.push("■ 이번 회차 한눈에 보기");
-  L.push(`${a.roundNo}회차 축구토토 승무패는 ${a.leagues.join("·")} ${a.matches.length}경기로 구성됩니다.` + (a.deadline ? ` 첫 경기는 ${a.deadline}(한국시간)입니다.` : ""));
+  L.push(`${a.roundNo}회차 축구토토 승무패는 ${a.leagues.join("·")} ${a.matches.length}경기로 구성됩니다.` + (a.saleDeadline ? ` 발매 마감은 ${a.saleDeadline}(한국시간)입니다.` : "") + (a.deadline ? ` 첫 경기는 ${a.deadline}(한국시간)입니다.` : ""));
   L.push(a.asOfKst ? `데이터 기준: ${a.asOfKst} (한국시간)` : "데이터 기준: 배당 수집 전");
   for (const h of a.highlights) L.push(`- ${h}`);
   L.push("", "■ 분석 방법", METHOD_TEXT, `이번 회차 근거 구성: ${a.basisSummary}`);
