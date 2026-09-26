@@ -55,6 +55,7 @@
 |---|---|---|---|
 | `refreshHistory` | 3시간 | Worker 크론 | FotMob 종료 경기 → Elo·무승부율 재계산 → K리그2 코너 → K리그1 xG → **국가대표 Elo(12시간마다 갱신) + 킥오프 전 경기에 격차 고정** → 정산 |
 | `detectNewRound` | 6시간 | Worker 크론 | wisetoto에서 다음 회차들을 찾아 등록(최대 4회차 따라잡기) |
+| `deadlineTrigger` | 10분 | Worker 크론 | betman 발매 마감(`rounds.sale_end_at`) 12·6·3·1시간 전 25분 창에 `fetch_vote_share.yml` pipeline을 GitHub API로 호출. 워커 시크릿 `GH_DISPATCH_TOKEN`(저장소 시크릿에서 deploy 때 동기화)이 없으면 건너뜀 |
 | `Fetch Market Odds` | 2시간 | Actions(**main**) | 진행중 회차 전부의 킥오프 전 경기 해외 배당 |
 | `Fetch Betman Vote Share` pipeline | 4시간 | Actions(**main**) | 회차 감지 트리거 + 배당 + betman 투표율(Playwright) + 독식픽 출력 |
 | `Generate AI Report` | 6시간 | Actions(**main**) | 마감 임박 회차의 Gemini 리포트 → KV. 첫 저장 때 텔레그램으로 초안 링크 |
@@ -71,7 +72,7 @@
 |---|---|---|
 | FotMob | 8개 리그 경기 결과, xG, 코너 | `src/lib/fotmob.ts` |
 | wisetoto | **확정 회차번호·경기목록·결과·해외 배당** | `get_toto_list.htm`은 헤더 `X-Requested-With: XMLHttpRequest`가 없으면 403(`gtoto_xrw`). 팀명을 **4글자로 자름**("크로아티"). 발매 전 회차는 master_seq가 `"0"` |
-| betman | 대중 투표(매수)율 | 세션·WAF 때문에 Playwright로 페이지를 띄워 응답을 가로챈다(`scripts/fetch_vote_share.mjs`) |
+| betman | 대중 투표(매수)율, **발매기간** | 세션·WAF 때문에 Playwright로 페이지를 띄워 응답을 가로챈다(`scripts/fetch_vote_share.mjs`). 구매투표지의 "발매기간"을 `rounds.sale_start_at/sale_end_at`(migration 0011)에 저장. **마감은 첫 경기가 아니다**(56회차: 마감 9/28 23:00, 첫 경기 9/29 01:00 KST) |
 | martj42/international_results | 국가대표 A매치 전체 결과(1872~) | raw.githubusercontent CSV, 약 3.7MB |
 | lipis/flag-icons (MIT) | 국기 엠블럼 | `public/flags/`에 자체 호스팅(`scripts/fetch_national_flags.ts`) |
 | football-data.co.uk | 백테스트·백필 | 유럽 4대리그, JPN/USA/KOR 배당 포함 |
@@ -185,13 +186,18 @@
 - **자동화:** 매 회차 **블로그 초안 자동 생성 + 텔레그램 전달**
   - 초안: `/round/:no/draft`. 제목·본문(서식/텍스트)·태그 복사 버튼이 있다.
   - 알림: 리포트가 처음 저장될 때 회차당 1회(`notifyDraftOnce`, `src/routes/admin.ts`)
-- **발행은 자동화하지 않는다.**
+- **발행(2026-09-26 사용자 결정으로 변경): 사용자 PC의 AI 브라우저(Aside) 루틴이 완전 자동 발행한다.**
+  - 새 회차 글을 발행하고, betman 발매 마감 12·6·3·1시간 전에 최신 배당·투표율로 글을 고친다.
+  - 워커 `deadlineTrigger`가 같은 체크포인트 직전에 수집을 돌려 앱·`data.json`도 같은 시점 값을 갖게 한다.
+  - 루틴은 `data.json`의 `saleEndAt`(없으면 betman 페이지)을 마감 기준으로 쓴다.
+- (이전 결정) 발행은 자동화하지 않는다.
   - 티스토리는 글쓰기 API를 종료했고, 네이버 블로그는 공개 API가 없다.
   - 반복 자동 게시는 네이버 저품질·약관 위험이 있다.
   - 발행은 사람이 하거나, 사용자 PC의 AI 브라우저가 초안을 붙여넣는다(발행 전 사람 검수 권장).
 - **검색 유입:** `/round/:no` 공개 페이지(canonical·description·og·JSON-LD, 10분 엣지 캐시) + `/sitemap.xml` + `/robots.txt`(초안·API 제외). 앱 링크는 `/?round=56`.
 - **법적 주의:** 불법 도박 사이트 광고·링크 금지. 유료 예측 판매는 국민체육진흥법 검토 전에는 하지 않는다. 광고(애드센스·애드포스트)는 "통계·데이터 분석"으로 보이게 하고 고지를 붙인다. **법률 자문이 선행 과제다.**
-- **예정 과제:** 공개 적중 기록 페이지, PWA(설치 아이콘), 이용 고지·광고 자리.
+- **제휴 문의 경로(사용자 결정):** 블로그 안부글. 제휴 안내 글 https://blog.naver.com/beauty017/224423344071 , 블로그 사이드바·회차 글 하단에 SPONSOR 칸 운영 중.
+- **예정 과제:** 공개 적중 기록 페이지, PWA(설치 아이콘), 이용 고지, 앱 광고 자리(명세 `docs/specs/001-sponsor-slots.md` 초안, Codex 검토 후 구현).
 - **역할 분담(2026-09-26):** 블로그 글·이미지·화면 설계는 Codex, 시스템과 자동화는 Claude가 맡는다(`docs/COLLAB.md`).
 - **측정:** `usage_daily`(일별 집계, 개인정보 없음). 블로그 링크에는 `utm_source=blog`가 붙는다. 조회는 `task=usage-stats`.
 
