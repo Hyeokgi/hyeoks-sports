@@ -2,7 +2,7 @@
 
 > 다른 에이전트(Codex 등)나 사람이 이 저장소를 이어받을 때 읽는 문서다.
 > 작성 기준일: 2026-09-26. 코드와 이 문서가 다르면 **코드가 맞다**. 고친 사람은 이 문서도 함께 고친다.
-> `README.md`의 "알려진 제약" 절은 오래됐다(회차 감지는 이제 wisetoto에서 확정 회차번호를 그대로 가져온다).
+> Claude·Codex 역할 분담과 데이터 인터페이스는 [`COLLAB.md`](COLLAB.md)를 본다.
 
 ---
 
@@ -55,6 +55,7 @@
 |---|---|---|---|
 | `refreshHistory` | 3시간 | Worker 크론 | FotMob 종료 경기 → Elo·무승부율 재계산 → K리그2 코너 → K리그1 xG → **국가대표 Elo(12시간마다 갱신) + 킥오프 전 경기에 격차 고정** → 정산 |
 | `detectNewRound` | 6시간 | Worker 크론 | wisetoto에서 다음 회차들을 찾아 등록(최대 4회차 따라잡기) |
+| `deadlineTrigger` | 10분 | Worker 크론 | betman 발매 마감(`rounds.sale_end_at`) 12·6·3·1시간 전 25분 창에 `fetch_vote_share.yml` pipeline을 GitHub API로 호출. 워커 시크릿 `GH_DISPATCH_TOKEN`(저장소 시크릿에서 deploy 때 동기화)이 없으면 건너뜀 |
 | `Fetch Market Odds` | 2시간 | Actions(**main**) | 진행중 회차 전부의 킥오프 전 경기 해외 배당 |
 | `Fetch Betman Vote Share` pipeline | 4시간 | Actions(**main**) | 회차 감지 트리거 + 배당 + betman 투표율(Playwright) + 독식픽 출력 |
 | `Generate AI Report` | 6시간 | Actions(**main**) | 마감 임박 회차의 Gemini 리포트 → KV. 첫 저장 때 텔레그램으로 초안 링크 |
@@ -71,7 +72,7 @@
 |---|---|---|
 | FotMob | 8개 리그 경기 결과, xG, 코너 | `src/lib/fotmob.ts` |
 | wisetoto | **확정 회차번호·경기목록·결과·해외 배당** | `get_toto_list.htm`은 헤더 `X-Requested-With: XMLHttpRequest`가 없으면 403(`gtoto_xrw`). 팀명을 **4글자로 자름**("크로아티"). 발매 전 회차는 master_seq가 `"0"` |
-| betman | 대중 투표(매수)율 | 세션·WAF 때문에 Playwright로 페이지를 띄워 응답을 가로챈다(`scripts/fetch_vote_share.mjs`) |
+| betman | 대중 투표(매수)율, **발매기간** | 세션·WAF 때문에 Playwright로 페이지를 띄워 응답을 가로챈다(`scripts/fetch_vote_share.mjs`). 구매투표지의 "발매기간"을 `rounds.sale_start_at/sale_end_at`(migration 0011)에 저장. **마감은 첫 경기가 아니다**(56회차: 마감 9/28 23:00, 첫 경기 9/29 01:00 KST) |
 | martj42/international_results | 국가대표 A매치 전체 결과(1872~) | raw.githubusercontent CSV, 약 3.7MB |
 | lipis/flag-icons (MIT) | 국기 엠블럼 | `public/flags/`에 자체 호스팅(`scripts/fetch_national_flags.ts`) |
 | football-data.co.uk | 백테스트·백필 | 유럽 4대리그, JPN/USA/KOR 배당 포함 |
@@ -109,6 +110,13 @@
   - 결과: `seed/national_elo_backtest.json`
   - 배당이 있으면 배당이 우선한다(국가대표 과거 배당이 없어 섞는 비율을 검증할 수 없음).
   - 한글→영문 국가명 매핑은 `src/lib/nationalNames.ts`. 4글자로 잘린 표기는 "그 글자로 시작하는 이름이 한 나라뿐일 때만" 인정한다.
+
+### 킥오프 전 예측 보존 (`prediction_snapshots`, migration 0010)
+
+- 예측은 조회할 때마다 현재 코드로 다시 계산된다. 그래서 모델을 바꾸면 이미 끝난 경기의 픽까지 소급해서 바뀐다.
+- 이를 막기 위해 킥오프 전까지는 배당 저장 직후(2시간)와 `refreshHistory`(3시간)에 경기별 예측을 덮어쓰고, 킥오프 이후에는 쓰지 않는다(`src/lib/predictionSnapshot.ts`).
+- 스냅샷을 쓰는 곳: 실제 기록 전부. `/api/settlement`, 회차 글의 끝난 경기와 최근 성적, 앱의 적중 배지와 회차 요약(`snapshot.pick`)
+- 스냅샷이 없던 시절(2026-09-26 이전) 경기는 재계산값으로 대체된다.
 
 ### 사후 등록
 
@@ -178,13 +186,20 @@
 - **자동화:** 매 회차 **블로그 초안 자동 생성 + 텔레그램 전달**
   - 초안: `/round/:no/draft`. 제목·본문(서식/텍스트)·태그 복사 버튼이 있다.
   - 알림: 리포트가 처음 저장될 때 회차당 1회(`notifyDraftOnce`, `src/routes/admin.ts`)
-- **발행은 자동화하지 않는다.**
+- **발행(2026-09-26 사용자 결정으로 변경): 사용자 PC의 AI 브라우저(Aside) 루틴이 완전 자동 발행한다.**
+  - 새 회차 글을 발행하고, betman 발매 마감 12·6·3·1시간 전에 최신 배당·투표율로 글을 고친다.
+  - 워커 `deadlineTrigger`가 같은 체크포인트 직전에 수집을 돌려 앱·`data.json`도 같은 시점 값을 갖게 한다.
+  - 루틴은 `data.json`의 `saleEndAt`(없으면 betman 페이지)을 마감 기준으로 쓴다.
+- (이전 결정) 발행은 자동화하지 않는다.
   - 티스토리는 글쓰기 API를 종료했고, 네이버 블로그는 공개 API가 없다.
   - 반복 자동 게시는 네이버 저품질·약관 위험이 있다.
   - 발행은 사람이 하거나, 사용자 PC의 AI 브라우저가 초안을 붙여넣는다(발행 전 사람 검수 권장).
 - **검색 유입:** `/round/:no` 공개 페이지(canonical·description·og·JSON-LD, 10분 엣지 캐시) + `/sitemap.xml` + `/robots.txt`(초안·API 제외). 앱 링크는 `/?round=56`.
 - **법적 주의:** 불법 도박 사이트 광고·링크 금지. 유료 예측 판매는 국민체육진흥법 검토 전에는 하지 않는다. 광고(애드센스·애드포스트)는 "통계·데이터 분석"으로 보이게 하고 고지를 붙인다. **법률 자문이 선행 과제다.**
-- **예정 과제:** 공개 적중 기록 페이지, PWA(설치 아이콘), 이용 고지·광고 자리.
+- **제휴 문의 경로(사용자 결정):** 블로그 안부글. 제휴 안내 글 https://blog.naver.com/beauty017/224423344071 , 블로그 사이드바·회차 글 하단에 SPONSOR 칸 운영 중.
+- **예정 과제:** 공개 적중 기록 페이지, PWA(설치 아이콘), 이용 고지, 앱 광고 자리(명세 `docs/specs/001-sponsor-slots.md` 초안, Codex 검토 후 구현).
+- **역할 분담(2026-09-26):** 블로그 글·이미지·화면 설계는 Codex, 시스템과 자동화는 Claude가 맡는다(`docs/COLLAB.md`).
+- **측정:** `usage_daily`(일별 집계, 개인정보 없음). 블로그 링크에는 `utm_source=blog`가 붙는다. 조회는 `task=usage-stats`.
 
 ---
 
@@ -221,7 +236,9 @@ src/lib/nationalElo*.ts      국가대표 Elo 계산·저장·스냅샷
 src/lib/nationalNames.ts     한글 국가명 → 영문·국기
 src/lib/roundPick.ts         첫 화면 회차 선택(마감 임박)
 src/lib/roundArticle.ts      회차 글(페이지·초안·텍스트) 렌더러
-src/routes/roundPage.ts      /round/:no, /draft, sitemap, robots
+src/routes/roundPage.ts      /round/:no, /draft, /data.json, sitemap, robots
+src/lib/predictionSnapshot.ts  킥오프 전 예측 보존(실제 기록용)
+src/lib/usage.ts             이용 측정(유입 경로 분류, 일별 집계)
 src/routes/admin.ts          관리자 API, 리포트 저장 + 초안 텔레그램 알림
 src/lib/gemini.ts            AI 리포트 프롬프트 (scripts/generate_report.mjs와 동일 유지 - 동기화 테스트 있음)
 src/lib/settlement.ts        정산(FotMob 결과 → wisetoto 결과표 폴백)

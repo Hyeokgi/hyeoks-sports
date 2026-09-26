@@ -1,7 +1,10 @@
 // GET /round/:no           - 검색 노출용 회차 분석 페이지(HTML)
 // GET /round/:no/draft     - 블로그 초안(검색 제외, 복사 버튼)
 // GET /sitemap.xml, /robots.txt
-import { getRoundResults, getLatestVoteShare } from "../lib/db";
+import { getRoundResults, getLatestVoteShare, getMarketOddsHistory } from "../lib/db";
+import { nationalProbs, NATIONAL_HOME_ADV } from "../lib/nationalElo";
+import type { MatchDetail } from "../lib/matchAnalysis";
+import { nationalDisplayName } from "../lib/nationalNames";
 import { buildRoundPredictions } from "../lib/predictRound";
 import { reportCacheKey } from "../lib/reportCache";
 import {
@@ -12,6 +15,7 @@ import {
   type RecentRecord,
   type RoundArticle,
 } from "../lib/roundArticle";
+import { getPredictionSnapshots } from "../lib/predictionSnapshot";
 import type { Env, RoundRow } from "../types";
 
 const RESULT_LABEL = { H: "홈승", D: "무승부", A: "원정승" } as const;
@@ -27,32 +31,71 @@ async function findRoundByNo(env: Env, roundNo: number): Promise<RoundRow | null
     .first<RoundRow>();
 }
 
-async function loadMatches(env: Env, roundId: number): Promise<ArticleMatch[]> {
+// withDetail: 경기별 근거 원자료까지 읽는다(이 회차 글용). 지난 회차 성적 집계에는 필요 없어 끈다.
+async function loadMatches(env: Env, roundId: number, withDetail = false): Promise<ArticleMatch[]> {
   const preds = await buildRoundPredictions(env, roundId);
   const ids = preds.map((p) => p.match.id);
-  const [results, votes] = await Promise.all([getRoundResults(env, ids), getLatestVoteShare(env, ids)]);
+  const [results, votes, snaps, history, modelOnly] = await Promise.all([
+    getRoundResults(env, ids),
+    getLatestVoteShare(env, ids),
+    getPredictionSnapshots(env, ids),
+    withDetail ? getMarketOddsHistory(env, ids) : Promise.resolve(null),
+    // 배당을 섞기 전 모델 확률 - "모델과 시장이 같은 판단인가"를 보여주기 위해
+    withDetail ? buildRoundPredictions(env, roundId, { useMarketOdds: false }) : Promise.resolve(null),
+  ]);
+  const modelOnlyById = new Map((modelOnly ?? []).map((q) => [q.match.id, q.prediction]));
   return preds.map((p) => {
     const r = results.get(p.match.id);
     const v = votes.get(p.match.id);
+    // 끝난 경기는 킥오프 전에 공개했던 예측(스냅샷)으로 보여주고 채점한다.
+    const snap = r ? snaps.get(p.match.id) : undefined;
+    const pred = snap?.prediction ?? p.prediction;
     return {
       seq: p.match.seq,
       league: p.match.league,
-      home: p.match.home_kr,
-      away: p.match.away_kr,
+      // 국가대표는 wisetoto의 4글자 절단을 글에서 되돌린다(클럽명은 원문 그대로).
+      home: nationalDisplayName(p.match.home_kr),
+      away: nationalDisplayName(p.match.away_kr),
       kickoffAt: p.match.kickoff_at,
-      pHome: p.prediction.pHome,
-      pDraw: p.prediction.pDraw,
-      pAway: p.prediction.pAway,
-      pick: p.prediction.rankedPicks[0],
-      confidenceGap: p.prediction.confidenceGap,
-      basis: p.prediction.basis,
-      tier: p.calibration.tier,
+      pHome: pred.pHome,
+      pDraw: pred.pDraw,
+      pAway: pred.pAway,
+      pick: pred.rankedPicks[0],
+      confidenceGap: pred.confidenceGap,
+      basis: pred.basis,
+      tier: (snap?.tier as string | undefined) ?? p.calibration.tier,
       nBookmakers: p.raw.market?.nBookmakers ?? null,
       vote: v ? { home: v.vote_home, draw: v.vote_draw, away: v.vote_away } : null,
       result: r ? { actual: r.actual, hg: r.hg, ag: r.ag } : null,
       predictedAfterKickoff: p.predictedAfterKickoff,
+      detail: withDetail && !r ? buildDetail(p, history?.get(p.match.id) ?? [], modelOnlyById.get(p.match.id) ?? null) : null,
     };
   });
+}
+
+function buildDetail(
+  p: Awaited<ReturnType<typeof buildRoundPredictions>>[number],
+  hist: { p_home: number; p_draw: number; p_away: number }[],
+  modelOnly: { pHome: number; pDraw: number; pAway: number; basis: string } | null,
+): MatchDetail {
+  const isModel = p.prediction.basis === "model";
+  const nat = p.raw.nationalEloDiff;
+  const open = hist.length >= 2 ? hist[0] : null; // 스냅샷이 하나뿐이면 흐름을 말할 수 없다
+  const b = p.calibration.bucket;
+  return {
+    eloDiff: isModel ? p.raw.eloDiff : null,
+    formDiff: isModel ? p.raw.formDiff : null,
+    h2hDiff: isModel ? p.raw.h2hDiff : null,
+    nH2h: isModel ? p.raw.nH2h : 0,
+    natEloDiff: nat,
+    natProbs: nat != null ? nationalProbs(nat + NATIONAL_HOME_ADV) : null,
+    market: p.raw.market
+      ? { pHome: p.raw.market.pHome, pDraw: p.raw.market.pDraw, pAway: p.raw.market.pAway, n: p.raw.market.nBookmakers }
+      : null,
+    marketOpen: open ? { pHome: open.p_home, pDraw: open.p_draw, pAway: open.p_away } : null,
+    modelOnly: isModel && modelOnly && modelOnly.basis === "model" ? { pHome: modelOnly.pHome, pDraw: modelOnly.pDraw, pAway: modelOnly.pAway } : null,
+    calib: isModel && b ? { accuracy: b.accuracy, n: b.n, minGap: b.minGap, maxGap: b.maxGap } : null,
+  };
 }
 
 /** 이 회차 이전의 정산 회차 성적. 사후 등록 경기는 예측이 아니므로 뺀다. */
@@ -83,13 +126,33 @@ async function loadRecent(env: Env, beforeId: number): Promise<RecentRecord[]> {
 export async function loadRoundArticle(env: Env, roundNo: number, origin: string): Promise<RoundArticle | null> {
   const round = await findRoundByNo(env, roundNo);
   if (!round) return null;
-  const [matches, report, recent] = await Promise.all([
-    loadMatches(env, round.id),
+  const [matches, report, recent, asOf] = await Promise.all([
+    loadMatches(env, round.id, true),
     env.KV.get(reportCacheKey(round.id)),
     loadRecent(env, round.id),
+    oddsAsOf(env, round.id),
   ]);
   if (matches.length === 0) return null;
-  return buildRoundArticle({ roundNo, matches, report, recent, origin, appRoundId: round.id });
+  return buildRoundArticle({
+    roundNo,
+    matches,
+    report,
+    recent,
+    origin,
+    appRoundId: round.id,
+    asOf,
+    saleEndAt: round.sale_end_at ?? null,
+  });
+}
+
+// 데이터 기준 시각 = 이 회차 배당이 마지막으로 갱신된 시각. 배당이 없으면 null.
+async function oddsAsOf(env: Env, roundId: number): Promise<string | null> {
+  const row = await env.DB.prepare(
+    `SELECT MAX(mo.updated_at) AS t FROM market_odds mo JOIN round_matches rm ON rm.id = mo.round_match_id WHERE rm.round_id = ?`,
+  )
+    .bind(roundId)
+    .first<{ t: string | null }>();
+  return row?.t ?? null;
 }
 
 function html(body: string, status = 200, extra: Record<string, string> = {}): Response {
@@ -116,6 +179,29 @@ export async function handleRoundPage(env: Env, request: Request, roundNo: numbe
   const res = html(renderRoundPage(article), 200, { "cache-control": `public, max-age=${PAGE_CACHE_SECONDS}` });
   if (cache) await cache.put(cacheKey, res.clone());
   return res;
+}
+
+/**
+ * GET /round/:no/data.json - 회차 글의 원자료(JSON). 블로그 이미지·도표를 만드는 쪽(Codex 등)이
+ * 페이지와 같은 데이터·같은 기준 시각(asOf)을 쓰도록 하는 공식 인터페이스다.
+ * 형식을 바꾸면 docs/COLLAB.md의 스키마도 같이 고친다.
+ */
+export async function handleRoundData(env: Env, request: Request, roundNo: number): Promise<Response> {
+  const origin = new URL(request.url).origin;
+  const article = await loadRoundArticle(env, roundNo, origin);
+  if (!article) {
+    return new Response(JSON.stringify({ error: "round_not_found" }), {
+      status: 404,
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
+  return new Response(JSON.stringify({ schema: 1, generatedAt: new Date().toISOString(), ...article }), {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      "access-control-allow-origin": "*",
+    },
+  });
 }
 
 export async function handleSitemap(env: Env, request: Request): Promise<Response> {
