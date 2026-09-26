@@ -4,7 +4,12 @@ import type { MatchRow } from "./elo";
 
 export async function listRounds(env: Env): Promise<RoundRow[]> {
   const { results } = await env.DB.prepare(
-    "SELECT * FROM rounds ORDER BY id DESC LIMIT 20",
+    // 첫/마지막 킥오프를 같이 내려준다. 화면이 '마감이 가장 임박한 발매중 회차'를 고르는 데 쓴다
+    // (betman은 여러 회차를 동시에 발매하므로 가장 최근 등록 회차가 곧 지금 살 회차가 아니다).
+    `SELECT r.*,
+            (SELECT MIN(kickoff_at) FROM round_matches WHERE round_id = r.id) AS first_kickoff_at,
+            (SELECT MAX(kickoff_at) FROM round_matches WHERE round_id = r.id) AS last_kickoff_at
+       FROM rounds r ORDER BY r.id DESC LIMIT 20`,
   ).all<RoundRow>();
   return results ?? [];
 }

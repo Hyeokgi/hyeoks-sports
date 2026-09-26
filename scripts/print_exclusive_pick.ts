@@ -2,6 +2,7 @@
 // Worker의 /api/rounds/:id 응답(서버 기본 토글로 계산된 prediction + betman voteShare)을 그대로 쓰고,
 // 픽 산출은 웹앱과 동일한 src/lib/exclusivePick.ts를 공유한다 - 로직 중복 금지.
 import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/exclusivePick";
+import { pickDefaultRound } from "../src/lib/roundPick";
 
 const WORKER_BASE_URL = process.env.WORKER_BASE_URL ?? "https://kleague-toto-predictor.hyeoks.workers.dev";
 
@@ -11,7 +12,7 @@ async function main() {
   const { rounds } = (await roundsRes.json()) as { rounds: any[] };
   const round = process.env.ROUND_ID
     ? rounds.find((r) => r.id === Number(process.env.ROUND_ID))
-    : rounds?.[0];
+    : pickDefaultRound(rounds ?? []); // 마감이 가장 임박한 발매중 회차(웹앱 첫 화면과 같은 규칙)
   if (!round) throw new Error("대상 회차를 찾지 못했습니다");
 
   const roundRes = await fetch(`${WORKER_BASE_URL}/api/rounds/${round.id}`);

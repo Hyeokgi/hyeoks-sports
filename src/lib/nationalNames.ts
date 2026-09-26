@@ -131,3 +131,35 @@ export function nationalTeamEn(kr: string): string | null {
 }
 
 export const NATIONAL_EN_NAMES: readonly string[] = [...new Set(Object.values(NATIONAL_KR))];
+
+// 영문 국가명 → 국기 파일 코드(lipis/flag-icons 파일명: ISO 3166-1 alpha-2, 영국 4개 협회는 gb-xxx).
+// 국기는 public/flags/{code}.svg에 자체 호스팅한다(scripts/fetch_national_flags.ts로 받는다 -
+// 팀 엠블럼과 같은 이유로 외부 CDN 핫링크 금지).
+export const NATIONAL_FLAG_CODE: Record<string, string> = {
+  England: "gb-eng", Scotland: "gb-sct", Wales: "gb-wls", "Northern Ireland": "gb-nir",
+  "Republic of Ireland": "ie", France: "fr", Germany: "de", Spain: "es", Portugal: "pt", Italy: "it",
+  Netherlands: "nl", Belgium: "be", Luxembourg: "lu", Switzerland: "ch", Austria: "at", Denmark: "dk",
+  Norway: "no", Sweden: "se", Finland: "fi", Iceland: "is", "Faroe Islands": "fo", Poland: "pl",
+  "Czech Republic": "cz", Slovakia: "sk", Hungary: "hu", Romania: "ro", Bulgaria: "bg", Greece: "gr",
+  Turkey: "tr", Cyprus: "cy", Malta: "mt", Croatia: "hr", Slovenia: "si", Serbia: "rs",
+  "Bosnia and Herzegovina": "ba", Montenegro: "me", "North Macedonia": "mk", Albania: "al", Kosovo: "xk",
+  Ukraine: "ua", Belarus: "by", Moldova: "md", Russia: "ru", Georgia: "ge", Armenia: "am",
+  Azerbaijan: "az", Kazakhstan: "kz", Israel: "il", Latvia: "lv", Lithuania: "lt", Estonia: "ee",
+  Liechtenstein: "li", Andorra: "ad", "San Marino": "sm", Gibraltar: "gi",
+  "South Korea": "kr", Japan: "jp", China: "cn", Australia: "au", Iran: "ir", "Saudi Arabia": "sa",
+  Qatar: "qa", Iraq: "iq", "United Arab Emirates": "ae", Uzbekistan: "uz", Jordan: "jo", Oman: "om",
+  Bahrain: "bh", Kuwait: "kw", Syria: "sy", Vietnam: "vn", Thailand: "th", Indonesia: "id",
+  Malaysia: "my", "North Korea": "kp",
+  Brazil: "br", Argentina: "ar", Uruguay: "uy", Colombia: "co", Ecuador: "ec", Chile: "cl", Peru: "pe",
+  Paraguay: "py", Venezuela: "ve", Bolivia: "bo", "United States": "us", Mexico: "mx", Canada: "ca",
+  "Costa Rica": "cr", Panama: "pa", Jamaica: "jm", Honduras: "hn",
+  Morocco: "ma", Senegal: "sn", Egypt: "eg", Nigeria: "ng", Ghana: "gh", Cameroon: "cm", Tunisia: "tn",
+  Algeria: "dz", "Ivory Coast": "ci", "South Africa": "za", Mali: "ml",
+};
+
+/** 한글 국가명(잘린 표기 포함) → 자체 호스팅 국기 경로. 국가가 아니면 null. */
+export function nationalFlagUrl(kr: string): string | null {
+  const en = nationalTeamEn(kr);
+  const code = en ? NATIONAL_FLAG_CODE[en] : undefined;
+  return code ? `/flags/${code}.svg` : null;
+}

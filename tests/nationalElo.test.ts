@@ -89,3 +89,15 @@ describe("predictMatch 국가대표 폴백", () => {
     expect(predictMatch({ ...base, nationalEloDiff: null }).basis).toBe("none");
   });
 });
+
+describe("nationalFlagUrl", () => {
+  it("잘린 국가명도 국기로, 영국 4개 협회는 각자의 기로", async () => {
+    const { nationalFlagUrl, NATIONAL_EN_NAMES, NATIONAL_FLAG_CODE } = await import("../src/lib/nationalNames");
+    expect(nationalFlagUrl("크로아티")).toBe("/flags/hr.svg");
+    expect(nationalFlagUrl("스코틀랜")).toBe("/flags/gb-sct.svg");
+    expect(nationalFlagUrl("잉글랜드")).toBe("/flags/gb-eng.svg");
+    expect(nationalFlagUrl("울산")).toBeNull();
+    // 매핑된 모든 국가에 국기 코드가 있어야 한다(없으면 모노그램으로 떨어짐)
+    expect(NATIONAL_EN_NAMES.filter((n) => !NATIONAL_FLAG_CODE[n])).toEqual([]);
+  });
+});

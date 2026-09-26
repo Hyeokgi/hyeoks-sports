@@ -22,6 +22,9 @@ export interface RoundRow {
   status: "upcoming" | "closed" | "settled";
   created_at: string;
   notified_at: string | null;
+  // listRounds에서만 채워진다(회차 경기들의 첫/마지막 킥오프, UTC ISO).
+  first_kickoff_at?: string | null;
+  last_kickoff_at?: string | null;
 }
 
 export interface RoundMatchRow {
