@@ -133,7 +133,16 @@ export async function loadRoundArticle(env: Env, roundNo: number, origin: string
     oddsAsOf(env, round.id),
   ]);
   if (matches.length === 0) return null;
-  return buildRoundArticle({ roundNo, matches, report, recent, origin, appRoundId: round.id, asOf });
+  return buildRoundArticle({
+    roundNo,
+    matches,
+    report,
+    recent,
+    origin,
+    appRoundId: round.id,
+    asOf,
+    saleEndAt: round.sale_end_at ?? null,
+  });
 }
 
 // 데이터 기준 시각 = 이 회차 배당이 마지막으로 갱신된 시각. 배당이 없으면 null.

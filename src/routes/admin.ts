@@ -187,6 +187,32 @@ export async function handleWriteVoteShare(env: Env, roundId: number, request: R
   return json({ ok: true, round_id: roundId, written });
 }
 
+// GitHub Actions(scripts/fetch_vote_share.mjs)가 betman 구매투표지의 발매기간을 저장한다.
+// 마감은 첫 경기 시각과 다르다(56회차: 마감 9/28 23:00, 첫 경기 9/29 01:00 KST).
+// 마감 기준 수집(src/cron/deadlineTrigger.ts)과 첫 화면 회차 선택이 이 값을 쓴다.
+export async function handleWriteSaleWindow(env: Env, roundId: number, request: Request): Promise<Response> {
+  const authError = requireAdmin(request, env);
+  if (authError) return authError;
+
+  const round = await getRound(env, roundId);
+  if (!round) return json({ error: "round_not_found" }, 404);
+
+  const body = await safeJson(request);
+  const isIso = (v: unknown): v is string => typeof v === "string" && Number.isFinite(Date.parse(v));
+  const end = body?.saleEndAt;
+  const start = body?.saleStartAt;
+  if (!isIso(end)) return json({ error: "saleEndAt(ISO 문자열)가 필요합니다" }, 400);
+  if (start != null && !isIso(start)) return json({ error: "saleStartAt은 ISO 문자열이어야 합니다" }, 400);
+
+  const saleEnd = new Date(end).toISOString();
+  const saleStart = isIso(start) ? new Date(start).toISOString() : null;
+  await env.DB.prepare("UPDATE rounds SET sale_start_at = ?, sale_end_at = ? WHERE id = ?")
+    .bind(saleStart, saleEnd, roundId)
+    .run();
+
+  return json({ ok: true, round_id: roundId, sale_start_at: saleStart, sale_end_at: saleEnd });
+}
+
 export async function handleCorrectRoundNo(env: Env, roundId: number, request: Request): Promise<Response> {
   const authError = requireAdmin(request, env);
   if (authError) return authError;
