@@ -881,7 +881,21 @@ jobs:
             grep -c '<tr><td>' page.html | sed 's/^/경기 행 수: /'
           done
           echo "== /round/$NO/data.json"
-          curl -s --max-time 60 "$BASE/round/$NO/data.json" | python3 -c "import json,sys;d=json.load(sys.stdin);print('schema',d.get('schema'),'asOf',d.get('asOf'),'asOfKst',d.get('asOfKst'),'matches',len(d.get('matches',[])),'top',[m['seq'] for m in d.get('top',[])])"
+          curl -s --max-time 60 "$BASE/round/$NO/data.json" -o data.json
+          python3 - <<'PY'
+          import json
+          d = json.load(open("data.json"))
+          print("schema", d.get("schema"), "asOf", d.get("asOfKst"), "matches", len(d.get("matches", [])), "keyMatches", d.get("keyMatches"))
+          for h in d.get("highlights", []): print(" *", h)
+          print("전략:", d.get("strategy"))
+          ms = {m["seq"]: m for m in d.get("matches", [])}
+          for seq in d.get("keyMatches", []):
+              m = ms[seq]; a = m.get("analysis") or {}
+              print(f"\n▶ {seq}. {m['home']} vs {m['away']} [{a.get('stance')}]")
+              for r in a.get("reasons", []): print("   근거:", r)
+              for r in a.get("risks", []): print("   위험:", r)
+              print("   →", a.get("verdict"))
+          PY
 
   # 유입 경로(블로그/검색/직접)와 기능 이용 수를 일별 집계로 본다(개인 식별 정보 없음).
   usage-stats:
