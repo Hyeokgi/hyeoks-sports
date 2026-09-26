@@ -185,7 +185,12 @@ export function buildRoundArticle(input: ArticleInput): RoundArticle {
         triples.length ? `삼복식 고려 ${triples.length}경기(${triples.join("·")}번)` : null,
       ]
         .filter(Boolean)
-        .join(", ") + "."
+        .join(", ") +
+      "." +
+      // 복식·삼복식을 모두 덮으면 조합 수가 곱으로 늘어난다(삼복식 4경기만으로 81배). 예산 안내를 붙인다.
+      (doubles.length + triples.length * 2 + soft.length >= 4
+        ? ` 표시된 경기를 모두 덮으면 조합 수가 ${2 ** (doubles.length + soft.length) * 3 ** triples.length}배로 늘어나므로, 확률 차이가 가장 작은 경기부터 예산에 맞춰 일부만 덮는 것이 현실적입니다(앱의 예산별 조합 기능 참고).`
+        : "")
     : null;
 
   const lg = leagues.join("·");
