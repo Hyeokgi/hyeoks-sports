@@ -77,7 +77,8 @@ describe("runDeadlineTrigger", () => {
     expect(JSON.parse(String(init.body))).toEqual({ ref: "main", inputs: { task: "pipeline" } });
     expect(kv.has(doneKey({ roundId: 17, roundNo: 56, hours: 6, checkpointAt: "" }))).toBe(true);
 
-    const second = await runDeadlineTrigger(env, now + 10 * 60_000, load);
+    // 10분 뒤 크론(아직 같은 호출 창 안): now는 체크포인트 10분 전이므로 5분 뒤로 본다
+    const second = await runDeadlineTrigger(env, now + 5 * 60_000, load);
     expect(second).toMatchObject({ dispatched: false, reason: "already_done" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
