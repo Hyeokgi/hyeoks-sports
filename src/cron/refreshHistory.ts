@@ -5,6 +5,7 @@ import { getAllMatches } from "../lib/db";
 import { NAME_MAP } from "../lib/nameMap";
 import { settleRounds } from "../lib/settlement";
 import { refreshNationalElo, snapshotNationalEloDiffs } from "../lib/nationalEloStore";
+import { snapshotUpcomingRounds } from "../lib/predictionSnapshot";
 import type { Env, League } from "../types";
 
 // D1 batch 한 번에 넣을 문장 수. 너무 크면 한 트랜잭션이 길어지니 적당히 자른다.
@@ -24,7 +25,7 @@ interface NewK2Match {
 
 export async function refreshHistory(
   env: Env,
-): Promise<{ inserted: number; leagues: string[]; national: Record<string, unknown> }> {
+): Promise<{ inserted: number; leagues: string[]; national: Record<string, unknown>; snapshots: number | string }> {
   let inserted = 0;
   const newK2Matches: NewK2Match[] = [];
 
@@ -72,9 +73,17 @@ export async function refreshHistory(
     national.error = (e as Error).message.slice(0, 300);
     console.error(`refreshHistory: 국가대표 Elo 갱신 실패 - ${national.error}`);
   }
+  // 킥오프 전 예측 보존(실제 기록용). 국가대표 격차를 넣은 뒤에 찍어야 그 값이 반영된다.
+  let snapshots: number | string = 0;
+  try {
+    snapshots = await snapshotUpcomingRounds(env);
+  } catch (e) {
+    snapshots = `error: ${(e as Error).message.slice(0, 200)}`;
+    console.error(`refreshHistory: 예측 스냅샷 실패 - ${snapshots}`);
+  }
   await settleRounds(env);
 
-  return { inserted, leagues: Object.keys(LEAGUE_IDS), national };
+  return { inserted, leagues: Object.keys(LEAGUE_IDS), national, snapshots };
 }
 
 async function fetchAndStoreK2Corners(env: Env, matches: NewK2Match[]): Promise<void> {

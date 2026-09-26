@@ -5,7 +5,9 @@ import { handleCombinations } from "./routes/combinations";
 import { handleExclusivePick } from "./routes/exclusivePick";
 import { handleReport } from "./routes/report";
 import { handleSettlement } from "./routes/settlement";
-import { handleRoundPage, handleSitemap, handleRobots } from "./routes/roundPage";
+import { handleRoundPage, handleRoundData, handleSitemap, handleRobots } from "./routes/roundPage";
+import { recordUsage, usageSince } from "./lib/usage";
+import { requireAdmin } from "./lib/http";
 import {
   handleCorrectRoundNo,
   handleSync,
@@ -23,6 +25,7 @@ import type { Env } from "./types";
 const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report|exclusive-pick))?$/;
 // 회차 분석 페이지(공개)와 블로그 초안. 정적 자산에 없는 경로라 워커로 넘어온다.
 const ROUND_PAGE_RE = /^\/round\/(\d+)(\/draft)?\/?$/;
+const ROUND_DATA_RE = /^\/round\/(\d+)\/data\.json$/;
 const ADMIN_ROUND_RE = /^\/api\/admin\/rounds\/(\d+)$/;
 const ADMIN_ROUND_REPORT_RE = /^\/api\/admin\/rounds\/(\d+)\/report$/;
 const ADMIN_ROUND_MARKET_ODDS_RE = /^\/api\/admin\/rounds\/(\d+)\/market-odds$/;
@@ -87,8 +90,31 @@ export default {
         return await handleNotifyTest(env, request);
       }
 
+      // 이용 측정 비콘. 실패해도 페이지에 영향이 없게 항상 204로 답한다.
+      if (pathname === "/api/e" && request.method === "POST") {
+        try {
+          const body = JSON.parse(await request.text());
+          await recordUsage(env, body ?? {}, request);
+        } catch {
+          // 형식이 틀린 요청은 무시
+        }
+        return new Response(null, { status: 204 });
+      }
+
+      if (pathname === "/api/admin/usage" && request.method === "GET") {
+        const authError = requireAdmin(request, env);
+        if (authError) return authError;
+        const days = Number(url.searchParams.get("days") ?? 14) || 14;
+        return json({ days, rows: await usageSince(env, days) });
+      }
+
       if (pathname.startsWith("/api/")) {
         return json({ error: "not_found" }, 404);
+      }
+
+      const roundData = pathname.match(ROUND_DATA_RE);
+      if (roundData && request.method === "GET") {
+        return await handleRoundData(env, request, Number(roundData[1]));
       }
 
       const roundPage = pathname.match(ROUND_PAGE_RE);

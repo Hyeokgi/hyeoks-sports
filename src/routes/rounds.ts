@@ -2,6 +2,7 @@
 import { getRound, listRounds, getRoundResults, getLatestVoteShare, getMarketOddsHistory } from "../lib/db";
 import { json } from "../lib/http";
 import { buildRoundPredictions } from "../lib/predictRound";
+import { getPredictionSnapshots } from "../lib/predictionSnapshot";
 import type { Env } from "../types";
 
 export async function handleListRounds(env: Env): Promise<Response> {
@@ -15,10 +16,11 @@ export async function handleGetRound(env: Env, roundId: number): Promise<Respons
 
   const predictions = await buildRoundPredictions(env, roundId);
   const matchIds = predictions.map((p) => p.match.id);
-  const [results, voteShare, oddsHistory] = await Promise.all([
+  const [results, voteShare, oddsHistory, snapshots] = await Promise.all([
     getRoundResults(env, matchIds),
     getLatestVoteShare(env, matchIds),
     getMarketOddsHistory(env, matchIds),
+    getPredictionSnapshots(env, matchIds),
   ]);
 
   return json({
@@ -39,6 +41,14 @@ export async function handleGetRound(env: Env, roundId: number): Promise<Respons
         upsetSignal: p.upsetSignal,
         // true면 이미 끝난 경기를 결과가 반영된 데이터로 사후 등록한 것 - 적중 집계에서 뺀다.
         predictedAfterKickoff: p.predictedAfterKickoff,
+        // 킥오프 전 마지막으로 공개한 예측. 실제 기록(적중 여부)은 이걸로 매긴다 - 현재 코드로
+        // 다시 계산한 prediction은 모델이 바뀌면 소급해서 달라지기 때문이다. 없으면 null.
+        snapshot: (() => {
+          const s = snapshots.get(p.match.id);
+          return s
+            ? { pick: s.prediction.rankedPicks[0], pHome: s.prediction.pHome, pDraw: s.prediction.pDraw, pAway: s.prediction.pAway, basis: s.prediction.basis, capturedAt: s.capturedAt }
+            : null;
+        })(),
         // 회차가 정산되면 채워짐(round_results). 진행중이면 null.
         result: result ? { actual: result.actual, hg: result.hg, ag: result.ag } : null,
         // betman 투표율 최신 스냅샷. 아직 발매 전/미수집이면 null.

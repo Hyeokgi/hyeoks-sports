@@ -6,6 +6,7 @@ import { sendTelegramMessage } from "../lib/telegram";
 import { getRound, getRoundMatches } from "../lib/db";
 import { reportCacheKey, REPORT_CACHE_TTL_SECONDS } from "../lib/reportCache";
 import { loadRoundArticle } from "./roundPage";
+import { snapshotRound } from "../lib/predictionSnapshot";
 import type { Env } from "../types";
 
 export async function handleSync(env: Env, request: Request): Promise<Response> {
@@ -137,7 +138,14 @@ export async function handleWriteMarketOdds(env: Env, roundId: number, request: 
   }
   if (stmts.length > 0) await env.DB.batch(stmts);
 
-  return json({ ok: true, round_id: roundId, written });
+  // 배당이 들어온 직후가 킥오프 전 예측이 가장 최신인 시점이라 여기서도 스냅샷을 갱신한다.
+  let snapshots = 0;
+  try {
+    snapshots = await snapshotRound(env, roundId);
+  } catch (e) {
+    console.error(`배당 저장 후 예측 스냅샷 실패: ${(e as Error).message}`);
+  }
+  return json({ ok: true, round_id: roundId, written, snapshots });
 }
 
 // GitHub Actions(scripts/fetch_vote_share.mjs)가 betman에서 수집한 회차 투표(득표)율을

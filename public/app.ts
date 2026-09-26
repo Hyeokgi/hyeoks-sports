@@ -33,6 +33,9 @@ interface MatchData {
   result: { actual: "H" | "D" | "A"; hg: number; ag: number } | null;
   // 킥오프 이후에 등록돼 예측에 결과가 섞인 경기. 적중/실패를 매기지 않는다(구버전 API면 undefined).
   predictedAfterKickoff?: boolean;
+  // 킥오프 전 마지막으로 공개한 예측(서버 스냅샷). 적중 여부는 이 픽으로 매긴다 - 화면 확률은
+  // 현재 코드·토글로 다시 계산되므로, 모델이 바뀌어도 "그때 낸 픽"의 기록은 변하지 않게 한다.
+  snapshot?: { pick: "홈승" | "무승부" | "원정승"; capturedAt: string } | null;
   // betman 투표(매수)율 최신 스냅샷 %. 발매 전/미수집이면 null - 독식 픽 계산에 사용.
   voteShare: { home: number; draw: number; away: number } | null;
 }
@@ -54,6 +57,27 @@ const TOGGLE_LABELS: { key: keyof PredictionToggles; label: string; kind: "bool"
 let currentMatches: MatchData[] = [];
 let currentToggles: PredictionToggles = { ...DEFAULT_TOGGLES };
 let currentRoundId: number | null = null;
+// 이용 측정(일별 집계만, 개인 식별 정보 없음 - src/lib/usage.ts). 유입 경로는 세션의 첫 방문
+// 기준으로 고정한다. 그래야 블로그에서 들어와 앱 안을 돌아다닌 이용이 전부 '블로그 유입'으로 잡힌다.
+const landing = (() => {
+  const fresh = { u: new URLSearchParams(location.search).get("utm_source"), ref: document.referrer };
+  try {
+    const saved = sessionStorage.getItem("hs_landing");
+    if (saved) return JSON.parse(saved) as typeof fresh;
+    sessionStorage.setItem("hs_landing", JSON.stringify(fresh));
+  } catch {
+    // 저장소를 못 쓰는 환경(사생활 보호 모드 등)이면 매번 현재 값으로 보낸다
+  }
+  return fresh;
+})();
+function track(e: string, roundNo?: number | null): void {
+  try {
+    navigator.sendBeacon("/api/e", JSON.stringify({ e, r: roundNo ?? 0, u: landing.u, ref: landing.ref }));
+  } catch {
+    // 측정 실패는 무시한다(서비스 동작과 무관)
+  }
+}
+
 // 회차 id → 확정 회차번호. 분석 글 링크(/round/:no)를 만들 때 쓴다.
 const roundNoById = new Map<number, number>();
 const articleLink = document.getElementById("round-article-link") as HTMLAnchorElement | null;
@@ -252,8 +276,8 @@ function renderRoundSummary() {
   }
   let correct = 0;
   for (const m of settled) {
-    const prediction = predictMatch(toInputs(m), currentToggles);
-    if (prediction.rankedPicks[0] === RESULT_LABEL[m.result!.actual]) correct++;
+    const pick = m.snapshot?.pick ?? predictMatch(toInputs(m), currentToggles).rankedPicks[0];
+    if (pick === RESULT_LABEL[m.result!.actual]) correct++;
   }
   const pct = ((correct / settled.length) * 100).toFixed(1);
   const ongoing = currentMatches.filter((m) => !m.result).length;
@@ -333,7 +357,7 @@ function renderMatches() {
       resultBadge =
         `<span class="result-badge late" title="경기가 끝난 뒤 등록돼 예측에 결과가 반영됨 - 적중 집계 제외">사후 등록</span>`;
     } else if (m.result) {
-      const hit = prediction.rankedPicks[0] === RESULT_LABEL[m.result.actual];
+      const hit = (m.snapshot?.pick ?? prediction.rankedPicks[0]) === RESULT_LABEL[m.result.actual];
       // 스코어는 배지가 아니라 대진줄 가운데(중계 화면처럼)에 둔다 - 팀명 사이에 있어야
       // 어느 팀이 몇 점인지 바로 읽힌다. 배지는 우리 픽의 적중 여부만 말한다.
       resultBadge =
@@ -845,6 +869,7 @@ async function loadRounds() {
 async function loadRound(roundId: number) {
   currentRoundId = roundId;
   const no = roundNoById.get(roundId);
+  track("round_view", no);
   if (articleLink) {
     articleLink.hidden = no == null;
     if (no != null) articleLink.href = `/round/${no}`;
@@ -883,6 +908,7 @@ async function loadRound(roundId: number) {
       nationalEloDiff: m.raw.nationalEloDiff ?? null,
     },
     predictedAfterKickoff: m.predictedAfterKickoff ?? false,
+    snapshot: m.snapshot ?? null,
     result: m.result ?? null,
     voteShare: m.voteShare ?? null,
   }));
@@ -919,6 +945,7 @@ drawForceSelect.addEventListener("change", () => {
 });
 
 function switchTab(tabName: string) {
+  track(`tab_${tabName}`, currentRoundId != null ? roundNoById.get(currentRoundId) : null);
   for (const btn of tabButtons) {
     btn.classList.toggle("active", btn.dataset.tab === tabName);
   }
@@ -933,6 +960,7 @@ for (const btn of tabButtons) {
 
 reportBtn.addEventListener("click", async () => {
   if (!currentRoundId) return;
+  track("report_view", roundNoById.get(currentRoundId));
   reportBtn.disabled = true;
   reportText.textContent = "리포트 생성 중...";
   try {
@@ -948,5 +976,6 @@ reportBtn.addEventListener("click", async () => {
 
 renderToggles();
 renderCalibrationTables();
+track("app_open");
 loadRounds();
 loadSettlement();

@@ -4,6 +4,7 @@ import { listRounds, getRoundResults, getLatestVoteShare } from "../lib/db";
 import { json } from "../lib/http";
 import { buildRoundPredictions } from "../lib/predictRound";
 import { computeRoundSettlement, summarize, type SettlementMatchInput, type RoundSettlement } from "../lib/settlementStats";
+import { getPredictionSnapshots } from "../lib/predictionSnapshot";
 import type { Env } from "../types";
 
 export async function handleSettlement(env: Env): Promise<Response> {
@@ -22,9 +23,10 @@ export async function handleSettlement(env: Env): Promise<Response> {
       continue;
     }
     const matchIds = predictions.map((p) => p.match.id);
-    const [results, voteShare] = await Promise.all([
+    const [results, voteShare, snapshots] = await Promise.all([
       getRoundResults(env, matchIds),
       getLatestVoteShare(env, matchIds),
+      getPredictionSnapshots(env, matchIds),
     ]);
 
     const matches: SettlementMatchInput[] = predictions.map((p) => {
@@ -35,9 +37,11 @@ export async function handleSettlement(env: Env): Promise<Response> {
         league: p.match.league,
         home: p.match.home_kr,
         away: p.match.away_kr,
-        prediction: p.prediction,
+        // 실제 기록은 킥오프 전에 공개했던 예측으로 센다(스냅샷이 없던 시절 회차는 재계산값).
+        prediction: snapshots.get(p.match.id)?.prediction ?? p.prediction,
         voteShare: v ? { home: v.vote_home, draw: v.vote_draw, away: v.vote_away } : null,
-        actual: r ? r.actual : null,
+        // 사후 등록 경기는 결과를 보고 만든 예측이라 성적에서 뺀다(미정산 취급).
+        actual: r && !p.predictedAfterKickoff ? r.actual : null,
       };
     });
 

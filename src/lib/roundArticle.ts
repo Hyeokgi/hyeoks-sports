@@ -37,6 +37,9 @@ export interface ArticleInput {
   recent: RecentRecord[];
   origin: string; // https://... (링크 생성용)
   appRoundId: number;
+  // 데이터 기준 시각(가장 최근 배당 갱신 시각, ISO). 페이지·초안·블로그 이미지가 같은 시점의
+  // 데이터인지 확인할 수 있게 모든 산출물에 같이 찍는다.
+  asOf?: string | null;
   now?: number;
 }
 
@@ -56,6 +59,16 @@ export interface RoundArticle {
   pageUrl: string;
   draftUrl: string;
   appUrl: string;
+  dataUrl: string;
+  asOf: string | null;
+  asOfKst: string | null;
+}
+
+// 유입 측정용 링크 꼬리표. 블로그 글에서 온 방문과 회차 페이지에서 온 방문을 구분한다.
+export type LinkSource = "blog" | "round_page";
+export function withUtm(url: string, source: LinkSource, roundNo: number): string {
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}utm_source=${source}&utm_campaign=r${roundNo}`;
 }
 
 export const DISCLAIMER =
@@ -131,6 +144,9 @@ export function buildRoundArticle(input: ArticleInput): RoundArticle {
     pageUrl: `${origin}/round/${roundNo}`,
     draftUrl: `${origin}/round/${roundNo}/draft`,
     appUrl: `${origin}/?round=${roundNo}`,
+    dataUrl: `${origin}/round/${roundNo}/data.json`,
+    asOf: input.asOf ?? null,
+    asOfKst: formatKst(input.asOf ?? null),
   };
 }
 
@@ -143,13 +159,17 @@ function matchLine(m: ArticleMatch): string {
 }
 
 /** 페이지와 블로그 초안이 공유하는 본문 HTML. 블로그 편집기에 붙여넣을 수 있게 단순한 태그만 쓴다. */
-export function renderArticleBodyHtml(a: RoundArticle): string {
+export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "round_page"): string {
   const e = escapeHtml;
   const parts: string[] = [];
+  const appLink = withUtm(a.appUrl, source, a.roundNo);
   parts.push(
     `<p>${e(`${a.roundNo}회차 축구토토 승무패는 ${a.leagues.join("·")} ${a.matches.length}경기로 구성됩니다.`)}` +
       (a.deadline ? ` ${e(`첫 경기는 ${a.deadline}(한국시간)이며, 발매는 그 직전에 마감됩니다.`)}` : "") +
       `</p>`,
+  );
+  parts.push(
+    `<p><small>${e(a.asOfKst ? `데이터 기준: ${a.asOfKst} (해외 배당 최종 갱신 시각, 한국시간)` : "데이터 기준: 배당 수집 전")}</small></p>`,
   );
   if (a.report) {
     parts.push(`<h2>요약</h2>`);
@@ -210,15 +230,16 @@ export function renderArticleBodyHtml(a: RoundArticle): string {
     }
     parts.push(`</ul><p><small>경기가 끝난 뒤 등록된 경기는 집계에서 뺐습니다. 과장 없이 실제 결과 그대로입니다.</small></p>`);
   }
-  parts.push(`<p>직접 조합을 짜보려면: <a href="${e(a.appUrl)}">${e(a.appUrl)}</a></p>`);
+  parts.push(`<p>직접 조합을 짜보려면: <a href="${e(appLink)}">${e(a.appUrl)}</a></p>`);
   parts.push(`<p><small>${e(DISCLAIMER)}</small></p>`);
   return parts.join("\n");
 }
 
 /** 블로그에 서식 없이 붙여넣을 때 쓰는 일반 텍스트 버전. */
-export function renderArticlePlainText(a: RoundArticle): string {
+export function renderArticlePlainText(a: RoundArticle, source: LinkSource = "blog"): string {
   const lines: string[] = [];
   lines.push(`${a.roundNo}회차 축구토토 승무패는 ${a.leagues.join("·")} ${a.matches.length}경기로 구성됩니다.` + (a.deadline ? ` 첫 경기는 ${a.deadline}(한국시간)입니다.` : ""));
+  lines.push(a.asOfKst ? `데이터 기준: ${a.asOfKst} (한국시간)` : "데이터 기준: 배당 수집 전");
   if (a.report) lines.push("", "■ 요약", a.report);
   lines.push("", "■ 경기별 확률 (홈/무/원정 · 추천 · 근거)");
   for (const m of a.matches) {
@@ -242,7 +263,7 @@ export function renderArticlePlainText(a: RoundArticle): string {
     lines.push("", "■ 최근 회차 실제 성적");
     for (const r of a.recent) lines.push(`- ${r.roundNo}회차: ${r.hits}/${r.n} 적중`);
   }
-  lines.push("", `직접 조합 짜보기: ${a.appUrl}`, "", DISCLAIMER);
+  lines.push("", `직접 조합 짜보기: ${withUtm(a.appUrl, source, a.roundNo)}`, "", DISCLAIMER);
   return lines.join("\n");
 }
 
@@ -286,18 +307,25 @@ export function renderRoundPage(a: RoundArticle): string {
 <body><main>
 <p class="meta"><a href="/">HYEOKS 승무패 분석</a> · ${a.roundNo}회차</p>
 <h1>${e(a.title)}</h1>
-<a class="cta" href="${e(a.appUrl)}">앱에서 조합 직접 짜보기 →</a>
+<a class="cta" id="cta-app" href="${e(withUtm(a.appUrl, "round_page", a.roundNo))}">앱에서 조합 직접 짜보기 →</a>
 <div class="card table-wrap">
-${renderArticleBodyHtml(a)}
+${renderArticleBodyHtml(a, "round_page")}
 </div>
-</main></body></html>`;
+</main>
+<script>
+(function(){try{var q=new URLSearchParams(location.search);var d={r:${a.roundNo},u:q.get("utm_source"),ref:document.referrer};
+function send(e){try{d.e=e;navigator.sendBeacon("/api/e",JSON.stringify(d))}catch(_){}}
+send("round_page_view");var c=document.getElementById("cta-app");if(c)c.addEventListener("click",function(){send("round_page_cta")})}catch(_){}})();
+</script>
+</body></html>`;
 }
 
 /** 블로그 초안 페이지(검색 제외). 제목·본문(서식)·본문(텍스트)·태그를 각각 복사할 수 있다. */
 export function renderDraftPage(a: RoundArticle): string {
   const e = escapeHtml;
-  const body = renderArticleBodyHtml(a);
-  const plain = renderArticlePlainText(a);
+  // 초안은 블로그에 붙여넣는 글이라 링크에 blog 꼬리표를 단다(블로그 유입 측정).
+  const body = renderArticleBodyHtml(a, "blog");
+  const plain = renderArticlePlainText(a, "blog");
   return `<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
