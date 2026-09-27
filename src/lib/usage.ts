@@ -18,6 +18,10 @@ export const USAGE_EVENTS = [
   "report_view",
   "round_page_view",
   "round_page_cta",
+  // 경기별 분석 페이지(docs/specs/002)
+  "match_view",
+  "league_view",
+  "hub_view",
 ] as const;
 export type UsageEvent = (typeof USAGE_EVENTS)[number];
 

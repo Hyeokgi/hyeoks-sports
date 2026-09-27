@@ -16,6 +16,7 @@ import {
   type RoundArticle,
 } from "../lib/roundArticle";
 import { getPredictionSnapshots } from "../lib/predictionSnapshot";
+import { sitemapEntries } from "../lib/matchPage";
 import type { Env, RoundRow } from "../types";
 
 const RESULT_LABEL = { H: "홈승", D: "무승부", A: "원정승" } as const;
@@ -212,6 +213,12 @@ export async function handleSitemap(env: Env, request: Request): Promise<Respons
   const urls = [`<url><loc>${origin}/</loc></url>`, `<url><loc>${origin}/about</loc></url>`].concat(
     (results ?? []).map((r) => `<url><loc>${origin}/round/${r.round_no}</loc><lastmod>${r.lastmod.slice(0, 10)}</lastmod></url>`),
   );
+  // 경기별 분석 페이지(리그·경기). 표가 없거나 조회가 실패해도 회차 사이트맵은 내보낸다.
+  try {
+    urls.push(...(await sitemapEntries(env, origin)));
+  } catch (e) {
+    console.error(`sitemap: 경기 페이지 항목 생략 - ${(e as Error).message}`);
+  }
   return new Response(
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>`,
     { headers: { "content-type": "application/xml; charset=utf-8", "cache-control": "public, max-age=3600" } },

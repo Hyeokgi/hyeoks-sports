@@ -6,6 +6,7 @@ import { handleExclusivePick } from "./routes/exclusivePick";
 import { handleReport } from "./routes/report";
 import { handleSettlement } from "./routes/settlement";
 import { handleRoundPage, handleRoundData, handleSitemap, handleRobots } from "./routes/roundPage";
+import { handleMatchPage, handleMatchData, handleLeaguePage, handleHubPage } from "./routes/matchPage";
 import { recordUsage, usageSince } from "./lib/usage";
 import { requireAdmin } from "./lib/http";
 import {
@@ -31,6 +32,10 @@ const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report|excl
 // 회차 분석 페이지(공개)와 블로그 초안. 정적 자산에 없는 경로라 워커로 넘어온다.
 const ROUND_PAGE_RE = /^\/round\/(\d+)(\/draft)?\/?$/;
 const ROUND_DATA_RE = /^\/round\/(\d+)\/data\.json$/;
+// 경기별 분석 페이지(docs/specs/002). 주소 조각은 영문 소문자·숫자·하이픈만(fixtures.ts slugifyTeam).
+const MATCH_PAGE_RE = /^\/match\/([a-z0-9-]{5,160})\/?$/;
+const MATCH_DATA_RE = /^\/match\/([a-z0-9-]{5,160})\/data\.json$/;
+const LEAGUE_PAGE_RE = /^\/league\/([a-z0-9-]{2,40})\/?$/;
 const CANONICAL_ORIGIN = "https://hyeoks.com";
 const ADMIN_ROUND_RE = /^\/api\/admin\/rounds\/(\d+)$/;
 const ADMIN_ROUND_REPORT_RE = /^\/api\/admin\/rounds\/(\d+)\/report$/;
@@ -153,6 +158,14 @@ export default {
       if (roundPage && request.method === "GET") {
         return await handleRoundPage(env, request, Number(roundPage[1]), Boolean(roundPage[2]));
       }
+
+      const mData = pathname.match(MATCH_DATA_RE);
+      if (mData && request.method === "GET") return await handleMatchData(env, mData[1]);
+      const mPage = pathname.match(MATCH_PAGE_RE);
+      if (mPage && request.method === "GET") return await handleMatchPage(env, request, mPage[1]);
+      const lPage = pathname.match(LEAGUE_PAGE_RE);
+      if (lPage && request.method === "GET") return await handleLeaguePage(env, request, lPage[1]);
+      if ((pathname === "/matches" || pathname === "/matches/") && request.method === "GET") return await handleHubPage(env, request);
       if (pathname === "/sitemap.xml") return await handleSitemap(env, request);
       if (pathname === "/robots.txt") return handleRobots(request);
 

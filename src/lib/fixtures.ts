@@ -17,6 +17,7 @@ import { buildCornersHistory, recentCornersDiff } from "./cornersHistory";
 import { predictMatch, DEFAULT_TOGGLES, marketWeightForLeague } from "./prediction";
 import { confidenceTier } from "./calibration";
 import { TEAM_ENTRIES } from "./nameMap";
+import { missingDisplayNames } from "./teamNames";
 import type { Env } from "../types";
 
 /** 킥오프까지 이 기간 안에 든 경기만 만든다(명세 2장: 경기 7일 전부터). */
@@ -90,6 +91,8 @@ export function resolveSlugs(
 export interface SyncFixturesResult {
   leagues: Record<string, { fetched: number; upcoming: number; finished: number }>;
   statements: number;
+  // 경기 페이지에 영문으로 보일 팀(teamNames.ts에 한글 표시명이 없음). 사람이 채워 넣는다.
+  missingNames: string[];
 }
 
 export async function syncFixtures(env: Env, now = Date.now()): Promise<SyncFixturesResult> {
@@ -101,7 +104,7 @@ export async function syncFixtures(env: Env, now = Date.now()): Promise<SyncFixt
   let cornersHistory: Map<string, number[]> | null = null;
   let k1Xg: Map<string, TeamXG> | null = null;
 
-  const result: SyncFixturesResult = { leagues: {}, statements: 0 };
+  const result: SyncFixturesResult = { leagues: {}, statements: 0, missingNames: [] };
   for (const [league, leagueId] of Object.entries(LEAGUE_IDS)) {
     let list: FotmobFixture[] = [];
     try {
@@ -200,6 +203,7 @@ export async function syncFixtures(env: Env, now = Date.now()): Promise<SyncFixt
     for (let i = 0; i < stmts.length; i += BATCH_CHUNK) await env.DB.batch(stmts.slice(i, i + BATCH_CHUNK));
     result.statements += stmts.length;
     result.leagues[league] = { fetched: list.length, upcoming: upcoming.length, finished: finished.length };
+    result.missingNames.push(...missingDisplayNames(upcoming.flatMap((f) => [f.home, f.away])));
   }
   return result;
 }
