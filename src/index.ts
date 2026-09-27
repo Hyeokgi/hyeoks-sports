@@ -6,7 +6,7 @@ import { handleExclusivePick } from "./routes/exclusivePick";
 import { handleReport } from "./routes/report";
 import { handleSettlement } from "./routes/settlement";
 import { handleRoundPage, handleRoundData, handleSitemap, handleRobots } from "./routes/roundPage";
-import { handleMatchPage, handleMatchData, handleLeaguePage, handleHubPage } from "./routes/matchPage";
+import { handleMatchPage, handleMatchData, handleLeaguePage, handleHubPage, handleMatchList } from "./routes/matchPage";
 import { recordUsage, usageSince } from "./lib/usage";
 import { requireAdmin } from "./lib/http";
 import {
@@ -143,6 +143,10 @@ export default {
         if (authError) return authError;
         const days = Number(url.searchParams.get("days") ?? 14) || 14;
         return json({ days, rows: await usageSince(env, days) });
+      }
+
+      if (pathname === "/api/matches" && request.method === "GET") {
+        return await handleMatchList(env, request);
       }
 
       if (pathname.startsWith("/api/")) {
