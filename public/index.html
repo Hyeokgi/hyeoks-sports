@@ -55,7 +55,8 @@
         <span class="eyebrow">일정 · 확률</span>
         <h2><svg class="icon" aria-hidden="true"><use href="#i-matches"/></svg>경기 목록</h2>
       </div>
-      <p class="hint">확신도가 가장 낮은 경기에는 <b>헤지 ①②③</b> 배지가 붙습니다. 복식·삼복식으로 덮을 때는 이 순서대로 덮는 것이 확률상 최적입니다 — 확신도가 높은 경기에 보험을 걸면 대부분 그냥 낭비됩니다.</p>
+      <p class="hint">확신도가 가장 낮은 경기에는 <b>헤지 ①②③</b> 배지가 붙습니다. 표시된 확률 차이가 작은 경기부터 추가 결과를 살펴보는 참고 순서입니다. 경기 간 관계와 확률 추정 오차를 모두 반영한 최적 조합이나 수익을 보장하지 않습니다.</p>
+      <p class="hint">확률은 반올림하여 합계가 100%와 다를 수 있습니다. 확신도(%p)는 상위 두 결과의 계산 확률 차이이며, 적중률이나 수익률이 아닙니다.</p>
       <div id="round-summary" class="round-summary" hidden></div>
       <div id="match-list" class="match-list"></div>
     </section>
@@ -77,6 +78,7 @@
         <h2><svg class="icon" aria-hidden="true"><use href="#i-ai"/></svg>AI 분석 리포트</h2>
       </div>
       <button id="report-btn" class="btn primary">이번 회차 리포트 생성</button>
+      <p class="hint">이 리포트는 AI가 제공된 데이터를 바탕으로 자동 생성합니다. 오류나 누락이 있을 수 있으며, 별도의 전문가 검수를 거친 의견은 아닙니다.</p>
       <p id="report-text" class="report-text"></p>
     </section>
 
@@ -133,7 +135,7 @@
 
       <div class="info-block">
         <h3><svg class="icon" aria-hidden="true"><use href="#i-ledger"/></svg>실전 정산 기록</h3>
-        <p class="hint">아래는 백테스트가 아니라 <b>이 앱이 실제로 낸 픽</b>이 정산된 회차에서 어떻게 됐는지를 그대로 센 것입니다. 회차가 쌓일수록 정확해집니다.</p>
+        <p class="hint">아래는 백테스트가 아니라 <b>이 앱이 실제로 낸 픽</b>이 정산된 회차에서 어떻게 됐는지를 그대로 센 것입니다. 표본이 늘면 평가 근거가 쌓이지만 미래 예측 정확도가 높아진다는 뜻은 아닙니다.</p>
         <div id="settlement-summary" class="round-summary" hidden></div>
         <div id="settlement-rounds" class="combo-tiers"></div>
       </div>
@@ -141,7 +143,7 @@
       <div class="info-block">
         <h3>리그별 전체 적중률</h3>
         <div class="table-scroll"><table class="calib-table" id="overall-table"></table></div>
-        <p class="hint"><b>확신도 30%p 이상 구간에서만 뚜렷한 우위</b>가 있고, 그 아래 구간은 거의 동전던지기에 가깝다는 점을 그대로 알려드립니다 — 과장하지 않는 게 이 모델의 원칙입니다. "홈승 베이스라인"은 아무 분석 없이 항상 홈승만 찍었을 때의 적중률로, 모델이 그보다 나은지가 최소 기준입니다.</p>
+        <p class="hint">구간별 적중률은 위 표의 리그·표본 범위에서 관측된 결과입니다. 높은 확신도도 적중이나 배당 대비 수익 우위를 보장하지 않으며, 표본이 작은 구간은 특히 신중하게 해석해야 합니다. "홈승 베이스라인"은 아무 분석 없이 항상 홈승만 찍었을 때의 적중률로, 모델이 그보다 나은지가 최소 기준입니다.</p>
       </div>
     </section>
 
