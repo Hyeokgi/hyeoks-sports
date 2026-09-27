@@ -7,6 +7,7 @@ import { getRound, getRoundMatches } from "../lib/db";
 import { reportCacheKey, REPORT_CACHE_TTL_SECONDS } from "../lib/reportCache";
 import { loadRoundArticle } from "./roundPage";
 import { snapshotRound } from "../lib/predictionSnapshot";
+import { syncFixtures, listFixtures } from "../lib/fixtures";
 import type { Env } from "../types";
 
 export async function handleSync(env: Env, request: Request): Promise<Response> {
@@ -228,4 +229,24 @@ export async function handleCorrectRoundNo(env: Env, roundId: number, request: R
     .run();
 
   return json({ ok: true, round_id: roundId, round_no: roundNo });
+}
+
+// 경기별 페이지 1단계: 지원 리그 7일 경기 수집·예측 저장을 수동으로 돌린다(크론은 6시간마다 30분).
+export async function handleSyncFixtures(env: Env, request: Request): Promise<Response> {
+  const authError = requireAdmin(request, env);
+  if (authError) return authError;
+
+  const result = await syncFixtures(env);
+  return json({ ok: true, ...result });
+}
+
+// 확인용: 이틀 전 ~ 앞으로 days일(기본 7, 최대 14) 경기와 저장된 예측.
+export async function handleListFixtures(env: Env, request: Request): Promise<Response> {
+  const authError = requireAdmin(request, env);
+  if (authError) return authError;
+
+  const days = Math.min(14, Math.max(1, Number(new URL(request.url).searchParams.get("days")) || 7));
+  const now = Date.now();
+  const rows = await listFixtures(env, new Date(now - 2 * 86400e3).toISOString(), new Date(now + days * 86400e3).toISOString());
+  return json({ ok: true, count: rows.length, fixtures: rows });
 }
