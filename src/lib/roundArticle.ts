@@ -290,7 +290,7 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
   parts.push(`<p><small>${e(`이번 회차 근거 구성: ${a.basisSummary}`)}</small></p>`);
 
   if (a.report) {
-    parts.push(`<h2>애널리스트 코멘트</h2>`);
+    parts.push(`<h2>AI 분석 코멘트</h2>`);
     for (const para of a.report.split(/\n+/).filter(Boolean)) parts.push(`<p>${e(para)}</p>`);
   }
 
@@ -367,7 +367,7 @@ export function renderArticlePlainText(a: RoundArticle, source: LinkSource = "bl
   L.push(a.asOfKst ? `데이터 기준: ${a.asOfKst} (한국시간)` : "데이터 기준: 배당 수집 전");
   for (const h of a.highlights) L.push(`- ${h}`);
   L.push("", "■ 분석 방법", METHOD_TEXT, `이번 회차 근거 구성: ${a.basisSummary}`);
-  if (a.report) L.push("", "■ 애널리스트 코멘트", a.report);
+  if (a.report) L.push("", "■ AI 분석 코멘트", a.report);
   const keys = a.keyMatches.map((seq) => a.matches.find((m) => m.seq === seq)!).filter((m) => m?.analysis);
   if (keys.length) {
     L.push("", "■ 핵심 경기 심층 분석");
