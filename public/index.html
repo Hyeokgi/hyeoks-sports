@@ -58,6 +58,16 @@
   </div>
 
   <section id="matches-view" class="mx-wrap" hidden>
+    <!-- 팀·국가 검색: 입력하면 자동완성(초성·줄임말·영문), 비워 두고 누르면 전체 팀 목록을 스크롤해서 고른다 -->
+    <div class="mx-search">
+      <label class="mx-search-box" for="mx-search">
+        <svg class="icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input id="mx-search" type="search" placeholder="팀·국가 검색 (예: 대한민국, 토트넘, ㄷㅎㅁㄱ)" autocomplete="off" enterkeyhint="search"
+          role="combobox" aria-expanded="false" aria-controls="mx-suggest" aria-autocomplete="list" />
+      </label>
+      <ul id="mx-suggest" class="mx-suggest" role="listbox" aria-label="팀·국가" hidden></ul>
+    </div>
+    <div id="mx-team" class="mx-team-filter" hidden></div>
     <div class="mx-chips" id="mx-leagues" role="group" aria-label="리그"></div>
     <div class="mx-days" id="mx-days" role="group" aria-label="날짜"></div>
     <div id="mx-list"></div>
