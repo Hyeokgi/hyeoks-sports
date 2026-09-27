@@ -256,3 +256,63 @@ export async function fetchMatchCorners(matchId: number): Promise<{ home: number
   }
   return null;
 }
+
+// 경기 페이지(fixtures.ts)용: 리그 일정 전체를 FotMob 경기 번호·킥오프·상태와 함께 읽는다.
+// fetchUpcomingMatches는 경기 번호를 주지 않고, fetchFinishedMatches는 끝난 경기만 준다.
+// 경기 페이지는 같은 경기를 예정→종료까지 한 번호로 추적해야 해서 둘을 합친 모양이 필요하다.
+export interface FotmobFixture {
+  id: number | null;
+  date: string; // yyyy-mm-dd (UTC 기준, FotMob 원문)
+  utcKickoff: string | null;
+  home: string;
+  away: string;
+  finished: boolean;
+  cancelled: boolean;
+  hg: number | null;
+  ag: number | null;
+}
+
+export async function fetchLeagueFixtures(leagueId: string): Promise<FotmobFixture[]> {
+  const url = `https://www.fotmob.com/ko/leagues/${leagueId}/overview/`;
+  const fullJson = await fetchNextData(url);
+  if (!fullJson) return [];
+  const data = extractPageProps(fullJson);
+  if (!data) return [];
+
+  const out: FotmobFixture[] = [];
+  for (const match of extractFixtureList(data)) {
+    if (!match || typeof match !== "object") continue;
+    const home = match.home?.name;
+    const away = match.away?.name;
+    if (!home || !away) continue;
+    const date = extractMatchDate(match);
+    if (!date) continue;
+    const status = match.status ?? {};
+    let hg: number | null = null;
+    let ag: number | null = null;
+    if (status.finished) {
+      const parts = String(status.scoreStr ?? "").split("-");
+      if (parts.length === 2) {
+        const h = Number(parts[0].trim());
+        const a = Number(parts[1].trim());
+        if (Number.isFinite(h) && Number.isFinite(a)) {
+          hg = h;
+          ag = a;
+        }
+      }
+    }
+    const id = typeof match.id === "number" ? match.id : Number(match.id) || null;
+    out.push({
+      id,
+      date,
+      utcKickoff: status.utcTime ?? null,
+      home,
+      away,
+      finished: !!status.finished,
+      cancelled: !!status.cancelled,
+      hg,
+      ag,
+    });
+  }
+  return out;
+}
