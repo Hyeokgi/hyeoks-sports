@@ -74,33 +74,3 @@ export function searchTeams(entries: TeamEntry[], query: string): TeamEntry[] {
   }
   return scored.sort((a, b) => b[1] - a[1] || a[0].name.localeCompare(b[0].name, "ko")).map((x) => x[0]);
 }
-
-export function loadMatchCards(): Promise<MatchCard[]> {
-  if (cards) return Promise.resolve(cards);
-  if (!loading) {
-    loading = fetch("/api/matches")
-      .then((r) => (r.ok ? r.json() : { matches: [] }))
-      .then((d) => (cards = (d.matches ?? []) as MatchCard[]))
-      .catch(() => (cards = []));
-  }
-  return loading;
-}
-
-/** 회차 카드(app.ts renderMatches)에 '경기 분석 →' 링크를 붙인다. 경기 페이지가 있는 경기만. */
-export async function decorateRoundCards(roundNo: number | null | undefined): Promise<void> {
-  if (roundNo == null) return;
-  const list = await loadMatchCards();
-  const bySeq = new Map(list.filter((c) => c.round?.roundNo === roundNo).map((c) => [c.round!.seq, c.slug]));
-  for (const card of Array.from(document.querySelectorAll<HTMLElement>("#match-list .match-card[data-seq]"))) {
-    const slug = bySeq.get(Number(card.dataset.seq));
-    const line = card.querySelector<HTMLElement>(".pick-line");
-    if (!slug || !line || line.querySelector(".to-match")) continue;
-    const a = document.createElement("a");
-    a.className = "to-match";
-    a.href = `/match/${slug}?utm_source=app`;
-    a.textContent = "경기 분석 →";
-    a.addEventListener("click", () => trackFn("round_to_match"));
-    line.appendChild(a);
-  }
-}
-
