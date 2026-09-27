@@ -8,6 +8,7 @@ import { TEAM_LOGOS } from "../src/lib/teamLogos";
 import { nationalFlagUrl } from "../src/lib/nationalNames";
 import { isModelLeague } from "../src/lib/nameMap";
 import { pickDefaultRound, roundPhase } from "../src/lib/roundPick";
+import { initModeSwitch, decorateRoundCards } from "./matchesView";
 
 interface MatchData {
   seq: number;
@@ -338,6 +339,8 @@ function renderMatches() {
     const prediction = predictMatch(toInputs(m), currentToggles);
     const card = document.createElement("div");
     card.className = "match-card";
+    // 경기 분석 페이지 링크를 붙일 때 회차 경기 번호로 찾는다(matchesView.decorateRoundCards).
+    card.dataset.seq = String(m.seq);
 
     const tier = confidenceTier(m.league, prediction.confidenceGap);
     const meta = document.createElement("div");
@@ -567,6 +570,8 @@ function renderMatches() {
 
     matchList.appendChild(card);
   }
+  // 경기 분석 페이지가 있는 경기에 '경기 분석 →' 링크(목록은 한 번만 받아 둔다).
+  void decorateRoundCards(currentRoundId != null ? roundNoById.get(currentRoundId) : null);
 }
 
 function toComboMatches(): ComboMatch[] {
@@ -975,5 +980,7 @@ reportBtn.addEventListener("click", async () => {
 renderToggles();
 renderCalibrationTables();
 track("app_open");
+// 상단 영역 전환(승무패 회차 ↔ 경기 분석). 회차 화면은 그대로 두고 경기 분석 화면만 겹쳐 보인다.
+initModeSwitch((e) => track(e));
 loadRounds();
 loadSettlement();

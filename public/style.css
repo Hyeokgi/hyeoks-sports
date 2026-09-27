@@ -1360,3 +1360,136 @@ main {
 .round-notice b {
   color: #7dd3fc;
 }
+
+
+/* ---------------------------------------------------------------------------
+   영역 전환(승무패 회차 ↔ 경기 분석) - public/matchesView.ts
+   회차는 금색, 경기 분석은 남보라(인디고)로 구분한다. 경기 분석 페이지(/match)와 같은 색이다. */
+.mode-switch {
+  padding: 10px max(18px, calc((100% - 760px) / 2)) 4px;
+}
+.mode-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--card-border);
+}
+.mode-seg button {
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 9px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.mode-seg button small { font-size: 0.68rem; font-weight: 700; opacity: 0.8; }
+.mode-seg button i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.mode-seg button.round i { background: var(--gold); }
+.mode-seg button.match i { background: #8b93ff; }
+.mode-seg button.on.round {
+  background: linear-gradient(135deg, rgba(242, 169, 59, 0.28), rgba(242, 169, 59, 0.14));
+  color: var(--gold-bright);
+  box-shadow: inset 0 0 0 1px rgba(242, 169, 59, 0.45);
+}
+.mode-seg button.on.match {
+  background: linear-gradient(135deg, rgba(129, 140, 248, 0.3), rgba(129, 140, 248, 0.14));
+  color: #c7cbff;
+  box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.5);
+}
+.mode-seg button:focus-visible { outline: 2px solid #8b93ff; outline-offset: 2px; }
+@media (max-width: 360px) { .mode-seg button small { display: none; } }
+
+/* 경기 분석 모드: 회차 전용 화면(본문·하단 탭·회차 선택)을 숨긴다 */
+.match-picker-link { display: none; }
+body.mode-match main,
+body.mode-match .tabbar { display: none !important; }
+body.mode-match .round-picker > :not(.match-picker-link) { display: none !important; }
+body.mode-match .match-picker-link { display: inline-flex; color: #aeb4ff; }
+
+/* 회차 카드의 '경기 분석 →' */
+.pick-line:has(.to-match) { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.to-match {
+  margin-left: auto;
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: #aeb4ff;
+  text-decoration: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(129, 140, 248, 0.12);
+  white-space: nowrap;
+}
+
+/* 경기 분석 화면 */
+.mx-wrap { max-width: 760px; margin: 0 auto; padding: 8px 18px 40px; }
+.mx-chips { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0 8px; scrollbar-width: none; }
+.mx-chips::-webkit-scrollbar { display: none; }
+.mx-chip {
+  flex: 0 0 auto; font: inherit; font-size: 0.8rem; font-weight: 700; color: var(--muted);
+  border: 1px solid var(--card-border); border-radius: 999px; padding: 6px 12px; background: rgba(255, 255, 255, 0.03); cursor: pointer;
+}
+.mx-chip.on { color: #0b0e1a; background: #8b93ff; border-color: #8b93ff; }
+.mx-days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 4px 0 2px; }
+.mx-day {
+  font: inherit; text-align: center; border-radius: 12px; padding: 7px 2px; border: 1px solid var(--card-border);
+  background: rgba(255, 255, 255, 0.03); font-size: 0.7rem; color: var(--muted); font-weight: 700; cursor: pointer; line-height: 1.35;
+}
+.mx-day b { display: block; font-size: 0.92rem; color: var(--ink); }
+.mx-day.on { border-color: rgba(129, 140, 248, 0.6); background: rgba(129, 140, 248, 0.14); }
+.mx-day.on b { color: #c7cbff; }
+.mx-h { display: flex; align-items: baseline; justify-content: space-between; margin: 18px 2px 8px; }
+.mx-h h3 { margin: 0; font-size: 0.95rem; }
+.mx-h span { font-size: 0.76rem; color: var(--muted); }
+.mx-card {
+  display: block; color: inherit; text-decoration: none; border-radius: 18px; padding: 14px 14px 12px; margin-bottom: 10px;
+  background: var(--card-bg); border: 1px solid var(--card-border); box-shadow: var(--shadow-card); transition: background 0.18s ease, border-color 0.18s ease;
+}
+.mx-card:hover, .mx-card:focus-visible { background: var(--card-bg-hover); border-color: rgba(129, 140, 248, 0.45); }
+.mx-top { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.74rem; color: var(--muted); font-weight: 700; }
+.mx-lg { color: #aeb4ff; background: rgba(129, 140, 248, 0.12); border-radius: 999px; padding: 2px 8px; }
+.mx-rnd { margin-left: auto; color: var(--gold-bright); background: rgba(242, 169, 59, 0.13); border: 1px solid rgba(242, 169, 59, 0.35); border-radius: 999px; padding: 1px 8px; }
+.mx-res { border-radius: 999px; padding: 1px 8px; }
+.mx-res.hit { color: var(--home); background: rgba(34, 197, 94, 0.14); }
+.mx-res.miss { color: var(--away); background: rgba(239, 68, 68, 0.14); }
+.mx-res { margin-left: auto; }
+.mx-rnd ~ .mx-res { margin-left: 0; }
+.mx-teams { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; margin: 12px 0 10px; }
+.mx-team { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.95rem; min-width: 0; }
+.mx-team.r { justify-content: flex-end; text-align: right; }
+.mx-team span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mx-crest { width: 30px; height: 30px; border-radius: 50%; flex: 0 0 30px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.mx-crest img { width: 24px; height: 24px; object-fit: contain; }
+.mx-crest.flag img { width: 30px; height: 30px; object-fit: cover; }
+.mx-crest.mono { background: linear-gradient(135deg, #2b3350, #1b2135); color: #cfd6ff; font-size: 0.72rem; font-weight: 900; }
+.mx-vs { font-size: 0.72rem; color: var(--muted-2); font-weight: 900; padding: 0 10px; }
+.mx-score { font-size: 1.15rem; font-weight: 900; padding: 0 10px; white-space: nowrap; }
+.mx-probs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.mx-p { text-align: center; border-radius: 10px; padding: 6px 2px; background: rgba(255, 255, 255, 0.035); font-size: 0.7rem; color: var(--muted); font-weight: 700; }
+.mx-p b { display: block; font-size: 1.05rem; color: var(--ink); }
+.mx-p.top { background: rgba(129, 140, 248, 0.14); box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.55); }
+.mx-p.top b { color: #c7cbff; }
+.mx-p.act { box-shadow: inset 0 0 0 2px var(--home); }
+.mx-p.act.miss { box-shadow: inset 0 0 0 2px var(--away); }
+.mx-bar { display: flex; height: 6px; border-radius: 4px; overflow: hidden; margin-top: 9px; background: rgba(255, 255, 255, 0.05); }
+.mx-bar i { display: block; }
+.mx-bar i:nth-child(1) { background: var(--home); }
+.mx-bar i:nth-child(2) { background: var(--draw); }
+.mx-bar i:nth-child(3) { background: var(--away); }
+.mx-foot { display: flex; justify-content: space-between; margin-top: 9px; font-size: 0.72rem; color: var(--muted); }
+.mx-more { color: #aeb4ff; font-weight: 800; }
+.mx-empty { margin: 24px 0; padding: 22px 16px; text-align: center; border: 1px dashed var(--card-border); border-radius: 16px; color: var(--ink); font-size: 0.9rem; line-height: 1.6; }
+.mx-empty span { color: var(--muted); font-size: 0.8rem; }
+.mx-note { font-size: 0.72rem; color: var(--muted); line-height: 1.6; margin-top: 14px; }
+.mx-note a { color: #aeb4ff; }
