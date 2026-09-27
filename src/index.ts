@@ -28,6 +28,7 @@ const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report|excl
 // 회차 분석 페이지(공개)와 블로그 초안. 정적 자산에 없는 경로라 워커로 넘어온다.
 const ROUND_PAGE_RE = /^\/round\/(\d+)(\/draft)?\/?$/;
 const ROUND_DATA_RE = /^\/round\/(\d+)\/data\.json$/;
+const CANONICAL_ORIGIN = "https://hyeoks.com";
 const ADMIN_ROUND_RE = /^\/api\/admin\/rounds\/(\d+)$/;
 const ADMIN_ROUND_REPORT_RE = /^\/api\/admin\/rounds\/(\d+)\/report$/;
 const ADMIN_ROUND_MARKET_ODDS_RE = /^\/api\/admin\/rounds\/(\d+)\/market-odds$/;
@@ -38,6 +39,18 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
+
+    // 대표 주소(hyeoks.com)로 모은다(검색엔진 중복 방지). 자동 수집 작업이 쓰는 /api/*와
+    // 블로그 스크립트가 읽는 /round/N/data.json은 옛 주소에서도 그대로 응답한다.
+    // 정적 파일(첫 화면 등)은 워커를 거치지 않으므로 각 HTML의 스크립트가 같은 이동을 한다.
+    if (
+      (url.hostname.endsWith(".workers.dev") || url.hostname === "www.hyeoks.com") &&
+      (request.method === "GET" || request.method === "HEAD") &&
+      !pathname.startsWith("/api/") &&
+      !ROUND_DATA_RE.test(pathname)
+    ) {
+      return Response.redirect(`${CANONICAL_ORIGIN}${pathname}${url.search}`, 301);
+    }
 
     try {
       if (pathname === "/api/rounds" && request.method === "GET") {
