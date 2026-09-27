@@ -532,6 +532,106 @@ ${beacon("hub_view")}
 </body></html>`;
 }
 
+// ---------- 앱의 '경기 분석' 목록(GET /api/matches) ----------
+interface RoundRef { roundId: number; roundNo: number; matchId: number; seq: number; league: string; hk: string; ak: string; kickoffAt: string }
+export interface MatchCard {
+  slug: string;
+  league: string;
+  leagueName: string;
+  competition: string | null;
+  kickoffAt: string;
+  home: string;
+  away: string;
+  homeLogo: string | null;
+  awayLogo: string | null;
+  pHome: number;
+  pDraw: number;
+  pAway: number;
+  pick: Outcome;
+  basisLabel: string;
+  status: string;
+  hg: number | null;
+  ag: number | null;
+  round: { roundNo: number; seq: number } | null;
+}
+
+/**
+ * 지난 14일 ~ 앞으로 8일 경기 카드. 승무패 회차에 포함된 경기는 경기 페이지와 똑같이 회차 확률로 바꾼다
+ * (킥오프 전: 현재 회차 예측, 킥오프 후: 스냅샷). 회차 연결은 경기마다 조회하지 않고 한 번에 맞춘다.
+ */
+export async function listMatchCards(env: Env, now = Date.now()): Promise<MatchCard[]> {
+  const from = new Date(now - 14 * 86400e3).toISOString();
+  const to = new Date(now + 8 * 86400e3).toISOString();
+  const { results } = await env.DB.prepare(
+    `${MATCH_SELECT} WHERE f.kickoff_at >= ? AND f.kickoff_at <= ? AND f.status != 'cancelled' ORDER BY f.kickoff_at ASC LIMIT 500`,
+  )
+    .bind(from, to)
+    .all<MatchRow>();
+  const rows = results ?? [];
+
+  const { results: rms } = await env.DB.prepare(
+    `SELECT r.id AS roundId, r.round_no AS roundNo, rm.id AS matchId, rm.seq AS seq, rm.league AS league, rm.home_kr AS hk, rm.away_kr AS ak, rm.kickoff_at AS kickoffAt
+       FROM round_matches rm JOIN rounds r ON r.id = rm.round_id
+      WHERE r.round_no IS NOT NULL AND r.round_no_confirmed = 1 AND rm.kickoff_at >= ? AND rm.kickoff_at <= ?`,
+  )
+    .bind(from, to)
+    .all<RoundRef>();
+  // 클럽은 토토 표기(fixtures.home_kr = nameMap 역참조)로, 국가대표는 영문(결과 데이터셋 표기)으로 맞춘다.
+  const keyOfRound = (x: { league: string; hk: string; ak: string; kickoffAt: string }) => {
+    const d = x.kickoffAt.slice(0, 10);
+    const he = nationalTeamEn(x.hk);
+    const ae = nationalTeamEn(x.ak);
+    return [`${x.league}|${x.hk}|${x.ak}|${d}`, he && ae ? `nat|${he}|${ae}|${d}` : null];
+  };
+  const byKey = new Map<string, RoundRef>();
+  for (const x of rms ?? []) for (const k of keyOfRound(x)) if (k) byKey.set(k, x);
+  const keyOfFixture = (r: MatchRow) =>
+    r.league === NATIONAL_LEAGUE ? `nat|${r.home_en}|${r.away_en}|${r.kickoff_at.slice(0, 10)}` : `${r.league}|${r.home_kr}|${r.away_kr}|${r.kickoff_at.slice(0, 10)}`;
+
+  const linked = new Map<number, { roundId: number; roundNo: number; seq: number; matchId: number }>();
+  for (const r of rows) {
+    const x = byKey.get(keyOfFixture(r));
+    if (x) linked.set(r.id, x);
+  }
+  // 회차 확률: 킥오프 전은 회차별로 한 번씩 계산, 킥오프 후는 스냅샷을 한 번에 읽는다.
+  const roundProbs = new Map<number, { pHome: number; pDraw: number; pAway: number; pick: Outcome; market: boolean }>();
+  try {
+    const startedIds = rows.filter((r) => linked.has(r.id) && Date.parse(r.kickoff_at) <= now).map((r) => linked.get(r.id)!.matchId);
+    const snaps = await getPredictionSnapshots(env, startedIds);
+    for (const [id, s] of snaps) {
+      roundProbs.set(id, { pHome: s.prediction.pHome, pDraw: s.prediction.pDraw, pAway: s.prediction.pAway, pick: s.prediction.rankedPicks[0] as Outcome, market: (s.nBookmakers ?? 0) > 0 });
+    }
+    const roundIds = [...new Set(rows.filter((r) => linked.has(r.id) && Date.parse(r.kickoff_at) > now).map((r) => linked.get(r.id)!.roundId))];
+    for (const rid of roundIds) {
+      for (const p of await buildRoundPredictions(env, rid)) {
+        if (p.prediction.basis === "none") continue;
+        roundProbs.set(p.match.id, { pHome: p.prediction.pHome, pDraw: p.prediction.pDraw, pAway: p.prediction.pAway, pick: p.prediction.rankedPicks[0] as Outcome, market: !!p.raw.market });
+      }
+    }
+  } catch (err) {
+    console.error(`listMatchCards: 회차 확률 반영 실패(경기 예측으로 표시) - ${(err as Error).message}`);
+  }
+
+  return rows.map((r) => {
+    const isNat = r.league === NATIONAL_LEAGUE;
+    const link = linked.get(r.id);
+    const rp = link ? roundProbs.get(link.matchId) : undefined;
+    const hk = isNat ? null : teamKr(r.league, r.home_en);
+    const ak = isNat ? null : teamKr(r.league, r.away_en);
+    const li = leagueInfo(r.league);
+    return {
+      slug: r.slug, league: r.league, leagueName: li.name, competition: r.competition, kickoffAt: r.kickoff_at,
+      home: nameOf(r, "home"), away: nameOf(r, "away"),
+      homeLogo: isNat ? flagOf(r.home_en) : hk ? TEAM_LOGOS[hk] ?? null : null,
+      awayLogo: isNat ? flagOf(r.away_en) : ak ? TEAM_LOGOS[ak] ?? null : null,
+      pHome: rp?.pHome ?? r.p_home, pDraw: rp?.pDraw ?? r.p_draw, pAway: rp?.pAway ?? r.p_away, pick: rp?.pick ?? (r.pick as Outcome),
+      basisLabel: isNat ? (rp?.market ? "해외 배당" : "국가대표 Elo") : rp?.market ? "통계 모델 + 해외 배당" : "통계 모델",
+      status: r.status, hg: r.hg, ag: r.ag,
+      round: link ? { roundNo: link.roundNo, seq: link.seq } : null,
+    };
+  });
+}
+
 /** 사이트맵용: 리그 페이지 + 예측이 있는 경기 페이지(지난 60일 ~ 예정). */
 export async function sitemapEntries(env: Env, origin: string, now = Date.now()): Promise<string[]> {
   const leagues = [`<url><loc>${origin}/matches</loc></url>`, ...Object.values(LEAGUE_INFO).map((v) => `<url><loc>${origin}/league/${v.slug}</loc></url>`)];
