@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { slugifyTeam, kstDate, fixtureSlug, inFixtureWindow, resolveSlugs, teamKr } from "../src/lib/fixtures";
+import { slugifyTeam, kstDate, fixtureSlug, inFixtureWindow, resolveSlugs, teamKr, nationalResultsName } from "../src/lib/fixtures";
+import { nationalKrOf } from "../src/lib/nationalNames";
 
 describe("경기 주소(slug)", () => {
   it("영문 팀명을 소문자·하이픈으로, 악센트는 뗀다", () => {
@@ -57,5 +58,18 @@ describe("한글 팀명", () => {
   it("nameMap에 있는 팀은 한글, 없으면 null", () => {
     expect(teamKr("K리그1", "FC Seoul")).toBe("FC서울");
     expect(teamKr("K리그1", "없는 팀")).toBeNull();
+  });
+});
+
+describe("국가대표 이름", () => {
+  it("FotMob 표기를 결과 데이터셋 표기로", () => {
+    expect(nationalResultsName("Turkiye")).toBe("Turkey");
+    expect(nationalResultsName("Ireland")).toBe("Republic of Ireland");
+    expect(nationalResultsName("South Korea")).toBe("South Korea");
+  });
+  it("한글 국가명은 표에서 먼저 나온 전체 표기", () => {
+    expect(nationalKrOf("South Korea")).toBe("대한민국");
+    expect(nationalKrOf("Turkey")).toBe("튀르키예");
+    expect(nationalKrOf("Atlantis")).toBeNull();
   });
 });

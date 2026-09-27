@@ -14,7 +14,9 @@ import { LEAGUE_IDS, fetchLeagueFixtures, fetchTeamXG, type FotmobFixture, type 
 import { computeEloAndHistory, recentForm, h2hDiff as computeH2hDiff } from "./elo";
 import { getAllMatches, getLeagueDrawRate, getK2MatchesWithCorners } from "./db";
 import { buildCornersHistory, recentCornersDiff } from "./cornersHistory";
-import { predictMatch, DEFAULT_TOGGLES, marketWeightForLeague } from "./prediction";
+import { predictMatch, DEFAULT_TOGGLES, marketWeightForLeague, FALLBACK_DRAW_RATE } from "./prediction";
+import { NATIONAL_MIN_MATCHES } from "./nationalEloStore";
+import { nationalKrOf } from "./nationalNames";
 import { confidenceTier } from "./calibration";
 import { TEAM_ENTRIES } from "./nameMap";
 import { missingDisplayNames } from "./teamNames";
@@ -205,12 +207,148 @@ export async function syncFixtures(env: Env, now = Date.now()): Promise<SyncFixt
     result.leagues[league] = { fetched: list.length, upcoming: upcoming.length, finished: finished.length };
     result.missingNames.push(...missingDisplayNames(upcoming.flatMap((f) => [f.home, f.away])));
   }
+  // 국가대표는 부가 기능이다. 실패해도 클럽 리그 결과는 그대로 남긴다.
+  try {
+    await syncNationalFixtures(env, now, result);
+  } catch (e) {
+    console.error(`syncFixtures: 국가대표 수집 실패 - ${(e as Error).message}`);
+  }
   return result;
+}
+
+// ---------- 국가대표 ----------
+// 휴식기(A매치 기간)에도 경기 분석이 비지 않게, 국가대표 경기를 같은 표에 넣는다(league = "국가대표").
+// 확률은 승무패 회차의 국가대표 경기와 같은 경로(predictMatch의 marketOnly + nationalEloDiff)로 계산한다.
+export const NATIONAL_LEAGUE = "국가대표";
+// FotMob 대회 번호 → 한글 대회명. 2026-09-27 실측으로 이번 주 경기가 있는 대회만 넣었다.
+export const NATIONAL_COMPETITIONS: Record<string, string> = {
+  "9806": "UEFA 네이션스리그 A",
+  "9807": "UEFA 네이션스리그 B",
+  "9808": "UEFA 네이션스리그 C",
+  "9809": "UEFA 네이션스리그 D",
+  "9821": "CONCACAF 네이션스리그",
+  "114": "A매치 친선",
+};
+// FotMob 영문 국가명 → 국가대표 Elo 원자료(martj42/international_results) 표기. 나머지는 같은 이름.
+const FOTMOB_TO_RESULTS: Record<string, string> = {
+  Turkiye: "Turkey",
+  "Türkiye": "Turkey",
+  Ireland: "Republic of Ireland",
+  Czechia: "Czech Republic",
+  USA: "United States",
+  "Korea Republic": "South Korea",
+  "Korea DPR": "North Korea",
+  "Côte d'Ivoire": "Ivory Coast",
+  "IR Iran": "Iran",
+  "China PR": "China",
+};
+export function nationalResultsName(fotmobName: string): string {
+  return FOTMOB_TO_RESULTS[fotmobName] ?? fotmobName;
+}
+
+async function syncNationalFixtures(env: Env, now: number, result: SyncFixturesResult): Promise<void> {
+  const nowIso = new Date(now).toISOString();
+  type Cand = { f: FotmobFixture; comp: string; he: string; ae: string; hk: string; ak: string };
+  const cands: Cand[] = [];
+  const lists: FotmobFixture[] = [];
+  let fetched = 0;
+  for (const [compId, compName] of Object.entries(NATIONAL_COMPETITIONS)) {
+    let list: FotmobFixture[] = [];
+    try {
+      list = await fetchLeagueFixtures(compId);
+    } catch (e) {
+      console.error(`syncFixtures: ${compName} 일정 조회 실패(스킵) - ${(e as Error).message}`);
+    }
+    fetched += list.length;
+    lists.push(...list);
+    for (const f of list) {
+      if (f.id == null || !inFixtureWindow(f, now)) continue;
+      const he = nationalResultsName(f.home);
+      const ae = nationalResultsName(f.away);
+      const hk = nationalKrOf(he);
+      const ak = nationalKrOf(ae);
+      // 한글 이름이 없는 나라(주로 소국)는 검색 수요도 작고 이름을 추측할 수 없어 만들지 않는다.
+      if (!hk || !ak) continue;
+      cands.push({ f, comp: compName, he, ae, hk, ak });
+    }
+  }
+
+  const stmts: D1PreparedStatement[] = [];
+  let made = 0;
+  if (cands.length > 0) {
+    const names = [...new Set(cands.flatMap((c) => [c.he, c.ae]))];
+    const { results: eloRows } = await env.DB.prepare(
+      `SELECT team_en, elo, n_matches FROM national_elo WHERE team_en IN (${names.map(() => "?").join(",")})`,
+    )
+      .bind(...names)
+      .all<{ team_en: string; elo: number; n_matches: number }>();
+    // 레이팅이 자리 잡지 않은 팀(경기 수 적음)은 쓰지 않는다(회차와 같은 기준).
+    const elo = new Map((eloRows ?? []).filter((r) => r.n_matches >= NATIONAL_MIN_MATCHES).map((r) => [r.team_en, r.elo]));
+    const ready = cands.filter((c) => elo.has(c.he) && elo.has(c.ae));
+    if (ready.length > 0) {
+      const wanted = ready.map((c) => ({ fotmobId: c.f.id as number, slug: fixtureSlug(kstDate(c.f.utcKickoff as string) as string, c.he, c.ae) }));
+      const { results: takenRows } = await env.DB.prepare(
+        `SELECT slug, fotmob_id FROM fixtures WHERE slug IN (${wanted.map(() => "?").join(",")})`,
+      )
+        .bind(...wanted.map((w) => w.slug))
+        .all<{ slug: string; fotmob_id: number }>();
+      const slugs = resolveSlugs(wanted, new Map((takenRows ?? []).map((r) => [r.slug, r.fotmob_id])));
+      for (const c of ready) {
+        const id = c.f.id as number;
+        const diff = (elo.get(c.he) as number) - (elo.get(c.ae) as number);
+        const p = predictMatch(
+          { eloDiff: 0, formDiff: 0, h2hDiff: 0, leagueDrawRate: FALLBACK_DRAW_RATE, marketOdds: null, league: "U네이션", marketOnly: true, nationalEloDiff: diff },
+          DEFAULT_TOGGLES,
+        );
+        stmts.push(
+          env.DB.prepare(
+            `INSERT INTO fixtures (league, competition, fotmob_id, kickoff_at, home_en, away_en, home_kr, away_kr, slug, status, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?, ?)
+             ON CONFLICT(fotmob_id) DO UPDATE SET kickoff_at = excluded.kickoff_at, competition = excluded.competition,
+               home_kr = excluded.home_kr, away_kr = excluded.away_kr, updated_at = excluded.updated_at
+             WHERE fixtures.status = 'scheduled'`,
+          ).bind(NATIONAL_LEAGUE, c.comp, id, c.f.utcKickoff, c.he, c.ae, c.hk, c.ak, slugs.get(id) as string, nowIso, nowIso),
+        );
+        // elo_diff에는 국가대표 Elo 격차(홈 이점 제외)를 넣는다. 폼·맞대결은 쓰지 않는다.
+        stmts.push(
+          env.DB.prepare(
+            `INSERT INTO fixture_predictions
+               (fixture_id, elo_diff, form_diff, h2h_diff, n_h2h, league_draw_rate, xg_diff, corners_diff,
+                p_home, p_draw, p_away, pick, basis, confidence_gap, tier, computed_at)
+             SELECT id, ?, 0, 0, 0, ?, NULL, NULL, ?, ?, ?, ?, ?, ?, NULL, ? FROM fixtures WHERE fotmob_id = ? AND kickoff_at > ?
+             ON CONFLICT(fixture_id) DO UPDATE SET elo_diff = excluded.elo_diff, p_home = excluded.p_home, p_draw = excluded.p_draw,
+               p_away = excluded.p_away, pick = excluded.pick, basis = excluded.basis, confidence_gap = excluded.confidence_gap,
+               computed_at = excluded.computed_at`,
+          ).bind(diff, FALLBACK_DRAW_RATE, p.pHome, p.pDraw, p.pAway, p.rankedPicks[0], p.basis, p.confidenceGap, nowIso, id, nowIso),
+        );
+        made++;
+      }
+    }
+  }
+
+  const { results: pending } = await env.DB.prepare(
+    "SELECT fotmob_id FROM fixtures WHERE league = ? AND status = 'scheduled' AND kickoff_at <= ?",
+  )
+    .bind(NATIONAL_LEAGUE, nowIso)
+    .all<{ fotmob_id: number }>();
+  const pendingIds = new Set((pending ?? []).map((r) => r.fotmob_id));
+  const finished = lists.filter((f) => f.id != null && pendingIds.has(f.id) && (f.finished || f.cancelled));
+  for (const f of finished) {
+    stmts.push(
+      env.DB.prepare("UPDATE fixtures SET status = ?, hg = ?, ag = ?, updated_at = ? WHERE fotmob_id = ?").bind(
+        f.finished ? "finished" : "cancelled", f.hg, f.ag, nowIso, f.id,
+      ),
+    );
+  }
+  for (let i = 0; i < stmts.length; i += BATCH_CHUNK) await env.DB.batch(stmts.slice(i, i + BATCH_CHUNK));
+  result.statements += stmts.length;
+  result.leagues[NATIONAL_LEAGUE] = { fetched, upcoming: made, finished: finished.length };
 }
 
 export interface FixtureListRow {
   id: number;
   league: string;
+  competition: string | null;
   kickoff_at: string;
   home_en: string;
   away_en: string;
@@ -233,7 +371,7 @@ export interface FixtureListRow {
 /** 확인용 목록(관리자 API). 2단계 화면도 이 모양을 쓴다. */
 export async function listFixtures(env: Env, fromIso: string, toIso: string): Promise<FixtureListRow[]> {
   const { results } = await env.DB.prepare(
-    `SELECT f.id, f.league, f.kickoff_at, f.home_en, f.away_en, f.home_kr, f.away_kr, f.slug, f.status, f.hg, f.ag,
+    `SELECT f.id, f.league, f.competition, f.kickoff_at, f.home_en, f.away_en, f.home_kr, f.away_kr, f.slug, f.status, f.hg, f.ag,
             p.p_home, p.p_draw, p.p_away, p.pick, p.basis, p.confidence_gap, p.tier, p.computed_at
        FROM fixtures f LEFT JOIN fixture_predictions p ON p.fixture_id = f.id
       WHERE f.kickoff_at >= ? AND f.kickoff_at <= ?

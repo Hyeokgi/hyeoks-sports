@@ -212,6 +212,8 @@ export const LEAGUE_INFO: Record<string, LeagueInfo> = {
   "세리에A": { slug: "serie-a", name: "세리에A", country: "이탈리아", aliases: ["세리에 A", "이탈리아 세리에A"] },
   "라리가": { slug: "la-liga", name: "라리가", country: "스페인", aliases: ["라 리가", "스페인 라리가", "프리메라리가"] },
   "분데스리가": { slug: "bundesliga", name: "분데스리가", country: "독일", aliases: ["독일 분데스리가", "분데스"] },
+  // 국가대표(fixtures.ts NATIONAL_LEAGUE). 대회명(네이션스리그·친선 등)은 fixtures.competition에 따로 있다.
+  "국가대표": { slug: "national-teams", name: "국가대표", country: "A매치", aliases: ["A매치", "국가대표 평가전", "네이션스리그"] },
 };
 export function leagueInfo(league: string): LeagueInfo {
   return LEAGUE_INFO[league] ?? { slug: league.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "league", name: league, country: "", aliases: [] };

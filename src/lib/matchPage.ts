@@ -9,7 +9,9 @@ import { getPredictionSnapshots } from "./predictionSnapshot";
 import { analyzeMatch } from "./matchAnalysis";
 import { findCalibrationBucket } from "./calibration";
 import { TEAM_LOGOS } from "./teamLogos";
-import { teamKr } from "./fixtures";
+import { teamKr, NATIONAL_LEAGUE } from "./fixtures";
+import { nationalProbs, NATIONAL_HOME_ADV } from "./nationalElo";
+import { NATIONAL_FLAG_CODE, nationalTeamEn } from "./nationalNames";
 import { displayTeamName, leagueInfo, leagueBySlug, LEAGUE_INFO } from "./teamNames";
 import { DISCLAIMER, escapeHtml as e } from "./roundArticle";
 import type { Env } from "../types";
@@ -25,6 +27,9 @@ export interface MatchRow {
   kickoff_at: string;
   home_en: string;
   away_en: string;
+  home_kr: string | null;
+  away_kr: string | null;
+  competition: string | null;
   slug: string;
   status: string;
   hg: number | null;
@@ -48,6 +53,7 @@ export interface MatchRow {
 export interface MatchView {
   slug: string;
   league: string;
+  competition: string | null;
   leagueName: string;
   leagueSlug: string;
   kickoffAt: string;
@@ -128,6 +134,19 @@ export function neutralSummary(v: Pick<MatchView, "home" | "away" | "pHome" | "p
 
 // ---------- 불러오기 ----------
 async function findRoundLink(env: Env, row: MatchRow): Promise<{ roundId: number; roundNo: number; seq: number; matchId: number } | null> {
+  // 국가대표: 회차의 팀명은 wisetoto 표기(4글자로 잘림)라 영문(결과 데이터셋 표기)으로 풀어서 맞춘다.
+  if (row.league === NATIONAL_LEAGUE) {
+    const { results } = await env.DB.prepare(
+      `SELECT r.id AS roundId, r.round_no AS roundNo, rm.seq AS seq, rm.id AS matchId, rm.home_kr AS hk, rm.away_kr AS ak
+         FROM round_matches rm JOIN rounds r ON r.id = rm.round_id
+        WHERE substr(rm.kickoff_at, 1, 10) = substr(?, 1, 10) AND r.round_no IS NOT NULL AND r.round_no_confirmed = 1
+        ORDER BY r.id DESC`,
+    )
+      .bind(row.kickoff_at)
+      .all<{ roundId: number; roundNo: number; seq: number; matchId: number; hk: string; ak: string }>();
+    const hit = (results ?? []).find((x) => nationalTeamEn(x.hk) === row.home_en && nationalTeamEn(x.ak) === row.away_en);
+    return hit ? { roundId: hit.roundId, roundNo: hit.roundNo, seq: hit.seq, matchId: hit.matchId } : null;
+  }
   const hk = teamKr(row.league, row.home_en);
   const ak = teamKr(row.league, row.away_en);
   if (!hk || !ak) return null;
@@ -142,14 +161,19 @@ async function findRoundLink(env: Env, row: MatchRow): Promise<{ roundId: number
     .first<{ roundId: number; roundNo: number; seq: number; matchId: number }>();
 }
 
-const MATCH_SELECT = `SELECT f.id, f.league, f.fotmob_id, f.kickoff_at, f.home_en, f.away_en, f.slug, f.status, f.hg, f.ag, f.updated_at,
+const MATCH_SELECT = `SELECT f.id, f.league, f.fotmob_id, f.kickoff_at, f.home_en, f.away_en, f.home_kr, f.away_kr, f.competition, f.slug, f.status, f.hg, f.ag, f.updated_at,
   p.elo_diff, p.form_diff, p.h2h_diff, p.n_h2h, p.league_draw_rate, p.p_home, p.p_draw, p.p_away, p.pick, p.basis,
   p.confidence_gap, p.tier, p.computed_at
   FROM fixtures f JOIN fixture_predictions p ON p.fixture_id = f.id`;
 
+// 국가대표는 수집할 때 한글 국가명을 home_kr에 넣는다. 클럽의 home_kr은 토토 표기(잘림)라 쓰지 않는다.
+const nameOf = (r: Pick<MatchRow, "league" | "home_en" | "away_en" | "home_kr" | "away_kr">, side: "home" | "away") =>
+  r.league === NATIONAL_LEAGUE ? (side === "home" ? r.home_kr : r.away_kr) ?? (side === "home" ? r.home_en : r.away_en) : displayTeamName(side === "home" ? r.home_en : r.away_en);
+const flagOf = (en: string) => (NATIONAL_FLAG_CODE[en] ? `/flags/${NATIONAL_FLAG_CODE[en]}.svg` : null);
+
 function toSibling(r: MatchRow): SiblingView {
   return {
-    slug: r.slug, kickoffAt: r.kickoff_at, home: displayTeamName(r.home_en), away: displayTeamName(r.away_en),
+    slug: r.slug, kickoffAt: r.kickoff_at, home: nameOf(r, "home"), away: nameOf(r, "away"),
     pHome: r.p_home, pDraw: r.p_draw, pAway: r.p_away, status: r.status, hg: r.hg, ag: r.ag, pick: r.pick as Outcome,
   };
 }
@@ -157,10 +181,11 @@ function toSibling(r: MatchRow): SiblingView {
 export async function loadMatchView(env: Env, slug: string, now = Date.now()): Promise<MatchView | null> {
   const row = await env.DB.prepare(`${MATCH_SELECT} WHERE f.slug = ?`).bind(slug).first<MatchRow>();
   if (!row) return null;
-  const home = displayTeamName(row.home_en);
-  const away = displayTeamName(row.away_en);
-  const hk = teamKr(row.league, row.home_en);
-  const ak = teamKr(row.league, row.away_en);
+  const isNat = row.league === NATIONAL_LEAGUE;
+  const home = nameOf(row, "home");
+  const away = nameOf(row, "away");
+  const hk = isNat ? null : teamKr(row.league, row.home_en);
+  const ak = isNat ? null : teamKr(row.league, row.away_en);
 
   let probs = { pHome: row.p_home, pDraw: row.p_draw, pAway: row.p_away, gap: row.confidence_gap, pick: row.pick as Outcome };
   let source: MatchView["source"] = "fixture";
@@ -194,12 +219,15 @@ export async function loadMatchView(env: Env, slug: string, now = Date.now()): P
     console.error(`loadMatchView: 회차 연결 실패(경기 예측으로 표시) - ${(err as Error).message}`);
   }
 
-  const bucket = findCalibrationBucket(row.league, probs.gap);
+  const bucket = isNat ? null : findCalibrationBucket(row.league, probs.gap);
   const a = analyzeMatch(
     {
       home, away, pHome: probs.pHome, pDraw: probs.pDraw, pAway: probs.pAway, pick: probs.pick, confidenceGap: probs.gap,
-      basis: "model", vote: null,
-      detail: {
+      basis: isNat ? "national" : "model", vote: null,
+      detail: isNat ? {
+        eloDiff: null, formDiff: null, h2hDiff: null, nH2h: 0,
+        natEloDiff: row.elo_diff, natProbs: nationalProbs(row.elo_diff + NATIONAL_HOME_ADV), market: null, marketOpen: null, modelOnly: null, calib: null,
+      } : {
         eloDiff: row.elo_diff, formDiff: row.form_diff, h2hDiff: row.h2h_diff, nH2h: row.n_h2h,
         natEloDiff: null, natProbs: null, market: null, marketOpen: null, modelOnly: null,
         calib: bucket ? { accuracy: bucket.accuracy, n: bucket.n, minGap: bucket.minGap, maxGap: bucket.maxGap } : null,
@@ -218,10 +246,11 @@ export async function loadMatchView(env: Env, slug: string, now = Date.now()): P
 
   const li = leagueInfo(row.league);
   return {
-    slug: row.slug, league: row.league, leagueName: li.name, leagueSlug: li.slug, kickoffAt: row.kickoff_at, home, away,
-    homeLogo: hk ? TEAM_LOGOS[hk] ?? null : null, awayLogo: ak ? TEAM_LOGOS[ak] ?? null : null,
+    slug: row.slug, league: row.league, competition: row.competition, leagueName: isNat ? row.competition ?? li.name : li.name, leagueSlug: li.slug,
+    kickoffAt: row.kickoff_at, home, away,
+    homeLogo: isNat ? flagOf(row.home_en) : hk ? TEAM_LOGOS[hk] ?? null : null, awayLogo: isNat ? flagOf(row.away_en) : ak ? TEAM_LOGOS[ak] ?? null : null,
     pHome: probs.pHome, pDraw: probs.pDraw, pAway: probs.pAway, pick: probs.pick, confidenceGap: probs.gap,
-    basisLabel: withMarket ? "통계 모델 + 해외 배당" : "통계 모델",
+    basisLabel: isNat ? (withMarket ? "해외 배당" : "국가대표 Elo") : withMarket ? "통계 모델 + 해외 배당" : "통계 모델",
     source, withMarket, round, status: row.status,
     result: row.status === "finished" && row.hg != null && row.ag != null ? { hg: row.hg, ag: row.ag, actual: outcomeOf(row.hg, row.ag) } : null,
     reasons: a.reasons.map(fix), risks: a.risks.map(fix),
@@ -354,7 +383,8 @@ export function renderMatchPage(v: MatchView): string {
   ];
   const limits = [
     ...v.risks,
-    v.withMarket ? "" : "해외 배당은 반영하지 않은 통계 모델 확률입니다.",
+    v.withMarket ? "" : v.league === NATIONAL_LEAGUE ? "해외 배당은 반영하지 않은 국가대표 Elo 확률입니다." : "해외 배당은 반영하지 않은 통계 모델 확률입니다.",
+    v.league === NATIONAL_LEAGUE ? "중립 경기장 여부는 반영하지 않고 홈 이점을 적용했습니다." : "",
     "선발 명단·부상·로테이션 같은 경기 직전 정보는 반영되지 않습니다.",
   ].filter(Boolean);
 
@@ -399,7 +429,7 @@ ${v.result ? `<section class="card"><h2>경기 결과</h2><div class="result"><b
 
 ${v.siblings.length ? `<section class="card"><h2>${e(v.leagueName)} 다른 경기</h2><div class="rows">${v.siblings.map(rowHtml).join("")}</div><p class="note"><a href="/league/${e(v.leagueSlug)}">${e(v.leagueName)} 경기 전체 보기 →</a></p></section>` : ""}
 
-<section class="card"><h2>이 확률은 어떻게 계산하나요</h2><p class="note" style="margin:0">리그별 Elo 전력 지수, 최근 5경기 흐름, 맞대결 기록, 리그 무승부율로 계산합니다. 승무패 회차에 포함된 경기는 해외 배당을 함께 반영한 회차 확률을 그대로 보여줍니다. 새 요소는 과거 경기를 시간순으로 나눈 검증에서 나빠지지 않을 때만 반영합니다.</p>
+<section class="card"><h2>이 확률은 어떻게 계산하나요</h2><p class="note" style="margin:0">클럽 경기는 리그별 Elo 전력 지수, 최근 5경기 흐름, 맞대결 기록, 리그 무승부율로, 국가대표 경기는 1872년 이후 A매치 결과로 만든 국가대표 Elo로 계산합니다. 승무패 회차에 포함된 경기는 해외 배당을 함께 반영한 회차 확률을 그대로 보여줍니다. 새 요소는 과거 경기를 시간순으로 나눈 검증에서 나빠지지 않을 때만 반영합니다.</p>
 <p style="margin:12px 0 0"><a class="cta" href="/?utm_source=match_page">웹앱에서 더 보기 →</a></p></section>
 
 ${SPONSOR}
@@ -451,7 +481,7 @@ ${beacon("league_view")}
 
 export function matchData(v: MatchView) {
   return {
-    schema: 1, slug: v.slug, league: v.league, leagueName: v.leagueName, kickoffAt: v.kickoffAt, home: v.home, away: v.away,
+    schema: 1, slug: v.slug, league: v.league, competition: v.competition, leagueName: v.leagueName, kickoffAt: v.kickoffAt, home: v.home, away: v.away,
     pHome: v.pHome, pDraw: v.pDraw, pAway: v.pAway, pick: v.pick, confidenceGap: v.confidenceGap, basis: "model", basisLabel: v.basisLabel,
     round: v.round, status: v.status, result: v.result, reasons: v.reasons, risks: v.risks, calib: v.calib, asOf: v.asOf,
     tags: matchTags(v), pageUrl: `${SITE}/match/${v.slug}`,
