@@ -207,10 +207,22 @@ export async function handleRoundData(env: Env, request: Request, roundNo: numbe
 export async function handleSitemap(env: Env, request: Request): Promise<Response> {
   const origin = new URL(request.url).origin;
   const { results } = await env.DB.prepare(
-    "SELECT round_no, created_at FROM rounds WHERE round_no IS NOT NULL AND round_no_confirmed = 1 ORDER BY id DESC LIMIT 200",
-  ).all<{ round_no: number; created_at: string }>();
+    "SELECT r.round_no,
+      COALESCE(
+        (SELECT MAX(mo.updated_at)
+         FROM market_odds mo
+         JOIN round_matches rm ON rm.id = mo.round_match_id
+         WHERE rm.round_id = r.id),
+        r.created_at
+      ) AS lastmod
+     FROM rounds r
+     WHERE r.round_no IS NOT NULL
+       AND r.round_no_confirmed = 1
+     ORDER BY r.id DESC
+     LIMIT 200",
+  ).all<{ round_no: number; lastmod: string }>();
   const urls = [`<url><loc>${origin}/</loc></url>`, `<url><loc>${origin}/about</loc></url>`].concat(
-    (results ?? []).map((r) => `<url><loc>${origin}/round/${r.round_no}</loc><lastmod>${r.created_at.slice(0, 10)}</lastmod></url>`),
+    (results ?? []).map((r) => `<url><loc>${origin}/round/${r.round_no}</loc><lastmod>${r.lastmod.slice(0, 10)}</lastmod></url>`),
   );
   return new Response(
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>`,
