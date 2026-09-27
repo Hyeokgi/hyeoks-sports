@@ -27,6 +27,7 @@ export const USAGE_EVENTS = [
   "mode_round",
   "match_card_click",
   "round_to_match",
+  "team_search",
 ] as const;
 export type UsageEvent = (typeof USAGE_EVENTS)[number];
 

@@ -10,6 +10,9 @@ export interface MatchCard {
   kickoffAt: string;
   home: string;
   away: string;
+  // 검색용 영문명(FotMob 표기, 국가대표는 결과 데이터셋 표기). 예전 응답에는 없을 수 있다.
+  homeEn?: string;
+  awayEn?: string;
   homeLogo: string | null;
   awayLogo: string | null;
   pHome: number;
@@ -22,6 +25,8 @@ export interface MatchCard {
   ag: number | null;
   round: { roundNo: number; seq: number } | null;
 }
+
+import { teamIndex, searchTeams, type TeamEntry } from "../src/lib/teamSearch";
 
 type Mode = "round" | "match";
 type DayFilter = "today" | "tomorrow" | "week" | "past";
@@ -45,6 +50,7 @@ let loading: Promise<MatchCard[]> | null = null;
 let league = "all";
 let day: DayFilter = "week";
 let trackFn: (e: string) => void = () => {};
+let team: string | null = null; // 팀·국가 검색으로 고른 팀(있으면 리그·날짜 필터 대신 그 팀 경기 전체)
 
 export function loadMatchCards(): Promise<MatchCard[]> {
   if (cards) return Promise.resolve(cards);
@@ -105,6 +111,13 @@ function cardHtml(c: MatchCard): string {
 }
 
 function filtered(list: MatchCard[], now: number): MatchCard[] {
+  if (team) {
+    // 팀을 고르면 리그·날짜와 상관없이 그 팀 경기 전체: 예정(가까운 순) 다음 지난 결과(최근 순)
+    const mine = list.filter((c) => c.home === team || c.away === team);
+    const up = mine.filter((c) => c.status !== "finished").sort((a, b) => Date.parse(a.kickoffAt) - Date.parse(b.kickoffAt));
+    const done = mine.filter((c) => c.status === "finished").sort((a, b) => Date.parse(b.kickoffAt) - Date.parse(a.kickoffAt));
+    return [...up, ...done];
+  }
   const today = kstDay(now);
   const tomorrow = kstDay(now + 86400e3);
   return list.filter((c) => {
@@ -144,8 +157,24 @@ function render(): void {
     .map(([k, a, b]) => `<button type="button" class="mx-day${k === day ? " on" : ""}" data-day="${k}"><b>${a}</b>${esc(b)}</button>`)
     .join("");
 
+  const teamEl = document.getElementById("mx-team");
+  if (teamEl) {
+    teamEl.hidden = !team;
+    teamEl.innerHTML = team
+      ? `<span>${esc(team)} 경기만 보는 중</span><button type="button" data-clear-team aria-label="팀 선택 해제">전체 보기 ✕</button>`
+      : "";
+  }
+  chipsEl.classList.toggle("dim", !!team);
+  daysEl.classList.toggle("dim", !!team);
+
   const list = filtered(cards, now);
-  if (day === "past") list.reverse();
+  if (!team && day === "past") list.reverse();
+  if (team) {
+    root.innerHTML = list.length
+      ? `<div class="mx-h"><h3>${esc(team)}</h3><span>${list.length}경기 · 예정 먼저, 지난 결과는 최근 순</span></div>` + list.map(cardHtml).join("")
+      : `<div class="mx-empty">${esc(team)}의 경기가 목록에 없습니다.</div>`;
+    return;
+  }
   if (list.length === 0) {
     root.innerHTML =
       `<div class="mx-empty">${day === "past" ? "최근 2주 동안 끝난 경기가 없습니다." : "조건에 맞는 예정 경기가 없습니다."}` +
@@ -198,6 +227,90 @@ function applyMode(mode: Mode, record: boolean): void {
   }
 }
 
+function initSearch(): void {
+  const input = document.getElementById("mx-search") as HTMLInputElement | null;
+  const box = document.getElementById("mx-suggest") as HTMLUListElement | null;
+  if (!input || !box) return;
+  let items: TeamEntry[] = [];
+  let active = -1;
+  const close = () => {
+    box.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    active = -1;
+  };
+  const choose = (name: string) => {
+    team = name;
+    input.value = "";
+    close();
+    input.blur();
+    trackFn("team_search");
+    render();
+    scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const paint = () => {
+    if (!cards) return;
+    const q = input.value.trim();
+    items = searchTeams(teamIndex(cards), q).slice(0, 60);
+    if (items.length === 0) {
+      box.innerHTML = `<li class="mx-sg-empty">'${esc(q)}'에 맞는 팀·국가가 이번 목록에 없습니다</li>`;
+    } else {
+      box.innerHTML =
+        (q ? "" : `<li class="mx-sg-head">예정 경기가 많은 순 · 스크롤해서 고르세요</li>`) +
+        items
+          .map((e, i) =>
+            `<li role="option" id="mx-sg-${i}" class="mx-sg${i === active ? " on" : ""}" data-team="${esc(e.name)}" aria-selected="${i === active}">` +
+            `${crest(e.name, e.logo)}<span class="nm">${esc(e.name)}</span>` +
+            `<span class="lg">${esc(LEAGUE_LABEL[e.league] ?? e.league)}</span><span class="ct">${e.upcoming ? `예정 ${e.upcoming}` : `결과 ${e.total}`}</span></li>`,
+          )
+          .join("");
+    }
+    box.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+    if (active >= 0) {
+      input.setAttribute("aria-activedescendant", `mx-sg-${active}`);
+      document.getElementById(`mx-sg-${active}`)?.scrollIntoView({ block: "nearest" });
+    } else input.removeAttribute("aria-activedescendant");
+  };
+  input.addEventListener("focus", () => {
+    void loadMatchCards().then(paint);
+  });
+  input.addEventListener("input", () => {
+    active = -1;
+    paint();
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown") {
+      active = Math.min(items.length - 1, active + 1);
+      paint();
+      e.preventDefault();
+    } else if (e.key === "ArrowUp") {
+      active = Math.max(0, active - 1);
+      paint();
+      e.preventDefault();
+    } else if (e.key === "Enter") {
+      const pick = items[active >= 0 ? active : 0];
+      if (pick) choose(pick.name);
+      e.preventDefault();
+    } else if (e.key === "Escape") close();
+  });
+  // mousedown: blur보다 먼저 받아야 목록이 닫히기 전에 고를 수 있다(터치도 같은 순서로 온다).
+  box.addEventListener("mousedown", (e) => {
+    const li = (e.target as HTMLElement).closest<HTMLElement>("li[data-team]");
+    if (li) {
+      e.preventDefault();
+      choose(li.dataset.team!);
+    }
+  });
+  input.addEventListener("blur", () => setTimeout(close, 150));
+  document.getElementById("mx-team")?.addEventListener("click", (e) => {
+    if ((e.target as HTMLElement).closest("[data-clear-team]")) {
+      team = null;
+      render();
+    }
+  });
+}
+
 export function initModeSwitch(track: (e: string) => void): void {
   trackFn = track;
   const q = new URLSearchParams(location.search);
@@ -216,16 +329,19 @@ export function initModeSwitch(track: (e: string) => void): void {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-league]");
     if (!b) return;
     league = b.dataset.league!;
+    team = null;
     render();
   });
   document.getElementById("mx-days")?.addEventListener("click", (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>("button[data-day]");
     if (!b) return;
     day = b.dataset.day as DayFilter;
+    team = null;
     render();
   });
   document.getElementById("mx-list")?.addEventListener("click", (e) => {
     if ((e.target as HTMLElement).closest(".mx-card")) trackFn("match_card_click");
   });
+  initSearch();
   applyMode(initial, false);
 }

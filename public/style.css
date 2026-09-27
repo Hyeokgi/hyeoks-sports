@@ -1493,3 +1493,35 @@ body.mode-match .match-picker-link { display: inline-flex; color: #aeb4ff; }
 .mx-empty span { color: var(--muted); font-size: 0.8rem; }
 .mx-note { font-size: 0.72rem; color: var(--muted); line-height: 1.6; margin-top: 14px; }
 .mx-note a { color: #aeb4ff; }
+
+/* 팀·국가 검색(자동완성) */
+.mx-search { position: relative; margin: 6px 0 8px; }
+.mx-search-box {
+  display: flex; align-items: center; gap: 8px; padding: 0 12px; height: 44px; border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid var(--card-border); color: var(--muted); cursor: text;
+}
+.mx-search-box:focus-within { border-color: rgba(129, 140, 248, 0.6); box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.15); color: #c7cbff; }
+.mx-search-box .icon { width: 18px; height: 18px; flex-shrink: 0; }
+.mx-search-box input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 0.95rem; }
+.mx-search-box input::placeholder { color: var(--muted-2); }
+.mx-suggest {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 30; margin: 0; padding: 6px; list-style: none;
+  max-height: min(360px, 55vh); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  background: #151927; border: 1px solid rgba(129, 140, 248, 0.35); border-radius: 14px; box-shadow: var(--shadow-pop);
+}
+.mx-sg { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; cursor: pointer; }
+.mx-sg:hover, .mx-sg.on { background: rgba(129, 140, 248, 0.14); }
+.mx-sg .nm { flex: 1; min-width: 0; font-weight: 800; font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mx-sg .lg { font-size: 0.7rem; color: #aeb4ff; background: rgba(129, 140, 248, 0.12); border-radius: 999px; padding: 1px 7px; white-space: nowrap; }
+.mx-sg .ct { font-size: 0.7rem; color: var(--muted); white-space: nowrap; min-width: 42px; text-align: right; }
+.mx-sg .mx-crest { width: 26px; height: 26px; flex-basis: 26px; }
+.mx-sg .mx-crest img { width: 20px; height: 20px; }
+.mx-sg .mx-crest.flag img { width: 26px; height: 26px; }
+.mx-sg-head, .mx-sg-empty { padding: 8px 10px; font-size: 0.74rem; color: var(--muted); }
+.mx-team-filter {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 2px 0 8px; padding: 9px 12px;
+  border-radius: 12px; background: rgba(129, 140, 248, 0.14); border: 1px solid rgba(129, 140, 248, 0.45); color: #c7cbff; font-weight: 800; font-size: 0.88rem;
+}
+.mx-team-filter[hidden] { display: none; }
+.mx-team-filter button { font: inherit; font-size: 0.78rem; font-weight: 800; border: 0; border-radius: 999px; padding: 4px 10px; background: #8b93ff; color: #0b0e1a; cursor: pointer; }
+.mx-chips.dim, .mx-days.dim { opacity: 0.45; }

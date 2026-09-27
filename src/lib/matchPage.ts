@@ -542,6 +542,8 @@ export interface MatchCard {
   kickoffAt: string;
   home: string;
   away: string;
+  homeEn: string; // 검색용(FotMob 표기, 국가대표는 결과 데이터셋 표기)
+  awayEn: string;
   homeLogo: string | null;
   awayLogo: string | null;
   pHome: number;
@@ -621,7 +623,7 @@ export async function listMatchCards(env: Env, now = Date.now()): Promise<MatchC
     const li = leagueInfo(r.league);
     return {
       slug: r.slug, league: r.league, leagueName: li.name, competition: r.competition, kickoffAt: r.kickoff_at,
-      home: nameOf(r, "home"), away: nameOf(r, "away"),
+      home: nameOf(r, "home"), away: nameOf(r, "away"), homeEn: r.home_en, awayEn: r.away_en,
       homeLogo: isNat ? flagOf(r.home_en) : hk ? TEAM_LOGOS[hk] ?? null : null,
       awayLogo: isNat ? flagOf(r.away_en) : ak ? TEAM_LOGOS[ak] ?? null : null,
       pHome: rp?.pHome ?? r.p_home, pDraw: rp?.pDraw ?? r.p_draw, pAway: rp?.pAway ?? r.p_away, pick: rp?.pick ?? (r.pick as Outcome),
