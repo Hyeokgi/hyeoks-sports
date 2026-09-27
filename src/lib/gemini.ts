@@ -63,7 +63,7 @@ export function buildPrompt(roundLabel: string, matches: ReportMatch[]): string 
     (none.length
       ? `\n\n참고: 위 ${none.length}경기(${leaguesOf(none)})는 배당도 모델 근거도 아직 없어 표시된 확률이 평균 무승부율 기준 임시값일 뿐입니다. 이 경기들은 안전 픽이나 이변 후보로 꼽지 말고 근거가 아직 없다고만 쓰십시오.`
       : "");
-  return `당신은 HYEOKS 스포츠 분석 센터의 축구 데이터 애널리스트입니다. 아래는 축구토토 승무패 ${roundLabel} ${matches.length}경기(${leagues})에 대한 통계 모델(Elo 전력차 + 최근 폼 + 상대전적 + 리그별 실측 무승부율) 예측 결과입니다.
+  return `당신은 축구 통계 모델과 해외 배당을 바탕으로 경기 분석 코멘트를 작성하는 AI 분석 어시스턴트입니다. 아래는 축구토토 승무패 ${roundLabel} ${matches.length}경기(${leagues})에 대한 통계 모델(Elo 전력차 + 최근 폼 + 상대전적 + 리그별 실측 무승부율) 예측 결과입니다.
 
 ${lines}${marketNote}
 
