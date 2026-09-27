@@ -45,8 +45,24 @@
       <label for="round-select">회차</label>
       <select id="round-select"></select>
       <a id="round-article-link" class="round-article-link" href="#" hidden>분석 글</a>
+      <a class="round-article-link match-picker-link" href="/matches">리그 페이지</a>
     </div>
   </header>
+
+  <!-- 영역 전환: 승무패 회차(기존 화면 그대로) ↔ 경기 분석(public/matchesView.ts). 색으로 두 영역을 구분한다. -->
+  <div class="mode-switch">
+    <div class="mode-seg" role="tablist" aria-label="보기 전환">
+      <button type="button" class="round on" role="tab" data-mode="round" aria-selected="true"><i></i>승무패 회차 <small>14경기·조합</small></button>
+      <button type="button" class="match" role="tab" data-mode="match" aria-selected="false"><i></i>경기 분석 <small>리그·경기별</small></button>
+    </div>
+  </div>
+
+  <section id="matches-view" class="mx-wrap" hidden>
+    <div class="mx-chips" id="mx-leagues" role="group" aria-label="리그"></div>
+    <div class="mx-days" id="mx-days" role="group" aria-label="날짜"></div>
+    <div id="mx-list"></div>
+    <p class="mx-note">통계 기반 참고 자료이며 결과를 보장하지 않습니다. 카드를 누르면 경기 분석 페이지(근거·변수·결과)로 이동합니다. <a href="/matches">이번 주 경기 전체 보기 →</a></p>
+  </section>
 
   <main>
     <!-- 경기 -->
