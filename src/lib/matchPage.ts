@@ -273,10 +273,10 @@ h2{font-size:1.02rem;margin:0 0 .6em;display:flex;align-items:center;gap:8px}h2:
 .logo{width:64px;height:64px;border-radius:50%;margin:0 auto;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 0 0 3px rgba(255,255,255,.06)}
 .logo img{width:52px;height:52px;object-fit:contain}.mono{background:linear-gradient(135deg,#2b3350,#1b2135);color:#cfd6ff;font-weight:800;font-size:1.2rem}
 .mid{font-weight:900;color:var(--muted2);font-size:.95rem}.score{font-size:2rem;font-weight:900;color:var(--ink);letter-spacing:.02em}
-.probs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.probs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:22px}
 .prob{border-radius:14px;padding:11px 6px 10px;text-align:center;background:rgba(255,255,255,.035);border:1px solid var(--line);position:relative}
 .prob span{display:block;font-size:.78rem;color:var(--muted);font-weight:700}.prob strong{font-size:1.55rem;font-weight:900;display:block;line-height:1.25}
-.prob.top{border-color:rgba(129,140,248,.6);background:var(--indigo-soft)}.prob.top:after{content:"확률 1위";position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:.66rem;font-weight:800;background:var(--indigo);color:#0b0e1a;border-radius:999px;padding:1px 8px}
+.prob.top{border-color:rgba(129,140,248,.6);background:var(--indigo-soft)}.prob.top:after{content:"확률 1위";position:absolute;top:-10px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:.66rem;font-weight:800;line-height:1.5;background:var(--indigo);color:#0b0e1a;border-radius:999px;padding:1px 9px}
 .prob.act{outline:2px solid var(--hit);outline-offset:-2px}.prob.act.miss{outline-color:var(--miss)}
 .bar{display:flex;height:10px;border-radius:6px;overflow:hidden;margin-top:12px;background:rgba(255,255,255,.05)}.bar i{display:block}
 .legend{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);margin-top:5px}
@@ -382,7 +382,7 @@ export function renderMatchPage(v: MatchView): string {
 ${v.result ? `<div class="score">${v.result.hg} : ${v.result.ag}</div>` : `<div class="mid">VS</div>`}
 <div class="team">${logoHtml(v.away, v.awayLogo)}<b>${e(v.away)}</b><small>원정</small></div>
 </div>
-<div class="probs">${probBox("홈승", `${v.home} 승`)}${probBox("무승부", "무승부")}${probBox("원정승", `${v.away} 승`)}</div>
+<div class="probs">${probBox("홈승", "홈승")}${probBox("무승부", "무승부")}${probBox("원정승", "원정승")}</div>
 ${barHtml(v.pHome, v.pDraw, v.pAway)}
 <div class="legend"><span>홈승</span><span>무승부</span><span>원정승</span></div>
 <div class="chips"><span class="chip">확률 출처 · ${e(v.basisLabel)}</span><span class="chip">1·2위 차 ${(v.confidenceGap * 100).toFixed(1)}%p</span>${v.round ? `<a class="chip round" href="/round/${v.round.roundNo}">승무패 ${v.round.roundNo}회차 ${v.round.seq}번 경기 →</a>` : ""}</div>
