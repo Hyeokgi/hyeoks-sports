@@ -177,7 +177,6 @@ export function buildRoundArticle(input: ArticleInput): RoundArticle {
   if (hedges[0]) highlights.push(`가장 박빙인 경기: ${hedges[0].seq}번 ${hedges[0].home} vs ${hedges[0].away} (1·2위 차 ${(hedges[0].confidenceGap * 100).toFixed(1)}%p)`);
   const drawy = [...open].filter((m) => m.basis !== "none").sort((x, y) => y.pDraw - x.pDraw)[0];
   if (drawy) highlights.push(`무승부 경계: ${drawy.seq}번 ${drawy.home} vs ${drawy.away} (무승부 ${pct(drawy.pDraw)})`);
-  if (crowdSplits.length) highlights.push(`대중과 판단이 갈린 경기 ${crowdSplits.length}개 - 맞으면 당첨금 가치가 큰 경기입니다.`);
 
   const stances = analyzed.filter((m) => m.analysis && m.analysis.stance !== "판단 보류");
   const singles = stances.filter((m) => m.analysis!.stance === "단식").map((m) => m.seq);
@@ -203,7 +202,7 @@ export function buildRoundArticle(input: ArticleInput): RoundArticle {
   const lg = leagues.join("·");
   const title = `${roundNo}회차 축구토토 승무패 분석 리포트 | ${lg} ${matches.length}경기 근거·복식 전략`;
   const description =
-    `${roundNo}회차 승무패 ${matches.length}경기(${lg}) 경기별 확률과 판단 근거(배당·배당 흐름·전력 지수·대중 투표), ` +
+    `${roundNo}회차 승무패 ${matches.length}경기(${lg}) 경기별 확률과 판단 근거(배당·배당 흐름·전력 지수), ` +
     `변수와 위험, 단식·복식 전략, 지난 회차 실제 성적을 정리한 분석 리포트입니다.` +
     (saleDeadline ? ` 발매 마감 ${saleDeadline}(KST).` : "") +
     (deadline ? ` 첫 경기 ${deadline}(KST).` : "");
@@ -338,20 +337,12 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
     parts.push(`</ul>`);
   }
 
-  // 5. 구매 전략
+  // 5. 조합 전략
   if (a.strategy) {
-    parts.push(`<h2>구매 전략</h2>`);
+    parts.push(`<h2>조합 전략</h2>`);
     parts.push(`<p>${e(a.strategy)}</p><p><small>${e(ADVANCED)}</small></p>`);
   }
-  if (a.crowdSplits.length) {
-    parts.push(`<h2>대중과 다른 선택</h2>`);
-    parts.push(`<p>베트맨 투표율 1위와 우리 판단이 다른 경기입니다. 맞으면 당첨자가 적어 배당 가치가 커집니다.</p><ul>`);
-    for (const m of a.crowdSplits) {
-      const v = m.vote!;
-      parts.push(`<li>${e(matchLine(m))} — 판단 <b>${m.pick}</b> / 투표율 홈 ${v.home.toFixed(0)}% · 무 ${v.draw.toFixed(0)}% · 원정 ${v.away.toFixed(0)}%</li>`);
-    }
-    parts.push(`</ul>`);
-  }
+  // 대중 투표율(crowdSplits)은 웹앱·초안에 표시하지 않는다(2026-09-27). data.json 계산은 유지.
 
   // 6. 지난 회차 복기(실제 기록)
   if (a.recent.length) {
@@ -394,7 +385,7 @@ export function renderArticlePlainText(a: RoundArticle, source: LinkSource = "bl
       `${m.seq}. ${m.home} vs ${m.away} (${m.league}) ${pct(m.pHome)}/${pct(m.pDraw)}/${pct(m.pAway)} · ${m.basis === "none" ? "-" : m.pick}${m.analysis && !m.result ? ` (${m.analysis.stance})` : ""} · ${BASIS_TEXT[m.basis]}`,
     );
   }
-  if (a.strategy) L.push("", "■ 구매 전략", a.strategy, ADVANCED);
+  if (a.strategy) L.push("", "■ 조합 전략", a.strategy, ADVANCED);
   if (a.recent.length) {
     L.push("", "■ 지난 회차 실제 성적 (경기 전 공개 예측 기준)");
     for (const r of a.recent) L.push(`- ${r.roundNo}회차: ${r.hits}/${r.n} 적중`);

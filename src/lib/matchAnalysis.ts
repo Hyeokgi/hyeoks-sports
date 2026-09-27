@@ -144,19 +144,7 @@ export function analyzeMatch(m: AnalysisInput, ctx: { avgDraw: number }): MatchA
     }
   }
 
-  // 4) 대중(베트맨 투표) - 당첨금 가치 관점
-  if (m.vote) {
-    const v = m.vote;
-    const vp = (o: Outcome) => (o === "홈승" ? v.home : o === "무승부" ? v.draw : v.away) / 100;
-    const fav = argmax({ pHome: v.home, pDraw: v.draw, pAway: v.away });
-    if (fav === m.pick) {
-      const over = vp(m.pick) - pOf(m, m.pick);
-      reasons.push(`베트맨 구매자의 ${pct(vp(m.pick))}도 같은 선택을 했습니다.`);
-      if (over >= 0.15) risks.push(`대중 쏠림(${pct(vp(m.pick))})이 확률(${pct(pOf(m, m.pick))})보다 커서, 맞혀도 당첨금 몫은 작습니다.`);
-    } else {
-      reasons.push(`베트맨 구매자는 ${W(fav)}에 ${pct(vp(fav))} 몰려 있어 우리 판단과 다릅니다. 맞으면 당첨자가 적어 가치가 큰 경기입니다.`);
-    }
-  }
+  // 4) 대중 투표율은 판단 문장에 쓰지 않는다(웹앱에서 투표율 숨김, 2026-09-27).
 
   // 5) 과거 같은 확신 구간의 실제 적중률(검증된 수치만)
   if (m.basis === "model" && d?.calib) {
