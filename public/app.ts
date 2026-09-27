@@ -329,7 +329,7 @@ function renderMatches() {
       (currentMatches.some((m) => m.raw.nationalEloDiff != null)
         ? `국가대표 경기는 배당이 올라오기 전까지 <b>국가대표 Elo</b>(1872년~ A매치 전체 결과)로 대신 예측합니다. `
         : "") +
-      `조합·독식 계산은 이 확률 위에서 평소와 같이 동작합니다.`;
+      `조합 계산은 이 확률 위에서 평소와 같이 동작합니다.`;
     matchList.appendChild(notice);
   }
 
@@ -524,9 +524,8 @@ function renderMatches() {
     const evidenceBody = document.createElement("div");
     evidenceBody.className = "evidence-body";
     evidenceBody.hidden = true;
-    const voteLine = m.voteShare
-      ? `<div>betman 투표율: 홈 ${m.voteShare.home.toFixed(1)}% / 무 ${m.voteShare.draw.toFixed(1)}% / 원정 ${m.voteShare.away.toFixed(1)}%</div>`
-      : "";
+    // 대중 투표율은 웹앱에 표시하지 않는다(2026-09-27 사용자 결정). 수집·저장은 그대로 한다.
+    const voteLine = "";
     if (prediction.basis !== "model") {
       // 이 경기들은 Elo/폼/H2H를 아예 계산하지 않았다(전부 0으로 저장). 0을 나열하면
       // "전력이 호각"이라는 뜻으로 읽히므로 계산하지 않았다는 사실을 그대로 쓴다.
@@ -628,7 +627,7 @@ function buildPurchaseSheet(title: string, plan: ReturnType<typeof generateSyste
   const det = document.createElement("details");
   det.className = "explainer purchase-sheet";
   const sum = document.createElement("summary");
-  sum.textContent = `구매표 보기 (${plan.picks.length}경기 전체)`;
+  sum.textContent = `조합표 보기 (${plan.picks.length}경기 전체)`;
   det.appendChild(sum);
 
   const table = document.createElement("div");
@@ -650,7 +649,7 @@ function buildPurchaseSheet(title: string, plan: ReturnType<typeof generateSyste
   const btn = document.createElement("button");
   btn.type = "button";
   btn.className = "btn copy-btn";
-  btn.textContent = "구매표 복사";
+  btn.textContent = "조합표 복사";
   btn.addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(planToText(title, plan));
@@ -658,7 +657,7 @@ function buildPurchaseSheet(title: string, plan: ReturnType<typeof generateSyste
     } catch {
       btn.textContent = "복사 실패 - 길게 눌러 선택하세요";
     }
-    setTimeout(() => (btn.textContent = "구매표 복사"), 1800);
+    setTimeout(() => (btn.textContent = "조합표 복사"), 1800);
   });
   det.appendChild(btn);
   return det;
@@ -677,9 +676,11 @@ function renderCombos() {
 }
 
 // 독식 지향 픽: 모델픽을 덮어쓰지 않고 별도 박스로만 보여준다(exclusivePick.ts 주석 참고).
+// 투표율 기반 픽이라 웹앱에서는 표시하지 않는다(2026-09-27). 계산 코드는 남겨 둔다.
+const SHOW_EXCLUSIVE_PICK = false;
 function renderExclusivePick() {
   exclusivePickEl.innerHTML = "";
-  if (currentMatches.length === 0) return;
+  if (!SHOW_EXCLUSIVE_PICK || currentMatches.length === 0) return;
 
   const inputs: ExclusiveMatchInput[] = currentMatches.map((m) => ({
     seq: m.seq,
@@ -775,11 +776,8 @@ function renderCalibrationTables() {
   overallTableEl.innerHTML = oHead + `<tbody>${oRows.join("")}</tbody>`;
 }
 
-// 실전 정산 기록: /api/settlement이 계산한 회차별 기본픽 vs 독식픽 실적을 그대로 보여준다.
+// 실전 정산 기록: /api/settlement이 계산한 회차별 기본픽 실적을 그대로 보여준다(투표율 기반 픽 실적은 숨김).
 // 백테스트 수치와 섞이지 않도록 "실전"임을 명시하고, 표본이 적으면 그 사실도 같이 적는다.
-function fmtShare(v: number | null): string {
-  return v == null ? "-" : `${(v * 1e6).toFixed(2)}/백만`;
-}
 
 async function loadSettlement() {
   let data: any;
@@ -800,7 +798,7 @@ async function loadSettlement() {
   settlementSummaryEl.hidden = false;
   settlementSummaryEl.innerHTML =
     `<span class="summary-stat">${icon("ledger")}정산 ${s.rounds}회차 · ${s.settledMatches}경기</span>` +
-    `<span class="summary-note">기본픽 ${(s.basePickAccuracy * 100).toFixed(1)}% · 독식픽 ${(s.exclusivePickAccuracy * 100).toFixed(1)}% · 실제 무승부 ${(s.drawRate * 100).toFixed(1)}%</span>` +
+    `<span class="summary-note">적중률 ${(s.basePickAccuracy * 100).toFixed(1)}% · 실제 무승부 ${(s.drawRate * 100).toFixed(1)}%</span>` +
     (s.rounds < 5 ? `<span class="summary-note">⚠️ 표본 ${s.rounds}회차 — 아직 판단 근거로 쓰기엔 부족합니다</span>` : "");
 
   settlementRoundsEl.innerHTML = "";
@@ -817,13 +815,13 @@ async function loadSettlement() {
       : "";
     head.innerHTML =
       `<span>${r.roundNo ?? "?"}회차 ${moTag}</span>` +
-      `<span>기본 ${r.basePickHits}/${r.settledMatches} · 독식 ${r.exclusivePickHits}/${r.settledMatches}</span>`;
+      `<span>적중 ${r.basePickHits}/${r.settledMatches}</span>`;
     box.appendChild(head);
 
     const row = document.createElement("div");
     row.className = "pick-row";
     row.innerHTML =
-      `<span>실제 무승부 ${r.drawsActual}경기 · 이변반영 ${r.upsetCount}<span class="vote-note">대중 구매비중 — 실제 당첨조합 ${fmtShare(r.actualCrowdShare)} / 우리 독식픽 ${fmtShare(r.exclusiveCrowdShare)}</span></span>`;
+      `<span>실제 무승부 ${r.drawsActual}경기</span>`;
     box.appendChild(row);
     settlementRoundsEl.appendChild(box);
   }
