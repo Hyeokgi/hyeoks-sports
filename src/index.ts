@@ -17,10 +17,13 @@ import {
   handleWriteMarketOdds,
   handleWriteVoteShare,
   handleWriteSaleWindow,
+  handleSyncFixtures,
+  handleListFixtures,
 } from "./routes/admin";
 import { refreshHistory } from "./cron/refreshHistory";
 import { detectNewRound } from "./cron/detectNewRound";
 import { runDeadlineTrigger } from "./cron/deadlineTrigger";
+import { syncFixtures } from "./lib/fixtures";
 import { json } from "./lib/http";
 import type { Env } from "./types";
 
@@ -99,6 +102,14 @@ export default {
         return await handleCorrectRoundNo(env, Number(adminMatch[1]), request);
       }
 
+      if (pathname === "/api/admin/sync-fixtures" && request.method === "POST") {
+        return await handleSyncFixtures(env, request);
+      }
+
+      if (pathname === "/api/admin/fixtures" && request.method === "GET") {
+        return await handleListFixtures(env, request);
+      }
+
       if (pathname === "/api/admin/sync" && request.method === "POST") {
         return await handleSync(env, request);
       }
@@ -159,6 +170,11 @@ export default {
     } else if (controller.cron === "0 */6 * * *") {
       const result = await detectNewRound(env);
       console.log(`detectNewRound: ${JSON.stringify(result)}`);
+    } else if (controller.cron === "30 */6 * * *") {
+      // 경기별 페이지용 지원 리그 7일 경기 수집·예측 저장(docs/specs/002). 회차 감지(0 */6)와
+      // 같은 호출에 넣지 않은 이유: 워커 호출당 외부 요청 한도를 두 작업이 나눠 쓰지 않게 하려고.
+      const result = await syncFixtures(env);
+      console.log(`syncFixtures: ${JSON.stringify(result)}`);
     } else if (controller.cron === "*/10 * * * *") {
       // 마감 12·6·3·1시간 전 배당·투표율 수집 호출(토큰 없으면 건너뜀)
       const result = await runDeadlineTrigger(env);
