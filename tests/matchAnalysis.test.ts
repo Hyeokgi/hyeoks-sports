@@ -120,11 +120,11 @@ describe("analyzeMatch", () => {
     expect(diff.risks.join()).toContain("판단이 다릅니다");
   });
 
-  it("대중과 갈린 경기, 대중 과열 경기", () => {
+  it("대중 투표율은 판단 문장에 쓰지 않는다(웹앱에서 투표율 숨김)", () => {
     const split = analyzeMatch(base({ vote: { home: 20, draw: 20, away: 60 } }), ctx);
-    expect(split.reasons.join()).toContain("우리 판단과 다릅니다");
+    expect([...split.reasons, ...split.risks].join()).not.toContain("베트맨");
     const hot = analyzeMatch(base({ vote: { home: 80, draw: 10, away: 10 } }), ctx);
-    expect(hot.risks.join()).toContain("맞혀도 당첨금 몫은 작습니다");
+    expect([...hot.reasons, ...hot.risks].join()).not.toContain("당첨금");
   });
 
   it("박빙·무승부 고위험이면 삼복식을 고려한다", () => {
