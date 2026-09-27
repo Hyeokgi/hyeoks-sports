@@ -52,6 +52,35 @@ let day: DayFilter = "week";
 let trackFn: (e: string) => void = () => {};
 let team: string | null = null; // 팀·국가 검색으로 고른 팀(있으면 리그·날짜 필터 대신 그 팀 경기 전체)
 
+export function loadMatchCards(): Promise<MatchCard[]> {
+  if (cards) return Promise.resolve(cards);
+  if (!loading) {
+    loading = fetch("/api/matches")
+      .then((r) => (r.ok ? r.json() : { matches: [] }))
+      .then((d) => (cards = (d.matches ?? []) as MatchCard[]))
+      .catch(() => (cards = []));
+  }
+  return loading;
+}
+
+/** 회차 카드(app.ts renderMatches)에 '경기 분석 →' 링크를 붙인다. 경기 페이지가 있는 경기만. */
+export async function decorateRoundCards(roundNo: number | null | undefined): Promise<void> {
+  if (roundNo == null) return;
+  const list = await loadMatchCards();
+  const bySeq = new Map(list.filter((c) => c.round?.roundNo === roundNo).map((c) => [c.round!.seq, c.slug]));
+  for (const card of Array.from(document.querySelectorAll<HTMLElement>("#match-list .match-card[data-seq]"))) {
+    const slug = bySeq.get(Number(card.dataset.seq));
+    const line = card.querySelector<HTMLElement>(".pick-line");
+    if (!slug || !line || line.querySelector(".to-match")) continue;
+    const a = document.createElement("a");
+    a.className = "to-match";
+    a.href = `/match/${slug}?utm_source=app`;
+    a.textContent = "경기 분석 →";
+    a.addEventListener("click", () => trackFn("round_to_match"));
+    line.appendChild(a);
+  }
+}
+
 function crest(name: string, src: string | null): string {
   if (src) return `<span class="mx-crest${src.startsWith("/flags/") ? " flag" : ""}"><img src="${esc(src)}" alt="" loading="lazy" decoding="async"></span>`;
   const ini = name.replace(/\s|FC|SC|CF/g, "").slice(0, 2) || "?";
