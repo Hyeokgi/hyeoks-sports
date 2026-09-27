@@ -448,6 +448,7 @@ export function renderRoundPage(a: RoundArticle): string {
 <div class="card table-wrap">
 ${renderArticleBodyHtml(a, "round_page")}
 </div>
+<p class="meta" style="margin-top:28px;text-align:center"><a href="/about">서비스 소개</a> · <a href="/privacy">개인정보처리방침</a> · <a href="/">웹앱</a></p>
 </main>
 <script>
 (function(){try{var q=new URLSearchParams(location.search);var d={r:${a.roundNo},u:q.get("utm_source"),ref:document.referrer};

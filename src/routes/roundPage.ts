@@ -209,7 +209,7 @@ export async function handleSitemap(env: Env, request: Request): Promise<Respons
   const { results } = await env.DB.prepare(
     "SELECT round_no, created_at FROM rounds WHERE round_no IS NOT NULL AND round_no_confirmed = 1 ORDER BY id DESC LIMIT 200",
   ).all<{ round_no: number; created_at: string }>();
-  const urls = [`<url><loc>${origin}/</loc></url>`].concat(
+  const urls = [`<url><loc>${origin}/</loc></url>`, `<url><loc>${origin}/about</loc></url>`].concat(
     (results ?? []).map((r) => `<url><loc>${origin}/round/${r.round_no}</loc><lastmod>${r.created_at.slice(0, 10)}</lastmod></url>`),
   );
   return new Response(
