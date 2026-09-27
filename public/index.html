@@ -76,61 +76,17 @@
       <p id="report-text" class="report-text"></p>
     </section>
 
-    <!-- 베팅 추천 -->
+    <!-- 조합 분석 -->
     <section class="tab-page" data-tab="bets" hidden>
       <div class="panel-head">
-        <span class="eyebrow">구매 전략 · 예산</span>
-        <h2><svg class="icon" aria-hidden="true"><use href="#i-bets"/></svg>예산별 구매 조합</h2>
+        <span class="eyebrow">조합 전략 · 예산</span>
+        <h2><svg class="icon" aria-hidden="true"><use href="#i-bets"/></svg>예산별 조합 분석</h2>
       </div>
 
-      <div class="info-block exclusive-block">
-        <h3><svg class="icon" aria-hidden="true"><use href="#i-crown"/></svg>독식 지향 픽 (betman 투표율 반영)</h3>
-        <p class="hint lead">
-          <b>당첨 시 단독(독식) 가능성</b>을 높이는 픽입니다. 당첨확률 자체를 높이지는 않습니다.
-        </p>
-        <details class="explainer">
-          <summary>왜 확률이 더 낮은 픽을 고르나요?</summary>
-          <p class="hint">
-            당첨금은 당첨 조합을 산 사람 수에 반비례합니다. 모델 1픽을 기준으로, 적중확률 손실이 작으면서
-            대중 투표가 덜 몰린 결과로만 제한적으로 뒤집어 같은 확률대에서 <b>당첨금 기대값</b>을 끌어올립니다.
-          </p>
-        </details>
-        <div class="option-row">
-          <label for="upset-count-select">이변 반영 최대 경기 수</label>
-          <select id="upset-count-select">
-            <option value="0">사용 안 함</option>
-            <option value="1">1경기</option>
-            <option value="2">2경기</option>
-            <option value="3">3경기</option>
-            <option value="4">4경기</option>
-            <option value="5" selected>5경기 (권장)</option>
-            <option value="6">6경기</option>
-          </select>
-        </div>
-        <div class="option-row">
-          <label for="draw-force-select">무승부 강제 (가치 높은 순)</label>
-          <select id="draw-force-select">
-            <option value="0" selected>사용 안 함</option>
-            <option value="1">1경기</option>
-            <option value="2">2경기</option>
-            <option value="3">3경기</option>
-            <option value="4">4경기</option>
-          </select>
-        </div>
-        <details class="explainer">
-          <summary>이 기본값을 어떻게 정했나요?</summary>
-          <p class="hint">
-            과거 시즌 무승부율 기준 14경기당 무승부는 평균 3~4개 나옵니다(EPL 최근 2시즌 25.9%, 세리에A 27.2%).
-            강제 포함 시 대중이 무승부를 가장 저평가한 경기부터 채우며, 적중확률은 그만큼 크게 낮아집니다.
-            <b>1~41회차 실측에서 이 옵션은 기대값을 개선하지 않았습니다</b> — 무승부가 몰리는 회차를 커버하는
-            분산 목적이지, 수익 최적화 수단이 아닙니다(기본값 사용 안 함).
-          </p>
-          <p class="hint">
-            이변 기본값은 1~41회차 실측 38회차에 이 코드를 그대로 돌려 정한 값입니다. 종전 기본값(3경기)은
-            우리 픽의 대중 구매비중이 실제 당첨조합보다 <b>164배 혼잡</b>해 독식이라는 목적을 달성하지
-            못했고, 현재 값(5경기)은 적중 기대치를 거의 그대로 두면서 혼잡도를 15배까지 낮춥니다.
-          </p>
-        </details>
+      <!-- 투표율 기반 픽은 웹앱에 표시하지 않는다(2026-09-27). 앱 코드가 참조하는 요소만 숨겨 둔다. -->
+      <div class="info-block exclusive-block" hidden>
+        <select id="upset-count-select" hidden><option value="0" selected>0</option></select>
+        <select id="draw-force-select" hidden><option value="0" selected>0</option></select>
         <div id="exclusive-pick" class="combo-tiers"></div>
       </div>
 
@@ -146,9 +102,8 @@
         </select>
       </div>
       <details class="explainer">
-        <summary>독식픽의 "무승부 강제"와 뭐가 다른가요?</summary>
-        <p class="hint">확신도가 가장 낮은(팽팽한) 경기부터 예산이 허락하는 한 무승부를 픽에 강제로 포함합니다. 이쪽은 복식 조합에 무승부를 <b>추가로</b> 얹어 헤지하고, 독식픽은 단일 조합에서 대중이 저평가한 무승부로 <b>바꿉니다</b>.</p>
-        <p class="hint"><b>왜 무승부를 따로 챙기나요?</b> 확률 1위만 찍는 방식은 무승부를 거의 못 고릅니다 — 무승부가 1위가 되려면 홈·원정이 둘 다 그보다 낮아야 하는데 그런 배당이 드물기 때문입니다. 그런데 1~41회차 574경기 실측으로는 <b>회차당 무승부가 평균 3.8경기</b>였고, <b>무승부가 하나도 없던 회차는 41번 중 한 번도 없었습니다</b>(최소 1경기). 조합에서 무승부를 덮는 건 취향이 아니라 이 구조적 공백을 메우는 일입니다. <b>자동</b>은 예산이 감당하는 만큼만 덮습니다(예: 5,000원 1경기 → 100,000원 4경기).</p>
+        <summary>왜 무승부를 따로 챙기나요?</summary>
+        <p class="hint">확신도가 가장 낮은(팽팽한) 경기부터 예산이 허락하는 한 무승부를 조합에 함께 넣습니다. 확률 1위만 찍는 방식은 무승부를 거의 못 고릅니다 — 무승부가 1위가 되려면 홈·원정이 둘 다 그보다 낮아야 하는데 그런 배당이 드물기 때문입니다. 그런데 1~41회차 574경기 실측으로는 <b>회차당 무승부가 평균 3.8경기</b>였고, <b>무승부가 하나도 없던 회차는 41번 중 한 번도 없었습니다</b>(최소 1경기). 조합에서 무승부를 함께 보는 건 취향이 아니라 이 구조적 공백을 메우는 일입니다. <b>자동</b>은 예산이 감당하는 만큼만 덮습니다(예: 5,000원 1경기 → 100,000원 4경기).</p>
       </details>
 
       <div class="budget-row">
@@ -157,7 +112,7 @@
         <button id="budget-custom-btn" class="btn">조합 생성</button>
       </div>
       <div id="combo-tiers" class="combo-tiers"></div>
-      <p class="hint">회차당 1인 구매한도(100,000원)를 넘지 않도록 자동으로 제한됩니다. 확신도가 낮은 경기부터 복식·삼복식으로 헤지합니다. 각 예산의 <b>구매표 보기</b>를 펼치면 14경기 전체를 betman 입력 순서(승·무·패 표기)로 확인하고 복사할 수 있습니다.</p>
+      <p class="hint">예산은 공식 발매 한도(회차당 1인 100,000원) 안에서만 계산합니다. 확신도가 낮은 경기부터 복식·삼복식으로 나눠 봅니다. 각 예산의 <b>조합표 보기</b>를 펼치면 14경기 전체를 승·무·패 표기로 확인하고 복사할 수 있습니다.</p>
     </section>
 
     <!-- 신뢰도 -->
@@ -177,7 +132,6 @@
         <p class="hint">아래는 백테스트가 아니라 <b>이 앱이 실제로 낸 픽</b>이 정산된 회차에서 어떻게 됐는지를 그대로 센 것입니다. 회차가 쌓일수록 정확해집니다.</p>
         <div id="settlement-summary" class="round-summary" hidden></div>
         <div id="settlement-rounds" class="combo-tiers"></div>
-        <p class="hint">"대중 구매비중"은 경기별 betman 투표율의 곱으로 추정한 값입니다(구매자가 독립적으로 찍는다는 가정). 1~41회차 실측에서 <b>실제 당첨조합의 중앙값은 0.17/백만</b>이었습니다 — 우리 독식픽이 그 수준에 얼마나 가까운지가 판단 기준입니다.</p>
       </div>
 
       <div class="info-block">
@@ -206,12 +160,12 @@
           경기 카드에 <b>배당 기반</b>이라고 표시됩니다. 이 대회들은 백테스트를 한 적이 없어 아래 적중률 표에도 나오지 않고,
           확신도에 <b>등급(확신픽·보통·불확실)이 붙지 않습니다</b> — 등급은 "이 확신도면 과거에 몇 % 맞았다"는 실측을
           전제로 한 라벨이라, 그 실측이 없는 대회에는 붙일 수 없기 때문입니다. 대신 1위와 2위 픽의 확률 차이만
-          숫자로 보여줍니다. 조합·독식 계산은 이 확률 위에서 평소와 동일하게 동작합니다.
+          숫자로 보여줍니다. 조합 계산은 이 확률 위에서 평소와 동일하게 동작합니다.
         </p>
         <h3>범례</h3>
         <div class="legend-row"><span class="legend-dot home"></span> 홈승 <span class="legend-dot draw"></span> 무승부 <span class="legend-dot away"></span> 원정승</div>
-        <h3>구매 한도</h3>
-        <p>스포츠토토 승무패는 회차당 1인 100,000원(100조합)까지 구매 가능합니다. 예산별 구매 조합 탭에서 자동으로 이 한도를 지킵니다.</p>
+        <h3>발매 한도</h3>
+        <p>스포츠토토 승무패는 회차당 1인 100,000원(100조합)까지 발매됩니다. 조합 분석 탭은 이 한도 안에서만 계산합니다.</p>
       </div>
       <p class="disclaimer">
         본 서비스는 통계 기반 참고용 예측이며 배당 대비 실질적 우위를 보장하지 않습니다. 스포츠토토는 소액의 여가 활동으로만 즐기시고, 절대 무리한 금액을 투입하지 마세요.
@@ -226,7 +180,7 @@
     <button class="tab-btn active" data-tab="matches"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-matches"/></svg></span><span>경기</span></button>
     <button class="tab-btn" data-tab="settings"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg></span><span>변수</span></button>
     <button class="tab-btn" data-tab="ai"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-ai"/></svg></span><span>AI분석</span></button>
-    <button class="tab-btn" data-tab="bets"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-bets"/></svg></span><span>베팅추천</span></button>
+    <button class="tab-btn" data-tab="bets"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-bets"/></svg></span><span>조합분석</span></button>
     <button class="tab-btn" data-tab="calibration"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-chart"/></svg></span><span>신뢰도</span></button>
     <button class="tab-btn" data-tab="info"><span class="tab-icon"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg></span><span>정보</span></button>
   </nav>
