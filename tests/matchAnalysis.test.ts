@@ -106,7 +106,7 @@ describe("analyzeMatch", () => {
       ctx,
     );
     expect(same.reasons.join()).toContain("슬로베니아가 90점 높고");
-    expect(same.reasons.join()).toContain("두 독립된 근거가 같은 방향");
+    expect(same.reasons.join()).toContain("같은 방향을 가리킵니다");
     const diff = analyzeMatch(
       base({
         basis: "market",
