@@ -22,6 +22,11 @@ export const USAGE_EVENTS = [
   "match_view",
   "league_view",
   "hub_view",
+  // 앱 영역 전환(public/matchesView.ts)
+  "mode_match",
+  "mode_round",
+  "match_card_click",
+  "round_to_match",
 ] as const;
 export type UsageEvent = (typeof USAGE_EVENTS)[number];
 
