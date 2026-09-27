@@ -7,6 +7,7 @@ import {
   renderLeaguePage,
   loadHubView,
   renderHubPage,
+  listMatchCards,
 } from "../lib/matchPage";
 import type { Env } from "../types";
 
@@ -66,4 +67,13 @@ export async function handleLeaguePage(env: Env, request: Request, leagueSlug: s
 
 export async function handleHubPage(env: Env, request: Request): Promise<Response> {
   return cached(request, "/matches", async () => html(renderHubPage(await loadHubView(env))));
+}
+
+// GET /api/matches - 앱의 '경기 분석' 목록(지난 14일 ~ 앞으로 8일). 5분 엣지 캐시.
+export async function handleMatchList(env: Env, request: Request): Promise<Response> {
+  return cached(request, "/api/matches", async () =>
+    new Response(JSON.stringify({ generatedAt: new Date().toISOString(), matches: await listMatchCards(env) }), {
+      headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300" },
+    }),
+  );
 }
