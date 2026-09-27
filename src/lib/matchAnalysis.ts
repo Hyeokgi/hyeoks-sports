@@ -139,7 +139,7 @@ export function analyzeMatch(m: AnalysisInput, ctx: { avgDraw: number }): MatchA
         : "";
     reasons.push(`국가대표 Elo(1872년 이후 A매치 기반)는 ${lead}${W(n)} ${pct(pOf(d.natProbs, n))}입니다.`);
     if (d.market) {
-      if (n === argmax(d.market)) reasons.push("배당과 국가대표 Elo, 두 독립된 근거가 같은 방향입니다.");
+      if (n === argmax(d.market)) reasons.push("배당과 국가대표 Elo가 같은 방향을 가리킵니다.");
       else risks.push(`배당(${W(argmax(d.market))})과 국가대표 Elo(${W(n)})의 판단이 다릅니다.`);
     }
   }
