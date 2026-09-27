@@ -6,6 +6,7 @@ import { DISCLAIMER } from "../src/lib/roundArticle";
 const view = (over: Partial<MatchView> = {}): MatchView => ({
   slug: "2026-10-04-columbus-crew-inter-miami-cf",
   league: "MLS",
+  competition: null,
   leagueName: "MLS",
   leagueSlug: "mls",
   kickoffAt: "2026-09-27T23:00:00.000Z",
@@ -72,6 +73,22 @@ describe("경기 페이지", () => {
 
   it("한국시간 표기", () => {
     expect(kstLabel("2026-09-27T23:00:00.000Z")).toBe("9월 28일(월) 08:00");
+  });
+});
+
+describe("국가대표 경기 페이지", () => {
+  const nat = view({
+    slug: "2026-10-10-south-korea-uruguay", league: "국가대표", competition: "A매치 친선", leagueName: "A매치 친선", leagueSlug: "national-teams",
+    home: "대한민국", away: "우루과이", homeLogo: "/flags/kr.svg", awayLogo: "/flags/uy.svg", basisLabel: "국가대표 Elo", calib: null,
+    reasons: ["국가대표 Elo(1872년 이후 A매치 기반)는 우루과이가 40점 높고, 홈 이점까지 반영하면 대한민국 승 41%입니다."],
+  });
+  it("대회명이 제목에 들어가고 국가대표 한계를 알린다", () => {
+    expect(matchTitle(nat)).toContain("대한민국 vs 우루과이 승부예측");
+    expect(matchTitle(nat)).toContain("A매치 친선");
+    const h = renderMatchPage(nat);
+    expect(h).toContain("중립 경기장 여부는 반영하지 않고");
+    expect(h).toContain("/flags/kr.svg");
+    for (const w of FORBIDDEN) expect(body(h), w).not.toContain(w);
   });
 });
 
