@@ -145,6 +145,12 @@ export function nationalDisplayName(kr: string): string {
 
 export const NATIONAL_EN_NAMES: readonly string[] = [...new Set(Object.values(NATIONAL_KR))];
 
+/** 결과 데이터셋 영문명 → 화면에 쓸 한글 국가명(표에서 먼저 나온 표기). 모르면 null(경기 페이지 수집에서 제외). */
+export function nationalKrOf(en: string): string | null {
+  for (const [kr, v] of Object.entries(NATIONAL_KR)) if (v === en) return kr;
+  return null;
+}
+
 // 영문 국가명 → 국기 파일 코드(lipis/flag-icons 파일명: ISO 3166-1 alpha-2, 영국 4개 협회는 gb-xxx).
 // 국기는 public/flags/{code}.svg에 자체 호스팅한다(scripts/fetch_national_flags.ts로 받는다 -
 // 팀 엠블럼과 같은 이유로 외부 CDN 핫링크 금지).
