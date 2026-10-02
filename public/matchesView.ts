@@ -27,6 +27,8 @@ export interface MatchCard {
 }
 
 import { teamIndex, searchTeams, type TeamEntry } from "../src/lib/teamSearch";
+import { stepIndex } from "../src/lib/swipe";
+import { attachSwipe, slideIn } from "./swipe";
 
 type Mode = "round" | "match";
 type DayFilter = "today" | "tomorrow" | "week" | "past";
@@ -48,7 +50,9 @@ function whenText(iso: string): string {
 let cards: MatchCard[] | null = null;
 let loading: Promise<MatchCard[]> | null = null;
 let league = "all";
-let day: DayFilter = "week";
+// 경기 분석의 홈은 '오늘'(2026-10-02 사용자 요청). 오늘 경기가 없으면 빈 화면에서 7일 보기로 안내한다.
+let day: DayFilter = "today";
+const DAY_ORDER: DayFilter[] = ["today", "tomorrow", "week", "past"];
 let trackFn: (e: string) => void = () => {};
 let team: string | null = null; // 팀·국가 검색으로 고른 팀(있으면 리그·날짜 필터 대신 그 팀 경기 전체)
 
@@ -178,7 +182,9 @@ function render(): void {
   if (list.length === 0) {
     root.innerHTML =
       `<div class="mx-empty">${day === "past" ? "최근 2주 동안 끝난 경기가 없습니다." : "조건에 맞는 예정 경기가 없습니다."}` +
-      `<br><span>리그 휴식기(A매치 기간)일 수 있습니다. 다른 날짜나 리그를 골라 보세요.</span></div>`;
+      `<br><span>리그 휴식기(A매치 기간)일 수 있습니다. 다른 날짜나 리그를 골라 보세요.</span>` +
+      (day === "today" || day === "tomorrow" ? `<br><button type="button" class="mx-empty-btn" data-day="week">7일 일정 보기</button>` : "") +
+      `</div>`;
     return;
   }
   const groups = new Map<string, MatchCard[]>();
@@ -195,6 +201,32 @@ function render(): void {
       );
     })
     .join("");
+}
+
+/** 지금 경기 분석 화면인가. */
+export function isMatchMode(): boolean {
+  return document.body.classList.contains("mode-match");
+}
+
+/** 경기 분석의 홈: 오늘 · 전체 리그 · 팀 선택 해제. */
+export function goMatchHome(): void {
+  day = "today";
+  league = "all";
+  team = null;
+  render();
+  scrollTo({ top: 0, behavior: "smooth" });
+}
+
+/** 스와이프로 날짜 탭 넘기기(오늘 → 내일 → 7일 → 지난 결과). */
+function swipeDay(dir: "next" | "prev"): void {
+  const cur = DAY_ORDER.indexOf(day);
+  const next = stepIndex(cur, DAY_ORDER.length, dir);
+  if (next === cur) return;
+  day = DAY_ORDER[next];
+  team = null;
+  render();
+  slideIn(document.getElementById("mx-list"), dir);
+  document.querySelector(`#mx-days button[data-day="${day}"]`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 function applyMode(mode: Mode, record: boolean): void {
@@ -340,8 +372,16 @@ export function initModeSwitch(track: (e: string) => void): void {
     render();
   });
   document.getElementById("mx-list")?.addEventListener("click", (e) => {
-    if ((e.target as HTMLElement).closest(".mx-card")) trackFn("match_card_click");
+    const t = e.target as HTMLElement;
+    if (t.closest(".mx-card")) trackFn("match_card_click");
+    const empty = t.closest<HTMLButtonElement>(".mx-empty-btn[data-day]");
+    if (empty) {
+      day = empty.dataset.day as DayFilter;
+      render();
+    }
   });
+  const view = document.getElementById("matches-view");
+  if (view) attachSwipe(view, swipeDay, isMatchMode);
   initSearch();
   applyMode(initial, false);
 }
