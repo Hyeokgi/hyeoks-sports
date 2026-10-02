@@ -85,19 +85,24 @@ function track(e: string, roundNo?: number | null): void {
 const roundNoById = new Map<number, number>();
 // 회차 id → 목록 응답(발매기간 포함). 선택창 옆 상태 칩에 쓴다.
 const roundById = new Map<number, RoundForPick>();
-const phaseChip = document.getElementById("round-phase") as HTMLSpanElement | null;
 const PHASE_CLASS: Record<string, string> = { 발매중: "on", 발매예정: "soon", 발매마감: "closed", 경기중: "live", "결과 집계 중": "live", 종료: "done" };
 
-/** 선택한 회차의 상태 칩(betman 발매기간 기준). */
+/** 선택한 회차의 상태를 회차 선택창 색으로 보여준다(betman 발매기간 기준).
+ *  예전엔 선택창 옆에 같은 내용의 칩을 따로 띄웠는데, 폰에서 상단이 3줄이 돼서(2026-10-02) 선택창 하나로 합쳤다.
+ *  발매 시작·마감 시각은 선택창 툴팁(title)으로 둔다. */
 function renderPhaseChip(roundId: number): void {
-  if (!phaseChip) return;
+  const sel = document.getElementById("round-select") as HTMLSelectElement | null;
+  if (!sel) return;
   const r = roundById.get(roundId);
   const phase = r ? roundPhase(r) : null;
-  phaseChip.hidden = !phase;
-  if (!r || !phase) return;
+  if (!r || !phase) {
+    delete sel.dataset.phase;
+    sel.title = "";
+    return;
+  }
   const detail = phaseDetail(r);
-  phaseChip.className = `phase-chip phase-${PHASE_CLASS[phase] ?? "done"}`;
-  phaseChip.textContent = detail ? `${phase} · ${detail}` : phase;
+  sel.dataset.phase = PHASE_CLASS[phase] ?? "done";
+  sel.title = detail ? `${phase} · ${detail}` : phase;
 }
 const articleLink = document.getElementById("round-article-link") as HTMLAnchorElement | null;
 
@@ -879,10 +884,11 @@ async function loadRounds() {
     const opt = document.createElement("option");
     opt.value = String(r.id);
     const phase = roundPhase(r, now);
-    const detail = phase === "발매예정" || phase === "발매중" ? phaseDetail(r, now) : "";
+    // 짧게: 선택창 폭이 가장 긴 항목에 맞춰지므로 날짜까지 넣으면 폰에서 상단이 줄바꿈된다.
     opt.textContent =
-      (r.round_no_confirmed ? `${r.round_no}회차` : `${r.round_no ?? "추정"}회차 (미확정, #${r.id})`) +
-      (phase ? ` · ${phase}${detail ? ` ${detail}` : ""}` : "");
+      (r.round_no_confirmed ? `${r.round_no}회차` : `${r.round_no ?? "추정"}회차(미확정)`) + (phase ? ` · ${phase}` : "");
+    const detail = phaseDetail(r, now);
+    if (detail) opt.title = detail;
     if (r.id === initial.id) opt.selected = true;
     roundSelect.appendChild(opt);
   }
