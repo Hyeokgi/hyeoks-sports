@@ -7,8 +7,10 @@ import { generateExclusivePick, type ExclusiveMatchInput } from "../src/lib/excl
 import { TEAM_LOGOS } from "../src/lib/teamLogos";
 import { nationalFlagUrl } from "../src/lib/nationalNames";
 import { isModelLeague } from "../src/lib/nameMap";
-import { pickDefaultRound, roundPhase } from "../src/lib/roundPick";
-import { initModeSwitch, decorateRoundCards } from "./matchesView";
+import { pickDefaultRound, roundPhase, phaseDetail, type RoundForPick } from "../src/lib/roundPick";
+import { stepIndex } from "../src/lib/swipe";
+import { attachSwipe, slideIn } from "./swipe";
+import { initModeSwitch, decorateRoundCards, goMatchHome, isMatchMode } from "./matchesView";
 
 interface MatchData {
   seq: number;
@@ -81,6 +83,22 @@ function track(e: string, roundNo?: number | null): void {
 
 // 회차 id → 확정 회차번호. 분석 글 링크(/round/:no)를 만들 때 쓴다.
 const roundNoById = new Map<number, number>();
+// 회차 id → 목록 응답(발매기간 포함). 선택창 옆 상태 칩에 쓴다.
+const roundById = new Map<number, RoundForPick>();
+const phaseChip = document.getElementById("round-phase") as HTMLSpanElement | null;
+const PHASE_CLASS: Record<string, string> = { 발매중: "on", 발매예정: "soon", 발매마감: "closed", 경기중: "live", "결과 집계 중": "live", 종료: "done" };
+
+/** 선택한 회차의 상태 칩(betman 발매기간 기준). */
+function renderPhaseChip(roundId: number): void {
+  if (!phaseChip) return;
+  const r = roundById.get(roundId);
+  const phase = r ? roundPhase(r) : null;
+  phaseChip.hidden = !phase;
+  if (!r || !phase) return;
+  const detail = phaseDetail(r);
+  phaseChip.className = `phase-chip phase-${PHASE_CLASS[phase] ?? "done"}`;
+  phaseChip.textContent = detail ? `${phase} · ${detail}` : phase;
+}
 const articleLink = document.getElementById("round-article-link") as HTMLAnchorElement | null;
 
 const roundSelect = document.getElementById("round-select") as HTMLSelectElement;
@@ -856,13 +874,15 @@ async function loadRounds() {
     pickDefaultRound(data.rounds, now) ??
     data.rounds[0];
   for (const r of data.rounds ?? []) if (r.round_no_confirmed && r.round_no != null) roundNoById.set(r.id, r.round_no);
+  for (const r of data.rounds ?? []) roundById.set(r.id, r);
   for (const r of data.rounds ?? []) {
     const opt = document.createElement("option");
     opt.value = String(r.id);
     const phase = roundPhase(r, now);
+    const detail = phase === "발매예정" || phase === "발매중" ? phaseDetail(r, now) : "";
     opt.textContent =
       (r.round_no_confirmed ? `${r.round_no}회차` : `${r.round_no ?? "추정"}회차 (미확정, #${r.id})`) +
-      (phase ? ` · ${phase}` : "");
+      (phase ? ` · ${phase}${detail ? ` ${detail}` : ""}` : "");
     if (r.id === initial.id) opt.selected = true;
     roundSelect.appendChild(opt);
   }
@@ -871,6 +891,7 @@ async function loadRounds() {
 
 async function loadRound(roundId: number) {
   currentRoundId = roundId;
+  renderPhaseChip(roundId);
   const no = roundNoById.get(roundId);
   track("round_view", no);
   if (articleLink) {
@@ -959,6 +980,46 @@ function switchTab(tabName: string) {
 
 for (const btn of tabButtons) {
   btn.addEventListener("click", () => switchTab(btn.dataset.tab!));
+}
+
+// 좌우 스와이프로 하단 탭 넘기기(경기 → 변수 → AI분석 → 조합분석 → 신뢰도 → 정보). 경기 분석 화면에서는 꺼진다.
+const TAB_ORDER = tabButtons.map((b) => b.dataset.tab!);
+const mainEl = document.querySelector("main");
+if (mainEl) {
+  attachSwipe(
+    mainEl,
+    (dir) => {
+      const cur = TAB_ORDER.indexOf(tabButtons.find((b) => b.classList.contains("active"))?.dataset.tab ?? TAB_ORDER[0]);
+      const next = stepIndex(cur, TAB_ORDER.length, dir);
+      if (next === cur) return;
+      switchTab(TAB_ORDER[next]);
+      slideIn(tabPages.find((p) => !p.hidden) ?? null, dir);
+      scrollTo({ top: 0, behavior: "smooth" });
+    },
+    () => !isMatchMode(),
+  );
+}
+
+// 좌측 상단 제목을 누르면 각 화면의 홈으로: 승무패 회차는 '경기' 탭, 경기 분석은 '오늘'.
+const brandEl = document.querySelector<HTMLElement>(".topbar .brand");
+if (brandEl) {
+  brandEl.setAttribute("role", "button");
+  brandEl.setAttribute("tabindex", "0");
+  brandEl.setAttribute("aria-label", "홈으로");
+  const goHome = () => {
+    if (isMatchMode()) goMatchHome();
+    else {
+      switchTab(TAB_ORDER[0]);
+      scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+  brandEl.addEventListener("click", goHome);
+  brandEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      goHome();
+    }
+  });
 }
 
 reportBtn.addEventListener("click", async () => {

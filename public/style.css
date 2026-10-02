@@ -1030,6 +1030,13 @@ main {
   height: 1.05em;
   flex-shrink: 0;
   vertical-align: -0.14em;
+  /* <use>로 불러온 심볼은 symbol 쪽 fill/stroke를 최신 크롬에서 물려받지 못해 검은 덩어리로 보였다(2026-10-02).
+     바깥 svg에 같은 값을 줘서 상속되게 한다. */
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .tab-page h2 .icon,
@@ -1073,6 +1080,7 @@ main {
 .round-picker {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1085,11 +1093,11 @@ main {
 }
 
 .round-picker label {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted-2);
+  color: #c3c9d6;
 }
 
 /* ============================================================
@@ -1525,3 +1533,102 @@ body.mode-match .match-picker-link { display: inline-flex; color: #aeb4ff; }
 .mx-team-filter[hidden] { display: none; }
 .mx-team-filter button { font: inherit; font-size: 0.78rem; font-weight: 800; border: 0; border-radius: 999px; padding: 4px 10px; background: #8b93ff; color: #0b0e1a; cursor: pointer; }
 .mx-chips.dim, .mx-days.dim { opacity: 0.45; }
+
+
+/* ============================================================
+   회차 선택창 · 상태 칩 · 하단 메뉴 밝기 (2026-10-02 사용자 요청)
+   ============================================================ */
+#round-select {
+  padding: 9px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(242, 169, 59, 0.55);
+  background: rgba(242, 169, 59, 0.16);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  max-width: 100%;
+  box-shadow: 0 0 0 3px rgba(242, 169, 59, 0.08);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+#round-select:hover,
+#round-select:focus-visible {
+  background: rgba(242, 169, 59, 0.24);
+  border-color: rgba(242, 169, 59, 0.8);
+  outline: none;
+}
+#round-select option {
+  background: #1b2030;
+  color: #f2f4f8;
+}
+.phase-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.phase-chip[hidden] { display: none; }
+.phase-chip::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+.phase-on { color: #4ade80; background: rgba(34, 197, 94, 0.14); border-color: rgba(74, 222, 128, 0.4); }
+.phase-soon { color: #60a5fa; background: rgba(96, 165, 250, 0.14); border-color: rgba(96, 165, 250, 0.4); }
+.phase-closed { color: #fbbf24; background: rgba(251, 191, 36, 0.14); border-color: rgba(251, 191, 36, 0.4); }
+.phase-live { color: #f87171; background: rgba(248, 113, 113, 0.14); border-color: rgba(248, 113, 113, 0.4); }
+.phase-done { color: #c3c9d6; background: rgba(156, 163, 175, 0.16); border-color: rgba(156, 163, 175, 0.35); }
+.phase-done::before { box-shadow: none; }
+
+.tabbar {
+  background: rgba(19, 23, 34, 0.97);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+}
+.tab-btn {
+  color: #c3c9d6;
+  font-size: 0.74rem;
+}
+.tab-btn .tab-icon { font-size: 1.35rem; }
+.tab-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+.tab-btn.active {
+  color: var(--gold-bright);
+  background: rgba(242, 169, 59, 0.2);
+  box-shadow: inset 0 2px 0 var(--gold);
+}
+
+/* 좌측 상단 제목 = 홈 버튼 */
+.topbar .brand { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.topbar .brand:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 12px; }
+
+/* 스와이프로 탭이 넘어갈 때 짧게 미끄러지는 효과 */
+@keyframes swipe-in-next { from { opacity: 0.2; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+@keyframes swipe-in-prev { from { opacity: 0.2; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+.swipe-in-next { animation: swipe-in-next 0.22s ease-out; }
+.swipe-in-prev { animation: swipe-in-prev 0.22s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .swipe-in-next, .swipe-in-prev { animation: none; }
+}
+
+.mx-empty-btn {
+  margin-top: 12px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(242, 169, 59, 0.55);
+  background: rgba(242, 169, 59, 0.16);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+@media (max-width: 560px) {
+  .phase-chip { font-size: 0.72rem; padding: 4px 10px; }
+}
