@@ -1632,3 +1632,30 @@ body.mode-match .match-picker-link { display: inline-flex; color: #aeb4ff; }
 @media (max-width: 560px) {
   .phase-chip { font-size: 0.72rem; padding: 4px 10px; }
 }
+
+/* 회차 상태는 선택창 색으로(칩과 중복 제거, 2026-10-02). 발매중 초록 · 발매예정 파랑 · 발매마감 주황 · 경기중 빨강 · 종료 회색 */
+#round-select[data-phase="on"] { color: #4ade80; border-color: rgba(74, 222, 128, 0.55); background: rgba(34, 197, 94, 0.14); box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.08); }
+#round-select[data-phase="soon"] { color: #60a5fa; border-color: rgba(96, 165, 250, 0.55); background: rgba(96, 165, 250, 0.14); box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.08); }
+#round-select[data-phase="closed"] { color: #fbbf24; border-color: rgba(251, 191, 36, 0.55); background: rgba(251, 191, 36, 0.14); box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.08); }
+#round-select[data-phase="live"] { color: #f87171; border-color: rgba(248, 113, 113, 0.55); background: rgba(248, 113, 113, 0.14); box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.08); }
+#round-select[data-phase="done"] { color: #e5e7eb; border-color: rgba(156, 163, 175, 0.45); background: rgba(156, 163, 175, 0.14); box-shadow: none; }
+
+/* 폰: 상단을 한 줄로(브랜드 | 회차 선택 | 분석 글). 부제·'회차' 라벨은 숨긴다. */
+@media (max-width: 560px) {
+  .topbar { flex-wrap: nowrap; gap: 8px; padding-left: 14px; padding-right: 14px; }
+  .brand { gap: 8px; min-width: 0; flex-shrink: 1; }
+  .brand-icon { width: 28px; height: 28px; border-radius: 9px; }
+  .brand-text { min-width: 0; }
+  .brand-sub { display: none; }
+  .topbar h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .round-picker { flex-wrap: nowrap; gap: 6px; flex-shrink: 0; }
+  .round-picker label { display: none; }
+  #round-select { padding: 7px 10px; font-size: 0.8rem; max-width: 46vw; text-overflow: ellipsis; }
+  .round-article-link { font-size: 0.74rem; }
+}
+@media (max-width: 374px) {
+  .topbar { gap: 6px; padding-left: 10px; padding-right: 10px; }
+  .topbar h1 { font-size: 0.8rem; }
+  #round-select { padding: 6px 8px; font-size: 0.76rem; }
+  .round-article-link { font-size: 0.7rem; }
+}
