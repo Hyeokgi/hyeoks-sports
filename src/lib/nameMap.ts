@@ -207,6 +207,10 @@ export const TEAM_ENTRIES: TeamMapEntry[] = [
   { nameKr: "데포르티", nameEn: "Deportivo A Coruña", league: "라리가" },
   { nameKr: "말라가", nameEn: "Malaga", league: "라리가" },
   { nameKr: "산탄데르", nameEn: "Racing Santander", league: "라리가" },
+  // 2026-10 베트맨 표기 변경(59회차 실데이터): 같은 팀의 새 약칭을 별칭으로 추가. 없으면 매칭 실패 → 근거 없음(판단 보류)
+  { nameKr: "셀타비고", nameEn: "Celta Vigo", league: "라리가" },
+  { nameKr: "데포아코", nameEn: "Deportivo A Coruña", league: "라리가" },
+  { nameKr: "라싱산탄", nameEn: "Racing Santander", league: "라리가" },
   // 분데스리가 (2026-08-22 선제 편입, 1~41회차 실표기 확인된 18팀)
   { nameKr: "바이뮌헨", nameEn: "Bayern München", league: "분데스리가" },
   { nameKr: "도르트문", nameEn: "Borussia Dortmund", league: "분데스리가" },
