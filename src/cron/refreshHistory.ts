@@ -6,6 +6,7 @@ import { NAME_MAP } from "../lib/nameMap";
 import { settleRounds } from "../lib/settlement";
 import { refreshNationalElo, snapshotNationalEloDiffs } from "../lib/nationalEloStore";
 import { snapshotUpcomingRounds } from "../lib/predictionSnapshot";
+import { remapUpcomingMarketOnly } from "../lib/remapRound";
 import type { Env, League } from "../types";
 
 // D1 batch 한 번에 넣을 문장 수. 너무 크면 한 트랜잭션이 길어지니 적당히 자른다.
@@ -25,7 +26,7 @@ interface NewK2Match {
 
 export async function refreshHistory(
   env: Env,
-): Promise<{ inserted: number; leagues: string[]; national: Record<string, unknown>; snapshots: number | string }> {
+): Promise<{ inserted: number; leagues: string[]; national: Record<string, unknown>; remapped: number | string; snapshots: number | string }> {
   let inserted = 0;
   const newK2Matches: NewK2Match[] = [];
 
@@ -73,6 +74,14 @@ export async function refreshHistory(
     national.error = (e as Error).message.slice(0, 300);
     console.error(`refreshHistory: 국가대표 Elo 갱신 실패 - ${national.error}`);
   }
+  // 등록 뒤 이름표가 고쳐진 배당 대기 경기를 킥오프 전에 다시 계산한다(remapRound.ts). 스냅샷보다 먼저.
+  let remapped: number | string = 0;
+  try {
+    remapped = await remapUpcomingMarketOnly(env);
+  } catch (e) {
+    remapped = `error: ${(e as Error).message.slice(0, 200)}`;
+    console.error(`refreshHistory: 이름표 재계산 실패 - ${remapped}`);
+  }
   // 킥오프 전 예측 보존(실제 기록용). 국가대표 격차를 넣은 뒤에 찍어야 그 값이 반영된다.
   let snapshots: number | string = 0;
   try {
@@ -83,7 +92,7 @@ export async function refreshHistory(
   }
   await settleRounds(env);
 
-  return { inserted, leagues: Object.keys(LEAGUE_IDS), national, snapshots };
+  return { inserted, leagues: Object.keys(LEAGUE_IDS), national, remapped, snapshots };
 }
 
 async function fetchAndStoreK2Corners(env: Env, matches: NewK2Match[]): Promise<void> {
