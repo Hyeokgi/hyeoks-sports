@@ -205,12 +205,22 @@ export async function handleRoundData(env: Env, request: Request, roundNo: numbe
   });
 }
 
+// 가이드 페이지(public/guide/*.html 정적 파일). 새 가이드를 올리면 여기에도 추가해야 사이트맵에 나간다.
+export const GUIDE_PATHS = [
+  "/guide/",
+  "/guide/elo-rating",
+  "/guide/k-league-promotion",
+  "/guide/proto-check",
+  "/guide/toto-refund",
+  "/guide/toto-tax",
+];
+
 export async function handleSitemap(env: Env, request: Request): Promise<Response> {
   const origin = new URL(request.url).origin;
   const { results } = await env.DB.prepare(
     `SELECT r.round_no, COALESCE((SELECT MAX(mo.updated_at) FROM market_odds mo JOIN round_matches rm ON rm.id = mo.round_match_id WHERE rm.round_id = r.id), r.created_at) AS lastmod FROM rounds r WHERE r.round_no IS NOT NULL AND r.round_no_confirmed = 1 ORDER BY r.id DESC LIMIT 200`
   ).all<{ round_no: number; lastmod: string }>();
-  const urls = [`<url><loc>${origin}/</loc></url>`, `<url><loc>${origin}/about</loc></url>`].concat(
+  const urls = [`<url><loc>${origin}/</loc></url>`, `<url><loc>${origin}/about</loc></url>`, ...GUIDE_PATHS.map((p) => `<url><loc>${origin}${p}</loc></url>`)].concat(
     (results ?? []).map((r) => `<url><loc>${origin}/round/${r.round_no}</loc><lastmod>${r.lastmod.slice(0, 10)}</lastmod></url>`),
   );
   // 경기별 분석 페이지(리그·경기). 표가 없거나 조회가 실패해도 회차 사이트맵은 내보낸다.
