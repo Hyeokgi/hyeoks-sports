@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC_DATA = Path(r"C:\Users\Hyeok-gi\Documents\스포츠 토토 예측시스템\data")
+SRC_DATA = Path(r"D:\AI\projects\스포츠 토토 예측시스템\data")
 OUT = ROOT / "seed" / "seed.sql"
 
 K_FACTOR = 32
