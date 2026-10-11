@@ -78,7 +78,7 @@ describe("togglesForLeague - 리그별 marketWeight", () => {
     }
     // base에 다른 값이 들어 있어도 무시된다
     const odd: PredictionToggles = { ...DEFAULT_TOGGLES, marketWeight: 0.123 };
-    expect(togglesForLeague(odd, "K리그1", null).marketWeight).toBe(DEFAULT_MARKET_WEIGHT);
+    expect(togglesForLeague(odd, "J1리그", null).marketWeight).toBe(DEFAULT_MARKET_WEIGHT);
   });
 
   it("명시값은 모든 리그에서 이기고, 0도 유효한 명시값이다", () => {
@@ -192,13 +192,12 @@ describe("predictForClient - 서버 기본 계산과 같은 확률", () => {
   });
 });
 
-describe("유럽 보정표 재검증 표시", () => {
-  // 2026-10-12 고친 하니스로 재산출한 보정표를 반영해 재검증 중인 리그가 없다.
-  it("재검증 중인 리그가 없으면 어떤 리그도 숨기지 않는다", () => {
-    expect([...CALIBRATION_UNDER_REVIEW_LEAGUES]).toEqual([]);
-    for (const lg of ["EPL", "라리가", "세리에A", "분데스리가", "K리그1", "K리그2", "J1리그", "MLS"]) {
-      expect(isCalibrationUnderReview(lg)).toBe(false);
-    }
+describe("보정표 재검증 표시", () => {
+  // 2026-10-12: 유럽 4개 리그는 재산출 완료, K리그1·MLS는 배당 비중을 바꿔 보정표 재산출 전이다.
+  it("재검증 중인 리그만 숨긴다", () => {
+    expect([...CALIBRATION_UNDER_REVIEW_LEAGUES].sort()).toEqual(["K리그1", "MLS"].sort());
+    for (const lg of ["K리그1", "MLS"]) expect(isCalibrationUnderReview(lg)).toBe(true);
+    for (const lg of ["EPL", "라리가", "세리에A", "분데스리가", "K리그2", "J1리그"]) expect(isCalibrationUnderReview(lg)).toBe(false);
     expect(isCalibrationUnderReview(undefined)).toBe(false);
   });
-})
+});

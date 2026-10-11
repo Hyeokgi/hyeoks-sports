@@ -138,11 +138,11 @@ describe("리그별 marketWeight", () => {
     expect(epl.pHome).toBeCloseTo(k1.pHome, 10);
   });
 
-  it("marketWeightForLeague는 유럽 4대리그만 높은 값을 준다", () => {
-    for (const lg of ["EPL", "라리가", "세리에A", "분데스리가"]) {
+  it("marketWeightForLeague는 유럽 4대리그와 K리그1·MLS에 높은 값을 준다(2026-10-12 재검증)", () => {
+    for (const lg of ["EPL", "라리가", "세리에A", "분데스리가", "K리그1", "MLS"]) {
       expect(marketWeightForLeague(lg)).toBe(EUROPEAN_MARKET_WEIGHT);
     }
-    for (const lg of ["K리그1", "K리그2", "J1리그", "MLS"]) {
+    for (const lg of ["K리그2", "J1리그"]) {
       expect(marketWeightForLeague(lg)).toBe(DEFAULT_MARKET_WEIGHT);
     }
     expect(marketWeightForLeague(undefined)).toBe(DEFAULT_MARKET_WEIGHT);
