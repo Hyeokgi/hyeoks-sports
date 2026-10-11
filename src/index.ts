@@ -28,6 +28,7 @@ import { syncFixtures } from "./lib/fixtures";
 import { json } from "./lib/http";
 import type { Env } from "./types";
 import { handleDataHome, handlePerformancePage, handlePerformanceData, legacyAppLocation } from "./routes/sitePage";
+import { handleRatingsPage } from "./routes/ratingsPage";
 import { errorPage, siteHeader, siteFooter } from "./lib/publicSite";
 
 /**
@@ -88,13 +89,15 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
         else if (pathname === "/guide" || pathname === "/guide/index.html") clean = "/guide/";
         else if (/^\/(app|about|privacy|methodology|sources|editorial|contact)\.html$/.test(pathname)) clean = pathname.replace(/\.html$/, "");
         else if (/^\/guide\/[^/]+\.html$/.test(pathname)) clean = pathname.replace(/\.html$/, "");
-        else if (/^\/(app|matches|performance|about|privacy|methodology|sources|editorial|contact)\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
+        else if (/^\/(app|matches|performance|ratings|about|privacy|methodology|sources|editorial|contact)\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
         else if (/^\/round\/\d+\/?$/.test(pathname)) clean = `/round/${Number(pathname.match(/\d+/)![0])}`;
         else if (/^\/(match|league)\/[^/]+\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
         if (clean !== pathname) return Response.redirect(`${CANONICAL_ORIGIN}${clean}${url.search}`, 301);
         if (pathname === "/") return await handleDataHome(env);
         if (pathname === "/performance") return await handlePerformancePage(env);
         if (pathname === "/performance/data.json") return await handlePerformanceData(env);
+        // 리그별 Elo 전력 순위(자체 집계 순위표와 비교). 정적 자산이 아니라 워커가 그린다.
+        if (pathname === "/ratings") return await handleRatingsPage(env);
       }
       if (pathname === "/api/rounds" && request.method === "GET") {
         return await handleListRounds(env);
