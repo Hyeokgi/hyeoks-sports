@@ -5,6 +5,9 @@
 // 적중을 약속하는 표현을 쓰지 않으며, 구매는 공식 판매처에서만 가능하다는 고지를 항상 붙인다.
 import type { PredictionBasis } from "./prediction";
 import { analyzeMatch, who as whoOf, type MatchAnalysis, type MatchDetail } from "./matchAnalysis";
+// 타입만 가져온다(런타임 의존 없음 - 이 파일은 DB를 타지 않는 순수 함수로 남는다).
+import type { RecordProvenance } from "./predictionSnapshot";
+export type { RecordProvenance };
 
 export interface ArticleMatch {
   seq: number;
@@ -23,6 +26,15 @@ export interface ArticleMatch {
   vote: { home: number; draw: number; away: number } | null;
   result: { actual: "H" | "D" | "A"; hg: number | null; ag: number | null } | null;
   predictedAfterKickoff: boolean;
+  // 끝난 경기 기록의 출처(선택, schema 1 호환 추가 필드). 로더가 결과 있는 경기에만 채운다.
+  //   verified: 킥오프 전 저장이 검증된 스냅샷 → 채점 대상
+  //   reconstructed: 당시 저장 기록이 없어 현재 코드로 다시 계산한 값 → 표시만, 채점 제외
+  //   no_prediction: 근거 없음(임시 확률) → 채점 제외
+  //   unverified: 스냅샷이 있지만 킥오프 전 저장을 증명할 수 없거나 사후 등록 → 채점 제외
+  // 없으면(옛 호출자) 출처 미확인으로 보고 채점하지 않는다.
+  recordProvenance?: RecordProvenance;
+  // 표시 값이 스냅샷일 때 그 저장 시각(UTC ISO). 재구성값이면 null.
+  capturedAt?: string | null;
   // 근거 원자료(배당·흐름·Elo·폼·맞대결·국가대표 Elo·과거 적중률). 끝난 경기엔 없어도 된다.
   detail?: MatchDetail | null;
   // buildRoundArticle이 채운다: 근거·위험·권장 커버(끝나지 않은 경기만).
@@ -31,8 +43,10 @@ export interface ArticleMatch {
 
 export interface RecentRecord {
   roundNo: number;
-  hits: number;
-  n: number;
+  hits: number; // 검증된 킥오프 전 저장 기록만 센 적중 수
+  n: number; // 검증된 킥오프 전 저장 기록 경기 수
+  // 결과는 나왔지만 채점에서 뺀 경기 수(재구성·검증 불가·근거 없음·사후 등록). 선택 필드.
+  excluded?: number;
 }
 
 export interface ArticleInput {
@@ -61,6 +75,8 @@ export interface RoundArticle {
   saleDeadline: string | null; // KST 표기
   matches: ArticleMatch[];
   report: string | null;
+  // report가 있을 때 함께 적을 고지(자동 생성·전문가 독립 검토 아님). report가 없으면 null.
+  reportNotice: string | null;
   top: ArticleMatch[]; // 확신도 상위(근거 있는 경기만)
   hedges: ArticleMatch[]; // 확신도 하위(복식 후보)
   crowdSplits: ArticleMatch[]; // 대중 투표 1위와 우리 픽이 다른 경기
@@ -114,12 +130,60 @@ export function formatKst(iso: string | null): string | null {
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
-// 분석 방법 설명. 과장 없이, 실제로 하는 것만 쓴다(검증 기준·예측 보존은 사실).
+// 분석 방법 설명. 과장 없이, 실제로 하는 것만 쓴다.
+// 2026-10: "백테스트가 모두 그 경기 이전 정보만 썼다"는 뜻으로 읽히는 문장을 뺐다. 검증 도구의 문제를
+// 고치는 중이고 그 결과로 수치를 다시 만들지 않았기 때문이다. 또 "공개한 예측을 보존"은 스냅샷이 있는
+// 경기(2026-09-26 이후)에만 맞아, 저장 기록이 없는 경기는 재구성값으로 따로 표시한다고 적는다.
 export const METHOD_TEXT =
   "확률은 ① 해외 북메이커 여러 곳의 평균 배당(마진 제거) ② 전력 지수(리그별 Elo, 국가대표는 1872년 이후 A매치 기반 Elo) " +
-  "③ 최근 5경기 흐름과 맞대결 ④ 리그별 무승부율을 근거로 계산합니다. 새 요소는 과거 경기를 시간순으로 나눈 교차검증에서 " +
-  "적중률과 확률 정확도가 모두 나빠지지 않을 때만 반영하고, 경기 시작 전에 공개한 예측은 기록으로 보존해 사후에 고치지 않습니다.";
+  "③ 최근 5경기 흐름과 맞대결 ④ 리그별 무승부율을 근거로 계산합니다. 새 요소의 반영 여부는 과거 경기를 시간순으로 나눠 " +
+  "다시 계산한 백테스트로 정하지만, 백테스트는 사후 재계산이라 실제 기록과 같지 않고, 기존 검증 결과도 절차를 재점검 중인 잠정치입니다. " +
+  "실제 기록은 경기 시작 전에 서버에 저장된 예측(저장 시각이 킥오프보다 이른 값)만으로 매기며, " +
+  "저장 기록이 없는 과거 경기는 재구성값으로 따로 표시하고 채점하지 않습니다.";
+
+// AI 리포트 고지. 리포트는 위 확률을 입력으로 언어모델이 자동 생성한 문장이다. 사람의 독립적인 전문가
+// 검토처럼 읽히지 않도록 본문·텍스트·data.json(reportNotice) 모두에 같은 문구를 붙인다.
+export const AI_REPORT_NOTICE =
+  "아래 코멘트는 이 글의 확률 데이터를 입력으로 AI가 자동 생성한 문장입니다. " +
+  "전문가가 독립적으로 검토한 의견이 아니며, 숫자는 확률표가 기준입니다.";
+
+// 끝난 경기 기록의 출처 표기. 채점은 verified만 한다(isScoredRecord).
+export const RECORD_LABEL: Record<RecordProvenance, string> = {
+  verified: "킥오프 전 저장 예측",
+  reconstructed: "재구성값(당시 저장 기록 없음, 채점 제외)",
+  unverified: "킥오프 전 저장 미검증(채점 제외)",
+  no_prediction: "예측 없음(근거 없음, 채점 제외)",
+};
+const RECORD_LABEL_MISSING = "기록 출처 미확인(채점 제외)";
+// 최근 성적 채점 기준. "공개"는 서버 저장만으로 증명되지 않아 "킥오프 전 저장"이라고 쓴다(specs/004 6장).
+export const RECENT_NOTE =
+  "경기 시작 전에 서버에 저장된 예측(저장 시각이 킥오프보다 이른 기록)만 채점했습니다. " +
+  "당시 저장 기록이 없거나 검증되지 않는 경기, 근거 없는 경기, 경기 후 등록된 경기는 뺐고, 좋은 회차만 골라 보여주지 않습니다.";
+
+/**
+ * 이 경기를 실제 기록으로 채점해도 되는가. 결과가 있고, 출처가 검증된 킥오프 전 저장이며,
+ * 근거가 있고 사후 등록이 아니어야 한다. 출처가 없거나(옛 호출자) 그 밖의 출처는 채점하지 않는다.
+ */
+export function isScoredRecord(m: ArticleMatch): boolean {
+  return !!m.result && m.recordProvenance === "verified" && m.basis !== "none" && !m.predictedAfterKickoff;
+}
+
+function recordLabel(m: ArticleMatch): string | null {
+  if (!m.result) return null;
+  return m.recordProvenance ? RECORD_LABEL[m.recordProvenance] : RECORD_LABEL_MISSING;
+}
+
+// 결과 있는 경기에서 픽을 적을 수 있는가(근거 없음이면 픽이 아니라 임시값이다).
+const hasCall = (m: ArticleMatch) => m.basis !== "none" && m.recordProvenance !== "no_prediction";
 const RESULT_LABEL = { H: "홈승", D: "무승부", A: "원정승" } as const;
+
+/** 끝난 경기 한 줄 결과 표기. 채점 대상(verified)일 때만 적중/미적중을 붙인다. */
+function resultText(m: ArticleMatch): string {
+  if (!m.result) return "";
+  const score = m.result.hg != null && m.result.ag != null ? ` ${m.result.hg}:${m.result.ag}` : "";
+  const mark = isScoredRecord(m) ? (m.pick === RESULT_LABEL[m.result.actual] ? " · 적중" : " · 미적중") : "";
+  return ` → 결과 ${RESULT_LABEL[m.result.actual]}${score}${mark}`;
+}
 
 export function buildRoundArticle(input: ArticleInput): RoundArticle {
   const { roundNo, matches, origin } = input;
@@ -218,6 +282,7 @@ export function buildRoundArticle(input: ArticleInput): RoundArticle {
     saleDeadline,
     matches: analyzed,
     report: input.report,
+    reportNotice: input.report ? AI_REPORT_NOTICE : null,
     top: top.map((m) => A(m.seq)),
     hedges: hedges.map((m) => A(m.seq)),
     crowdSplits: crowdSplits.map((m) => A(m.seq)),
@@ -229,7 +294,7 @@ export function buildRoundArticle(input: ArticleInput): RoundArticle {
     tags: [...new Set(tags)],
     pageUrl: `${origin}/round/${roundNo}`,
     draftUrl: `${origin}/round/${roundNo}/draft`,
-    appUrl: `${origin}/?round=${roundNo}`,
+    appUrl: `${origin}/app?round=${roundNo}`,
     dataUrl: `${origin}/round/${roundNo}/data.json`,
     asOf: input.asOf ?? null,
     asOfKst: formatKst(input.asOf ?? null),
@@ -290,7 +355,8 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
   parts.push(`<p><small>${e(`이번 회차 근거 구성: ${a.basisSummary}`)}</small></p>`);
 
   if (a.report) {
-    parts.push(`<h2>AI 분석 코멘트</h2>`);
+    parts.push(`<h2>AI 자동 생성 코멘트</h2>`);
+    parts.push(`<p><small>${e(a.reportNotice ?? AI_REPORT_NOTICE)}</small></p>`);
     for (const para of a.report.split(/\n+/).filter(Boolean)) parts.push(`<p>${e(para)}</p>`);
   }
 
@@ -310,14 +376,15 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
         .map((m) => {
           const basis =
             m.basis === "model" ? `모델(${m.tier})` : m.basis === "market" && m.nBookmakers ? `배당 ${m.nBookmakers}개사` : BASIS_TEXT[m.basis];
-          const res = m.result
-            ? ` → 결과 ${RESULT_LABEL[m.result.actual]}${m.result.hg != null && m.result.ag != null ? ` ${m.result.hg}:${m.result.ag}` : ""}`
-            : "";
-          const call = m.basis === "none" ? "-" : m.analysis && !m.result ? `${m.pick}<br><small>${e(m.analysis.stance)}</small>` : m.pick;
+          // 실제 결과는 출처와 상관없이 보여주되, 채점(적중/미적중)은 검증된 기록에만 붙이고
+          // 재구성·미검증·근거 없음은 그 사실을 바로 아래에 적는다.
+          const res = resultText(m);
+          const label = recordLabel(m);
+          const call = !hasCall(m) ? "-" : m.analysis && !m.result ? `${m.pick}<br><small>${e(m.analysis.stance)}</small>` : m.pick;
           return (
             `<tr><td>${m.seq}</td><td>${e(`${m.home} vs ${m.away}`)}<br><small>${e(m.league)}${m.kickoffAt ? ` · ${e(formatKst(m.kickoffAt) ?? "")}` : ""}</small></td>` +
             `<td>${pct(m.pHome)}</td><td>${pct(m.pDraw)}</td><td>${pct(m.pAway)}</td>` +
-            `<td><b>${call}</b>${e(res)}</td><td>${e(basis)}</td></tr>`
+            `<td><b>${call}</b>${e(res)}${label ? `<br><small>${e(label)}</small>` : ""}</td><td>${e(basis)}</td></tr>`
           );
         })
         .join("") +
@@ -325,6 +392,11 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
   );
   if (a.matches.some((m) => m.basis === "none")) {
     parts.push(`<p><small>근거 없음: 배당이 아직 올라오지 않은 경기로, 표시된 확률은 평균 무승부율 기준 임시값입니다.</small></p>`);
+  }
+  if (a.matches.some((m) => m.result && m.recordProvenance === "reconstructed")) {
+    parts.push(
+      `<p><small>재구성값: 경기 시작 전 저장된 예측이 없는 경기라 현재 모델로 다시 계산한 참고값입니다. 당시 실제로 낸 예측이 아니므로 적중 여부를 매기지 않습니다.</small></p>`,
+    );
   }
   const rest = a.matches.filter((m) => m.analysis && !m.result && !a.keyMatches.includes(m.seq));
   if (rest.length) {
@@ -348,11 +420,11 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
   if (a.recent.length) {
     parts.push(`<h2>지난 회차 실제 성적</h2><ul>`);
     for (const r of a.recent) {
-      parts.push(`<li>${r.roundNo}회차: ${r.hits}/${r.n} 적중 (${((r.hits / r.n) * 100).toFixed(1)}%)</li>`);
+      parts.push(
+        `<li>${r.roundNo}회차: ${r.hits}/${r.n} 적중 (${((r.hits / r.n) * 100).toFixed(1)}%)${r.excluded ? ` · 채점 제외 ${r.excluded}경기` : ""}</li>`,
+      );
     }
-    parts.push(
-      `</ul><p><small>경기 시작 전에 공개한 예측 그대로 채점했고, 경기가 끝난 뒤 등록된 경기는 뺐습니다. 좋은 회차만 골라 보여주지 않습니다.</small></p>`,
-    );
+    parts.push(`</ul><p><small>${e(RECENT_NOTE)}</small></p>`);
   }
   parts.push(`<p>경기별 근거를 직접 조절해 조합을 짜보려면: <a href="${e(appLink)}">${e(a.appUrl)}</a></p>`);
   parts.push(`<p><small>${e(DISCLAIMER)}</small></p>`);
@@ -367,7 +439,7 @@ export function renderArticlePlainText(a: RoundArticle, source: LinkSource = "bl
   L.push(a.asOfKst ? `데이터 기준: ${a.asOfKst} (한국시간)` : "데이터 기준: 배당 수집 전");
   for (const h of a.highlights) L.push(`- ${h}`);
   L.push("", "■ 분석 방법", METHOD_TEXT, `이번 회차 근거 구성: ${a.basisSummary}`);
-  if (a.report) L.push("", "■ AI 분석 코멘트", a.report);
+  if (a.report) L.push("", "■ AI 자동 생성 코멘트", a.reportNotice ?? AI_REPORT_NOTICE, a.report);
   const keys = a.keyMatches.map((seq) => a.matches.find((m) => m.seq === seq)!).filter((m) => m?.analysis);
   if (keys.length) {
     L.push("", "■ 핵심 경기 심층 분석");
@@ -381,14 +453,17 @@ export function renderArticlePlainText(a: RoundArticle, source: LinkSource = "bl
   }
   L.push("", "■ 전체 경기 (홈/무/원정 · 판단 · 근거)");
   for (const m of a.matches) {
+    const label = recordLabel(m);
     L.push(
-      `${m.seq}. ${m.home} vs ${m.away} (${m.league}) ${pct(m.pHome)}/${pct(m.pDraw)}/${pct(m.pAway)} · ${m.basis === "none" ? "-" : m.pick}${m.analysis && !m.result ? ` (${m.analysis.stance})` : ""} · ${BASIS_TEXT[m.basis]}`,
+      `${m.seq}. ${m.home} vs ${m.away} (${m.league}) ${pct(m.pHome)}/${pct(m.pDraw)}/${pct(m.pAway)} · ${!hasCall(m) ? "-" : m.pick}${m.analysis && !m.result ? ` (${m.analysis.stance})` : ""} · ${BASIS_TEXT[m.basis]}` +
+        `${resultText(m)}${label ? ` [${label}]` : ""}`,
     );
   }
   if (a.strategy) L.push("", "■ 조합 전략", a.strategy, ADVANCED);
   if (a.recent.length) {
-    L.push("", "■ 지난 회차 실제 성적 (경기 전 공개 예측 기준)");
-    for (const r of a.recent) L.push(`- ${r.roundNo}회차: ${r.hits}/${r.n} 적중`);
+    L.push("", "■ 지난 회차 실제 성적 (킥오프 전 저장 예측 기준)");
+    for (const r of a.recent) L.push(`- ${r.roundNo}회차: ${r.hits}/${r.n} 적중${r.excluded ? ` (채점 제외 ${r.excluded}경기)` : ""}`);
+    L.push(RECENT_NOTE);
   }
   L.push("", `경기별 근거를 직접 조절해 조합 짜보기: ${withUtm(a.appUrl, source, a.roundNo)}`, "", DISCLAIMER);
   return L.join("\n");

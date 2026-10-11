@@ -7,6 +7,8 @@ import type { Env } from "../types";
 
 // 받는 이벤트 이름을 고정한다. 아무 문자열이나 받으면 표가 쓰레기로 찬다.
 export const USAGE_EVENTS = [
+  "home_view",
+  "performance_view",
   "app_open",
   "round_view",
   "tab_matches",
