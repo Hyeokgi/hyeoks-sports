@@ -18,7 +18,7 @@ export type NavSection = "home" | "matches" | "performance" | "guide" | "tool" |
 export function navSection(path: string): NavSection {
   const p = path.split("?")[0] || "/";
   if (p === "/") return "home";
-  if (p.startsWith("/matches") || p.startsWith("/league/") || p.startsWith("/match/")) return "matches";
+  if (p.startsWith("/matches") || p.startsWith("/league/") || p.startsWith("/match/") || p === "/ratings") return "matches";
   if (p.startsWith("/performance")) return "performance";
   if (p.startsWith("/guide") || p === "/methodology" || p === "/sources") return "guide";
   if (p.startsWith("/app") || p.startsWith("/round/")) return "tool";
@@ -36,7 +36,8 @@ const PRIMARY: { href: string; label: string; section: NavSection; tool?: boolea
 ];
 
 function subnavItems(section: NavSection): { href: string; label: string }[] {
-  if (section === "matches") return [{ href: "/matches", label: "이번 주 전체" }, ...Object.values(LEAGUE_INFO).map((l) => ({ href: `/league/${l.slug}`, label: l.name }))];
+  // 전력 순위(/ratings)는 리그 공통 비교 페이지라 '이번 주 전체' 바로 뒤에 둔다.
+  if (section === "matches") return [{ href: "/matches", label: "이번 주 전체" }, { href: "/ratings", label: "전력 순위" }, ...Object.values(LEAGUE_INFO).map((l) => ({ href: `/league/${l.slug}`, label: l.name }))];
   if (section === "guide") return [
     { href: "/guide/", label: "전체 가이드" },
     { href: "/guide/probability-reading", label: "확률 읽는 법" },

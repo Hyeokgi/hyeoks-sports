@@ -193,11 +193,12 @@ describe("predictForClient - 서버 기본 계산과 같은 확률", () => {
 });
 
 describe("유럽 보정표 재검증 표시", () => {
-  it("재검증 대상은 유럽 marketWeight(0.8)를 쓰는 리그와 정확히 같다", () => {
-    for (const lg of ALL_LEAGUES) {
-      expect(isCalibrationUnderReview(lg)).toBe(marketWeightForLeague(lg) === EUROPEAN_MARKET_WEIGHT);
+  // 2026-10-12 고친 하니스로 재산출한 보정표를 반영해 재검증 중인 리그가 없다.
+  it("재검증 중인 리그가 없으면 어떤 리그도 숨기지 않는다", () => {
+    expect([...CALIBRATION_UNDER_REVIEW_LEAGUES]).toEqual([]);
+    for (const lg of ["EPL", "라리가", "세리에A", "분데스리가", "K리그1", "K리그2", "J1리그", "MLS"]) {
+      expect(isCalibrationUnderReview(lg)).toBe(false);
     }
-    expect([...CALIBRATION_UNDER_REVIEW_LEAGUES].sort()).toEqual(["EPL", "라리가", "분데스리가", "세리에A"].sort());
     expect(isCalibrationUnderReview(undefined)).toBe(false);
   });
-});
+})

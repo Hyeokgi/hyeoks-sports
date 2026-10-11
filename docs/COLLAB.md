@@ -147,3 +147,4 @@
 - **`/match/{slug}/data.json`:** `basis`가 실제 출처(model/market/national, 없으면 null)다. `provenance`, `probabilityAsOf`, `fixtureContext`, `indexable`, `readinessGaps`가 추가됐다.
 - **유럽 4개 리그 보정표:** 검증 스크립트 결함(전체 기간 무승부율 혼입, 폼 단위 불일치)이 확인돼 재검증 전까지 `calib`를 null로 내보내고 화면에는 "과거 보정표 재검증 중"으로 표시한다. 계수는 바꾸지 않았다.
 - **광고:** 광고 스크립트는 모든 페이지에서 뺐다. 승인 후 CMP 확인을 거쳐 사람이 직접 켠다.
+- **리그 순위 자료(2026-10, AdSense 2단계):** `/league/{slug}`에 '시즌 순위표(자체 집계)'와 'Elo 전력 순위' 섹션이 붙는다(`src/lib/leagueTables.ts` 순수 계산, `leagueTablesStore.ts` 조회). 순위표는 `matches` 결과를 승점 3/1/0·고정 정렬(승점→득실차→다득점→영문명)로 다시 센 값이라 공식 순위와 다를 수 있고 화면에 그 문구를 붙인다. 시즌 경계는 `elo.ts`의 `seasonOf`. J1리그는 시즌 구분 불일치로 순위표를 숨긴다(`STANDINGS_SUPPRESSED`). 일정은 7일 치만 수집하므로 시즌 최종 순위 전망은 만들지 않는다. 새 공개 페이지 `/ratings`(리그별 Elo 상위 5 + 순위표·Elo 순위 비교, 이벤트 `ratings_view`). 글·이미지에 이 숫자를 쓸 때는 '자체 집계'와 집계 시각을 함께 적는다.
