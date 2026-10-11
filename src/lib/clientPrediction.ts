@@ -99,7 +99,9 @@ export function toPredictionInputs(league: string, raw: ClientRawComponents): Pr
 // 확인돼, 그 표의 구간별 적중률·등급(확신픽/보통/불확실)을 현재 모델의 실측 근거로 볼 수 없다.
 // 계수·가중치는 그대로 두고(4분할 재검증 전에는 바꾸지 않는다) 표시만 낮춘다.
 // 목록은 유럽 marketWeight(0.8)를 쓰는 리그와 같다 - 테스트가 둘이 갈리지 않는지 확인한다.
-export const CALIBRATION_UNDER_REVIEW_LEAGUES: readonly string[] = ["EPL", "라리가", "세리에A", "분데스리가"];
+// 2026-10-12: 고친 하니스로 유럽 4개 리그 보정표를 재산출해 calibration.ts에 반영했다. 재검증 중인 리그 없음.
+// 다시 문제가 생기면 이 목록에 리그를 넣으면 화면·글에서 구간 적중률 표시가 숨겨진다.
+export const CALIBRATION_UNDER_REVIEW_LEAGUES: readonly string[] = [];
 export const CALIBRATION_REVIEW_LABEL = "과거 보정표 재검증 중";
 
 /** 이 리그의 확신도 보정표(구간별 과거 적중률·등급)를 지금 화면에 근거로 보여주면 안 되는가. */

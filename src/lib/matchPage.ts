@@ -23,7 +23,18 @@ import { displayTeamName, leagueInfo, leagueBySlug, LEAGUE_INFO, type LeagueInfo
 import { DISCLAIMER, escapeHtml as e } from "./roundArticle";
 import { FALLBACK_DRAW_RATE, type PredictionBasis } from "./prediction";
 import type { Env } from "../types";
-import { siteHeader as publicHeader, siteFooter as publicFooter } from "./publicSite";
+import { siteHeader as publicHeader, siteFooter as publicFooter, fullKst } from "./publicSite";
+import { K_FACTOR, SEASON_REGRESSION } from "./elo";
+import { STANDINGS_LABEL, TIEBREAK_NOTE, tablesMeaningful, expectedScore, MIN_ELO_TEAMS, type FormMark } from "./leagueTables";
+import {
+  loadLeagueTables,
+  loadRatingsOverview,
+  tableTeamName,
+  STANDINGS_LEAGUE_NOTES,
+  NATIONAL_ACTIVE_DAYS,
+  type LeagueTablesView,
+} from "./leagueTablesStore";
+import { NATIONAL_MIN_MATCHES } from "./nationalEloStore";
 
 // 대표 주소는 요청 주소와 상관없이 고정한다(옛 workers.dev 주소로 들어와도 canonical·사이트맵은 hyeoks.com).
 export const SITE = "https://hyeoks.com";
@@ -675,6 +686,11 @@ export interface LeagueView {
   info: LeagueInfo;
   upcoming: SiblingView[];
   recent: SiblingView[];
+  /**
+   * 시즌 순위표(자체 집계)·Elo 순위. undefined = 읽지 않음(이전 호출 호환), null = 읽기 실패(섹션 대신 안내 문장).
+   * 이 조회가 실패해도 리그 페이지 자체는 그대로 보여준다.
+   */
+  tables?: LeagueTablesView | null;
 }
 
 export async function loadLeagueView(env: Env, leagueSlug: string, now = Date.now()): Promise<LeagueView | null> {
@@ -693,14 +709,26 @@ export async function loadLeagueView(env: Env, leagueSlug: string, now = Date.no
   const up = upcoming ?? [];
   const rc = recent ?? [];
   const resolved = await resolveMatches(env, [...up, ...rc], now);
+  // 순위표·Elo는 부가 섹션이다. 실패하면 null로 두고(화면에 안내 문장) 경기 목록은 그대로 보여준다.
+  let tables: LeagueTablesView | null = null;
+  try {
+    tables = await loadLeagueTables(env, league, now);
+  } catch (err) {
+    console.error(`loadLeagueView: 순위 자료 생략 - ${(err as Error).message}`);
+  }
   return {
     league, info: leagueInfo(league),
     upcoming: up.map((r) => toSibling(r, resolved.get(r.id))),
     recent: rc.map((r) => toSibling(r, resolved.get(r.id))),
+    tables,
   };
 }
-/** 리그 페이지 색인 여부: 준비된 경기(예정 또는 최근 결과)가 하나라도 있어야 한다. */
-export const leagueIndexable = (d: Pick<LeagueView, "upcoming" | "recent">): boolean => [...d.upcoming, ...d.recent].some((s) => s.ready === true);
+/**
+ * 리그 페이지 색인 여부: 준비된 경기(예정 또는 최근 결과)가 하나라도 있거나, 순위표·Elo 순위에 읽을 만한 자료가
+ * 있어야 한다(leagueTables.tablesMeaningful). 휴식기에도 실제 시즌 기록이 있는 리그 페이지는 빈 페이지가 아니다.
+ */
+export const leagueIndexable = (d: Pick<LeagueView, "upcoming" | "recent" | "tables">): boolean =>
+  [...d.upcoming, ...d.recent].some((s) => s.ready === true) || tablesMeaningful(d.tables);
 
 export interface HubView {
   byLeague: Map<string, SiblingView[]>;
@@ -772,6 +800,14 @@ dl.meta{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-s
 footer.site{max-width:760px;margin:0 auto;padding:18px 16px 48px;border-top:1px solid var(--line);color:var(--muted);font-size:.8rem;line-height:1.6}
 footer.site nav{display:flex;flex-wrap:wrap;gap:2px 14px;margin-bottom:10px}footer.site nav a{color:var(--muted);display:inline-flex;align-items:center;min-height:32px}
 footer.site p{margin:.5em 0}footer.site a{color:var(--muted);text-decoration:underline}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:10px 0;border:1px solid var(--line);border-radius:12px;max-width:100%}
+table.tbl{border-collapse:collapse;width:100%;min-width:560px;font-size:.84rem}table.tbl.sm{min-width:420px}
+table.tbl caption{text-align:left;font-weight:700;padding:10px 12px;color:var(--ink);font-size:.86rem}
+table.tbl th,table.tbl td{padding:8px 10px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+table.tbl thead th{color:var(--muted);font-weight:700;background:rgba(255,255,255,.03)}
+table.tbl td:first-child,table.tbl thead th:first-child{text-align:center}
+table.tbl th[scope=row],table.tbl thead th:nth-child(2){text-align:left;white-space:normal;word-break:keep-all;font-weight:700}
+.fm{display:inline-block;min-width:1.5em;text-align:center;font-weight:800;font-size:.75rem}.fm-w{color:var(--hit)}.fm-d{color:var(--draw)}.fm-l{color:var(--miss)}
 @media (max-width:520px){nav.primary{display:grid;grid-template-columns:1fr 1fr;width:100%}}
 @media (max-width:420px){h1{font-size:1.3rem}.logo{width:54px;height:54px}.logo img{width:44px;height:44px}.prob strong{font-size:1.35rem}.rows a.row{grid-template-columns:70px 1fr 78px}}
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
@@ -956,7 +992,7 @@ ${barHtml(v.pHome, v.pDraw, v.pAway)}
 
 ${result}
 
-${hasP ? `<section class="card" aria-labelledby="h-sum"><h2 id="h-sum">한 줄 요약</h2><p class="summary">${e(neutralSummary(v))}</p>${v.basis === "model" ? `<p class="note">같은 확률 차 구간의 과거 적중률(보정표)은 재검증 중이라 표시하지 않습니다. 킥오프 전 저장 기록은 <a href="/performance">기록</a>에서 봅니다.</p>` : ""}</section>` : ""}
+${hasP ? `<section class="card" aria-labelledby="h-sum"><h2 id="h-sum">한 줄 요약</h2><p class="summary">${e(neutralSummary(v))}</p>${v.basis === "model" ? `<p class="note">경기 페이지에는 과거 백테스트 구간 적중률을 싣지 않습니다(같은 숫자를 실제 기록처럼 읽지 않게). 킥오프 전 저장 기록은 <a href="/performance">기록</a>에서 봅니다.</p>` : ""}</section>` : ""}
 
 <section class="card" aria-labelledby="h-why"><h2 id="h-why">이 확률의 근거</h2>${reasonsIntro && v.reasons.length ? `<p class="note" style="margin:0 0 6px">${e(reasonsIntro)}</p>` : ""}${
     v.reasons.length
@@ -996,11 +1032,102 @@ ${v.siblings.length ? `<section class="card" aria-labelledby="h-sib"><h2 id="h-s
  */
 export const MATCH_PAGES_INDEXED = false;
 
+// ---------- 리그 순위표·Elo 순위 섹션 ----------
+// 표는 caption·th scope를 달고, 좁은 화면(360px)에서는 이름 붙은 가로 스크롤 영역(키보드 초점 가능)으로 보여준다(004 9장).
+const FORM_KR: Record<FormMark, string> = { W: "승", D: "무", L: "패" };
+const signedInt = (x: number): string => {
+  const r = Math.round(x);
+  return r > 0 ? `+${r}` : String(r);
+};
+const scoreText = (x: number) => x.toFixed(2);
+
+function formHtml(form: readonly FormMark[]): string {
+  if (!form.length) return "-";
+  return form.map((f) => `<span class="fm fm-${f.toLowerCase()}">${FORM_KR[f]}</span>`).join("");
+}
+
+function standingsSection(t: LeagueTablesView, leagueName: string): string {
+  const head = `<section class="card" aria-labelledby="standings-h"><h2 id="standings-h">시즌 순위표(자체 집계)</h2>`;
+  if (t.standingsNote) return `${head}<p class="note" style="margin:0">${e(t.standingsNote)}</p></section>`;
+  const s = t.standings;
+  if (!s) return `${head}<p class="note" style="margin:0">이 리그의 저장된 경기 결과가 아직 없어 순위표를 만들지 않았습니다.</p></section>`;
+  const leagueNote = STANDINGS_LEAGUE_NOTES[t.league];
+  const rows = s.rows
+    .map((r) => `<tr><td>${r.rank}</td><th scope="row">${e(tableTeamName(t.league, r.team))}</th><td>${r.played}</td><td>${r.won}</td><td>${r.drawn}</td><td>${r.lost}</td><td>${r.gf}</td><td>${r.ga}</td><td>${signedInt(r.gd)}</td><td><b>${r.points}</b></td><td>${formHtml(r.form)}</td></tr>`)
+    .join("");
+  return `${head}
+<p class="note" style="margin-top:0"><strong>${e(STANDINGS_LABEL)}</strong></p>
+<p class="note">${e(s.seasonLabel)} 시즌 · 저장된 결과 ${s.matches}경기 반영(${e(s.firstDate)} ~ ${e(s.lastDate)}) · 집계 시각 ${e(fullKst(t.generatedAt))}</p>
+<div class="tbl-wrap" role="region" aria-labelledby="standings-cap" tabindex="0"><table class="tbl"><caption id="standings-cap">${e(leagueName)} ${e(s.seasonLabel)} 시즌 순위(HYEOKS 자체 집계, 승리 3점·무승부 1점·패배 0점)</caption>
+<thead><tr><th scope="col">순위</th><th scope="col">팀</th><th scope="col">경기</th><th scope="col">승</th><th scope="col">무</th><th scope="col">패</th><th scope="col">득점</th><th scope="col">실점</th><th scope="col">득실차</th><th scope="col">승점</th><th scope="col">최근 5경기</th></tr></thead>
+<tbody>${rows}</tbody></table></div>
+<p class="note">${e(TIEBREAK_NOTE)} 최근 5경기는 이번 시즌 기록만 쓰며 왼쪽이 오래된 경기, 오른쪽이 가장 최근 경기입니다.${leagueNote ? ` ${e(leagueNote)}` : ""}</p>
+<p class="note">남은 경기 일정은 앞으로 7일 치만 수집하므로 시즌 최종 순위 전망은 계산하지 않습니다. 결과가 아직 수집되지 않은 경기는 빠져 있을 수 있습니다.</p>
+</section>`;
+}
+
+function eloSection(t: LeagueTablesView, leagueName: string): string {
+  const national = t.kind === "national";
+  const head = `<section class="card" aria-labelledby="elo-h"><h2 id="elo-h">Elo 전력 순위</h2>`;
+  if (t.elo.length === 0) return `${head}<p class="note" style="margin:0">표시할 Elo 자료가 아직 없습니다.</p></section>`;
+  const withChange = t.changeDays != null;
+  const cols = ["순위", national ? "국가" : "팀", "Elo", ...(withChange ? [`최근 ${t.changeDays}일 변화`] : []), ...(national ? ["반영 A매치"] : []), "마지막 경기일"];
+  const rows = t.elo
+    .map((r) => {
+      const cells = [
+        `<td>${r.rank}</td>`,
+        `<th scope="row">${e(tableTeamName(t.league, r.team))}</th>`,
+        `<td><b>${Math.round(r.elo)}</b></td>`,
+        ...(withChange ? [`<td>${r.change == null ? "없음" : signedInt(r.change)}</td>`] : []),
+        ...(national ? [`<td>${r.matches ?? "-"}</td>`] : []),
+        `<td>${e((r.lastMatchDate ?? "-").slice(0, 10))}</td>`,
+      ];
+      return `<tr>${cells.join("")}</tr>`;
+    })
+    .join("");
+  const caption = national
+    ? `국가대표 Elo 상위 ${t.elo.length}개국(HYEOKS 계산)`
+    : `${leagueName} 팀별 Elo(HYEOKS 계산, 가장 최근 시즌 참가 팀)`;
+  const method = national
+    ? `국가대표 Elo는 공개 자료(martj42/international_results)의 A매치 결과로 계산합니다. 대회 중요도에 따라 갱신 폭을 달리하고 득실차가 클수록 더 크게 반영하며, 중립 경기가 아니면 홈팀에 +${t.homeAdv}점을 더해 기대치를 잡습니다. A매치 ${NATIONAL_MIN_MATCHES}경기 이상인 팀 ${t.eloSample}개 가운데 최근 ${Math.round(NATIONAL_ACTIVE_DAYS / 365)}년 안에 경기한 팀만 순위에 넣었습니다. 레이팅 갱신 ${fullKst(t.eloAsOf)}. FIFA 랭킹과는 계산 방식이 달라 순위가 다를 수 있습니다.`
+    : `Elo는 경기 결과만으로 갱신하는 상대 전력 지수입니다. 이 리그의 저장된 결과 ${t.eloSample}경기(${e(t.eloSampleFrom ?? "-")} ~ ${e(t.eloAsOf ?? "-")})로 계산하며, 한 경기에 최대 ${K_FACTOR}점이 오가고 홈팀에는 +${t.homeAdv}점의 홈 이점을 더해 기대치를 잡습니다. 새 시즌 첫 경기 때 1500점 쪽으로 ${Math.round(SEASON_REGRESSION * 100)}% 되돌리고, 이 리그 기록이 없는 팀(새로 올라온 팀 등)은 1500점에서 시작합니다. 가장 최근 시즌 경기에 나온 팀만 표시합니다.${withChange ? ` 최근 ${t.changeDays}일 변화는 같은 기록으로 ${t.changeDays}일 전까지의 Elo를 다시 계산해 지금 값에서 뺀 것이며(시즌 전환 때의 되돌림 포함), 그 전 기록이 없는 팀은 '없음'입니다.` : ""}`;
+  // 읽는 법: 실제 1위와 마지막 순위 팀의 점수 차로 기대 점수를 계산해 보여준다(설명용 가상 숫자가 아니다).
+  let example = "";
+  if (t.elo.length >= 2) {
+    const a = t.elo[0];
+    const b = t.elo[t.elo.length - 1];
+    const diff = a.elo - b.elo;
+    const an = tableTeamName(t.league, a.team);
+    const bn = tableTeamName(t.league, b.team);
+    example = `<p class="note">읽는 법: 표의 1위 ${e(an)}(Elo ${Math.round(a.elo)})·${b.rank}위 ${e(bn)}(Elo ${Math.round(b.elo)})의 점수 차는 ${Math.round(diff)}점입니다. 중립 경기장이라면 1위 팀의 기대 점수는 ${scoreText(expectedScore(diff))}, 1위 팀이 홈이면 홈 이점 ${t.homeAdv}점이 더해져 ${scoreText(expectedScore(diff + t.homeAdv))}입니다. 기대 점수는 승리를 1점, 무승부를 0.5점으로 셀 때의 평균 점수이며 승리 확률과는 다릅니다. <a href="/guide/elo-rating">Elo 레이팅 가이드</a> · <a href="/ratings">리그별 전력 순위</a></p>`;
+  }
+  return `${head}
+<p class="note" style="margin-top:0">집계 시각 ${e(fullKst(t.generatedAt))}${national ? "" : ` · 마지막 반영 경기 ${e(t.eloAsOf ?? "-")}`}</p>
+<div class="tbl-wrap" role="region" aria-labelledby="elo-cap" tabindex="0"><table class="tbl sm"><caption id="elo-cap">${e(caption)}</caption>
+<thead><tr>${cols.map((c) => `<th scope="col">${e(c)}</th>`).join("")}</tr></thead>
+<tbody>${rows}</tbody></table></div>
+<p class="note">${method}</p>
+${example}
+</section>`;
+}
+
+/** 리그 페이지의 순위 섹션. undefined면 아무것도, null(조회 실패)이면 안내 문장만 내보낸다. */
+export function leagueTablesHtml(t: LeagueTablesView | null | undefined, leagueName: string): string {
+  if (t === undefined) return "";
+  if (t === null) {
+    return `<section class="card"><h2>순위 자료</h2><p class="note" style="margin:0">시즌 순위표와 Elo 전력 순위를 지금 불러오지 못했습니다. 경기 일정과 결과는 이 페이지에서 그대로 볼 수 있습니다. <a href="/ratings">리그별 전력 순위</a></p></section>`;
+  }
+  return `${t.kind === "club" ? standingsSection(t, leagueName) : ""}${eloSection(t, leagueName)}`;
+}
+
 export function renderLeaguePage(d: LeagueView): string {
   const n = d.info.name;
   const title = `${n} 승부예측 · 이번 주 경기 확률 분석 | HYEOKS`;
   const url = `${SITE}/league/${d.info.slug}`;
-  const desc = `${n} 이번 주 경기별 홈승·무승부·원정승 확률과 출처·계산 시각, 최근 경기 결과를 한곳에 모았습니다.`;
+  const hasTables = d.tables != null;
+  const desc = hasTables
+    ? `${n} 이번 주 경기별 홈승·무승부·원정승 확률과 출처·계산 시각, 최근 경기 결과, 자체 집계 순위표와 Elo 전력 순위를 한곳에 모았습니다.`
+    : `${n} 이번 주 경기별 홈승·무승부·원정승 확률과 출처·계산 시각, 최근 경기 결과를 한곳에 모았습니다.`;
   const tags = [...new Set([`${n} 승부예측`, `${n} 경기 분석`, `${n} 일정`, `${n} 경기 결과`, ...d.info.aliases.map((a) => `${a} 승부예측`)])];
   const byDay = new Map<string, SiblingView[]>();
   for (const s of d.upcoming) {
@@ -1015,7 +1142,8 @@ export function renderLeaguePage(d: LeagueView): string {
 <p class="sub">${e(d.info.country)} · 이번 주 경기 확률과 최근 경기 결과</p>
 <p class="note">범위: 킥오프 3시간 전 이후 예정 경기(최대 60경기)와 최근 3주 종료 경기(최대 30경기). 수집되지 않았거나 결과가 아직 확인되지 않은 경기는 빠질 수 있습니다. 확률이 없는 경기는 '확률 없음'으로 표시합니다.</p>
 ${byDay.size ? [...byDay.entries()].map(([day, list]) => `<section class="card"><h2>${e(day)}</h2><div class="rows">${list.map(rowHtml).join("")}</div></section>`).join("") : `<section class="card"><h2>예정 경기</h2><p class="note" style="margin:0">이 기간에 수집된 예정 경기가 없습니다.</p></section>`}
-${d.recent.length ? `<section class="card"><h2>최근 경기 결과</h2><p class="note" style="margin:0 0 6px">스코어와 함께, 킥오프 전에 저장된 것이 확인된 확률만 막대로 표시합니다. 적중 여부의 집계는 검증된 저장 기록 기준으로 <a href="/performance">기록</a> 페이지에서 따로 공개합니다.</p><div class="rows">${d.recent.map(rowHtml).join("")}</div></section>` : ""}`;
+${d.recent.length ? `<section class="card"><h2>최근 경기 결과</h2><p class="note" style="margin:0 0 6px">스코어와 함께, 킥오프 전에 저장된 것이 확인된 확률만 막대로 표시합니다. 적중 여부의 집계는 검증된 저장 기록 기준으로 <a href="/performance">기록</a> 페이지에서 따로 공개합니다.</p><div class="rows">${d.recent.map(rowHtml).join("")}</div></section>` : ""}
+${leagueTablesHtml(d.tables, n)}`;
   return pageShell({ title, description: desc, canonical: url, indexable: leagueIndexable(d), keywords: tags, event: "league_view", active: "/matches", body });
 }
 
@@ -1152,7 +1280,8 @@ export async function listMatchCards(env: Env, now = Date.now()): Promise<MatchC
 /**
  * 사이트맵용 항목. 경기 페이지와 같은 선택·판정 함수로 '준비된' 페이지만 넣는다(noindex 페이지 제외).
  * - 경기: 지난 60일 ~ 예정, matchContentReadiness 통과
- * - 리그: 리그 페이지 범위(킥오프 3시간 전 이후 예정 / 최근 21일 종료) 안에 준비된 경기가 있을 때
+ * - 리그: 리그 페이지 범위(킥오프 3시간 전 이후 예정 / 최근 21일 종료) 안에 준비된 경기가 있거나,
+ *   순위표·Elo 순위 자료가 충분할 때(tablesMeaningful, loadRatingsOverview로 판정)
  * - 허브(/matches): 허브 범위(킥오프 3시간 전 이후 ~ 8일 예정) 안에 준비된 경기가 있을 때
  * 주소는 요청 origin이 아니라 대표 주소(SITE)로 고정한다. 두 번째 인자는 호출 호환용으로만 남겼다.
  */
@@ -1179,6 +1308,14 @@ export async function sitemapEntries(env: Env, _origin?: string, now = Date.now(
     const last = latestIso(r.updated_at, x.provenance.capturedAt) ?? r.updated_at;
     const lastDay = Number.isFinite(ts(last)) ? new Date(ts(last)).toISOString().slice(0, 10) : null;
     matches.push(`<url><loc>${SITE}/match/${r.slug}</loc>${lastDay ? `<lastmod>${lastDay}</lastmod>` : ""}</url>`);
+  }
+  // 리그 페이지는 순위표·Elo 순위가 있어도 색인한다(leagueIndexable과 같은 기준). 조회가 실패하면 경기 기준만 쓴다.
+  try {
+    const ov = await loadRatingsOverview(env, now);
+    for (const l of ov.leagues) if (l.meaningful) readyLeagues.add(l.league);
+    if ((ov.national?.length ?? 0) >= MIN_ELO_TEAMS) readyLeagues.add(NATIONAL_LEAGUE);
+  } catch (err) {
+    console.error(`sitemapEntries: 순위 자료 기준 생략 - ${(err as Error).message}`);
   }
   const leagues = Object.entries(LEAGUE_INFO).filter(([k]) => readyLeagues.has(k)).map(([, v]) => `<url><loc>${SITE}/league/${v.slug}</loc></url>`);
   return [...(hubReady ? [`<url><loc>${SITE}/matches</loc></url>`] : []), ...leagues, ...matches];

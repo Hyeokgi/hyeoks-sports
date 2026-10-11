@@ -24,6 +24,8 @@ export const USAGE_EVENTS = [
   "match_view",
   "league_view",
   "hub_view",
+  // 리그별 Elo 전력 순위 페이지(/ratings)
+  "ratings_view",
   // 앱 영역 전환(public/matchesView.ts)
   "mode_match",
   "mode_round",
