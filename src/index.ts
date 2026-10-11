@@ -28,7 +28,25 @@ import { syncFixtures } from "./lib/fixtures";
 import { json } from "./lib/http";
 import type { Env } from "./types";
 import { handleDataHome, handlePerformancePage, handlePerformanceData, legacyAppLocation } from "./routes/sitePage";
-import { errorPage } from "./lib/publicSite";
+import { errorPage, siteHeader, siteFooter } from "./lib/publicSite";
+
+/**
+ * 정적 HTML(가이드·안내 페이지·앱)의 머리말·꼬리말을 공통 메뉴로 바꾼다.
+ * 파일마다 메뉴를 복사해 두면 메뉴를 고칠 때 14개 파일을 모두 고쳐야 하고, 하나만 빠져도 화면마다 메뉴가 달라진다.
+ */
+function withSiteChrome(res: Response, path: string): Response {
+  if (res.status !== 200 || !(res.headers.get("content-type") ?? "").includes("text/html")) return res;
+  let mainSeen = false;
+  return new HTMLRewriter()
+    .on("head", { element(el) { el.append('<link rel="stylesheet" href="/nav.css">', { html: true }); } })
+    .on("a.skip-link", { element(el) { el.remove(); } })
+    .on("header.site-header", { element(el) { el.replace(siteHeader(path), { html: true }); } })
+    .on("nav.app-public-nav", { element(el) { el.replace(siteHeader(path), { html: true }); } })
+    .on("footer.site-footer", { element(el) { el.replace(siteFooter(), { html: true }); } })
+    .on("footer.app-public-footer", { element(el) { el.replace(`<div class="app-footer-wrap">${siteFooter("앱에서 바꾼 설정은 이 화면의 시뮬레이션에만 적용됩니다. 경기 전 저장 기록(예측 기록)과는 구분해 주세요.")}</div>`, { html: true }); } })
+    .on("main", { element(el) { if (mainSeen) return; mainSeen = true; if (!el.getAttribute("id")) el.setAttribute("id", "content"); } })
+    .transform(res);
+}
 
 const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report|exclusive-pick))?$/;
 // 회차 분석 페이지(공개)와 블로그 초안. 정적 자산에 없는 경로라 워커로 넘어온다.
@@ -192,7 +210,7 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
 
       const asset = await env.ASSETS.fetch(request);
       if (asset.status === 404 && request.method === "GET" && !/\.[a-z0-9]+$/i.test(pathname)) return errorPage(404);
-      return asset;
+      return withSiteChrome(asset, pathname);
     } catch (err) {
       console.error(err);
       // 공개 화면에 데이터베이스 예외나 내부 상세를 노출하지 않는다.

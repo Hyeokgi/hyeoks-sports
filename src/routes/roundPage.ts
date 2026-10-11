@@ -250,21 +250,31 @@ export const GUIDE_PATHS = [
 // 운영·신뢰 정보 페이지. 도구(/app)는 검색 대상이 아니라 제외한다.
 export const SITE_PATHS = ["/", "/matches", "/performance", "/methodology", "/sources", "/editorial", "/about", "/contact", "/privacy"];
 
+/**
+ * 사이트맵에는 사람이 읽을 가치가 큰 페이지만 넣는다(2026-10-12).
+ * - 경기 상세(/match/*)와 회차 페이지(/round/*)는 noindex라 넣지 않는다. 페이지는 그대로 열린다.
+ * - 리그 페이지는 내용 준비 여부(sitemapEntries의 판정)를 따른다.
+ * - 같은 주소가 두 번 나가지 않게 중복을 없앤다(예전에 /matches가 두 번 들어갔다).
+ */
 export async function handleSitemap(env: Env, request: Request): Promise<Response> {
   void request;
   const origin = PUBLIC_ORIGIN;
-  // 경기 예측 성분이 있는 확정 회차만 내보낸다(빈 회차·등록 실패 회차를 색인에 올리지 않기 위해).
-  const { results } = await env.DB.prepare(
-    `SELECT r.round_no, COALESCE((SELECT MAX(mo.updated_at) FROM market_odds mo JOIN round_matches rm ON rm.id = mo.round_match_id WHERE rm.round_id = r.id), r.created_at) AS lastmod FROM rounds r WHERE r.round_no IS NOT NULL AND r.round_no_confirmed = 1 AND EXISTS (SELECT 1 FROM round_matches rm JOIN round_predictions p ON p.round_match_id = rm.id WHERE rm.round_id = r.id) ORDER BY r.id DESC LIMIT 200`
-  ).all<{ round_no: number; lastmod: string }>();
-  const urls = [...SITE_PATHS, ...GUIDE_PATHS].map((p) => `<url><loc>${origin}${p}</loc></url>`).concat(
-    (results ?? []).map((r) => `<url><loc>${origin}/round/${r.round_no}</loc><lastmod>${r.lastmod.slice(0, 10)}</lastmod></url>`),
-  );
-  // 경기별 분석 페이지(리그·경기). 표가 없거나 조회가 실패해도 회차 사이트맵은 내보낸다.
+  const seen = new Set<string>();
+  const urls: string[] = [];
+  const add = (entry: string) => {
+    const loc = entry.match(/<loc>([^<]+)<\/loc>/)?.[1];
+    if (!loc || seen.has(loc)) return;
+    const p = new URL(loc).pathname;
+    if (p.startsWith("/match/") || p.startsWith("/round/")) return;
+    seen.add(loc);
+    urls.push(entry);
+  };
+  for (const p of [...SITE_PATHS, ...GUIDE_PATHS]) add(`<url><loc>${origin}${p}</loc></url>`);
+  // 리그 페이지. 표가 없거나 조회가 실패해도 고정 페이지 사이트맵은 내보낸다.
   try {
-    urls.push(...(await sitemapEntries(env, origin)));
+    for (const entry of await sitemapEntries(env, origin)) add(entry);
   } catch (e) {
-    console.error(`sitemap: 경기 페이지 항목 생략 - ${(e as Error).message}`);
+    console.error(`sitemap: 리그 페이지 항목 생략 - ${(e as Error).message}`);
   }
   return new Response(
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.join("")}</urlset>`,

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   renderMatchPage, renderLeaguePage, renderHubPage, renderNotFoundPage, neutralSummary, matchTags, matchTitle, kstLabel, matchData,
-  matchIndexable, leagueIndexable, hubIndexable, SITE_LINKS, type MatchView, type SiblingView,
+  matchIndexable, leagueIndexable, hubIndexable, SITE_LINKS, MATCH_PAGES_INDEXED, type MatchView, type SiblingView,
 } from "../src/lib/matchPage";
 import { displayTeamName, leagueBySlug, leagueInfo, missingDisplayNames } from "../src/lib/teamNames";
 import { DISCLAIMER } from "../src/lib/roundArticle";
@@ -58,7 +58,9 @@ describe("경기 페이지", () => {
     expect(matchTitle(v)).toBe("콜럼버스 크루 vs 인터 마이애미 승부예측 · 9월 28일 MLS 확률 분석 | HYEOKS");
     const h = renderMatchPage(v);
     expect(h).toContain('<link rel="canonical" href="https://hyeoks.com/match/2026-10-04-columbus-crew-inter-miami-cf">');
-    expect(h).toContain("#콜럼버스 크루 인터 마이애미 승부예측");
+    // 화면의 해시태그 나열은 뺐고(키워드 나열 방지), 검색 태그는 meta keywords로만 남는다.
+    expect(h).not.toContain("#콜럼버스 크루 인터 마이애미 승부예측");
+    expect(h).toMatch(/<meta name="keywords" content="[^"]*콜럼버스 크루 인터 마이애미 승부예측/);
     expect(h).toContain('"@type":"SportsEvent"');
     expect(matchTags(v).length).toBeGreaterThanOrEqual(6);
   });
@@ -143,8 +145,10 @@ describe("색인 판정(noindex)", () => {
   it("근거 있는 예정 경기와 결과+사전 확률이 있는 끝난 경기는 색인한다", () => {
     expect(matchIndexable(view())).toBe(true);
     expect(matchIndexable(finished())).toBe(true);
+    // 내용이 준비됐어도 경기 상세는 색인하지 않는다(MATCH_PAGES_INDEXED=false, 2026-10-12 결정).
     const h = renderMatchPage(finished());
-    expect(h).toContain('<meta name="robots" content="index,follow">');
+    expect(MATCH_PAGES_INDEXED).toBe(false);
+    expect(h).toContain('<meta name="robots" content="noindex,follow">');
   });
   it("확률 없음·취소·근거 없는 예정 경기는 noindex", () => {
     const none = view({ basis: null, provenance: { kind: "unavailable", source: null, capturedAt: null }, reasons: [] });
