@@ -6,6 +6,10 @@ import {
   renderRoundPage,
   renderDraftPage,
   DISCLAIMER,
+  AI_REPORT_NOTICE,
+  METHOD_TEXT,
+  RECENT_NOTE,
+  isScoredRecord,
   type ArticleMatch,
 } from "../src/lib/roundArticle";
 
@@ -70,7 +74,7 @@ describe("buildRoundArticle", () => {
   it("링크는 공개 페이지·초안·앱(?round=)", () => {
     expect(a.pageUrl).toBe("https://example.dev/round/56");
     expect(a.draftUrl).toBe("https://example.dev/round/56/draft");
-    expect(a.appUrl).toBe("https://example.dev/?round=56");
+    expect(a.appUrl).toBe("https://example.dev/app?round=56");
   });
 });
 
@@ -94,9 +98,80 @@ describe("렌더링", () => {
   it("결과가 나온 경기는 스코어를 표시한다", () => {
     expect(renderArticleBodyHtml(a)).toContain("결과 무승부 1:1");
   });
+  it("출처 없는 끝난 경기(옛 호출자)는 결과만 보여주고 채점하지 않는다", () => {
+    const html = renderArticleBodyHtml(a);
+    expect(html).toContain("기록 출처 미확인(채점 제외)");
+    expect(html).not.toContain("· 적중");
+    expect(html).not.toContain("· 미적중");
+  });
+  it("AI 리포트는 자동 생성·전문가 독립 검토 아님을 밝힌다", () => {
+    expect(a.reportNotice).toBe(AI_REPORT_NOTICE);
+    expect(renderArticleBodyHtml(a)).toContain("자동 생성");
+    expect(renderArticlePlainText(a)).toContain(AI_REPORT_NOTICE);
+    expect(buildRoundArticle({ ...base, report: null, matches: [m(1)] }).reportNotice).toBeNull();
+  });
+  it("분석 방법은 백테스트를 실제 기록처럼 쓰지 않는다", () => {
+    expect(METHOD_TEXT).not.toContain("교차검증에서");
+    expect(METHOD_TEXT).toContain("잠정치");
+    expect(METHOD_TEXT).toContain("재구성값");
+  });
   it("공개 페이지는 canonical·설명 메타가, 초안은 noindex가 있다", () => {
     expect(renderRoundPage(a)).toContain('rel="canonical" href="https://example.dev/round/56"');
     expect(renderRoundPage(a)).toContain('name="description"');
     expect(renderDraftPage(a)).toContain('content="noindex,nofollow"');
+  });
+});
+
+describe("기록 출처(recordProvenance)", () => {
+  const done = (seq: number, over: Partial<ArticleMatch>) =>
+    m(seq, { result: { actual: "H", hg: 2, ag: 0 }, ...over });
+  const matches = [
+    done(1, { recordProvenance: "verified", capturedAt: "2026-09-27T09:00:00Z" }), // 홈승 픽 → 적중
+    done(2, { recordProvenance: "verified", pick: "원정승", pHome: 0.2, pAway: 0.5 }), // 미적중
+    done(3, { recordProvenance: "reconstructed" }),
+    done(4, { recordProvenance: "unverified" }),
+    done(5, { recordProvenance: "no_prediction", basis: "none" }),
+    m(6), // 진행 전 경기
+  ];
+  const a = buildRoundArticle({ ...base, matches });
+  const html = renderArticleBodyHtml(a);
+  const text = renderArticlePlainText(a);
+
+  it("검증된 기록만 채점 대상이다", () => {
+    expect(matches.filter(isScoredRecord).map((x) => x.seq)).toEqual([1, 2]);
+    // 검증됐어도 사후 등록·근거 없음·결과 없음은 채점하지 않는다
+    expect(isScoredRecord(done(7, { recordProvenance: "verified", predictedAfterKickoff: true }))).toBe(false);
+    expect(isScoredRecord(done(8, { recordProvenance: "verified", basis: "none" }))).toBe(false);
+    expect(isScoredRecord(m(9, { recordProvenance: "verified" }))).toBe(false);
+  });
+  it("실제 결과는 모두 보여주되 적중 표시는 검증된 기록에만 붙는다", () => {
+    expect((html.match(/결과 홈승 2:0/g) ?? []).length).toBe(5);
+    expect((html.match(/· 적중/g) ?? []).length).toBe(1);
+    expect((html.match(/· 미적중/g) ?? []).length).toBe(1);
+    expect(text).toContain("결과 홈승 2:0 · 적중");
+  });
+  it("재구성·미검증·예측 없음을 분명히 표시한다", () => {
+    expect(html).toContain("재구성값(당시 저장 기록 없음, 채점 제외)");
+    expect(html).toContain("킥오프 전 저장 미검증(채점 제외)");
+    expect(html).toContain("예측 없음(근거 없음, 채점 제외)");
+    expect(html).toContain("현재 모델로 다시 계산한 참고값");
+    expect(text).toContain("[재구성값(당시 저장 기록 없음, 채점 제외)]");
+  });
+  it("출처·저장 시각은 선택 필드로 그대로 나간다(schema 1 호환)", () => {
+    expect(a.matches[0].recordProvenance).toBe("verified");
+    expect(a.matches[0].capturedAt).toBe("2026-09-27T09:00:00Z");
+    expect(a.matches[5].recordProvenance).toBeUndefined();
+    // 기존 필드는 그대로
+    expect(a.matches[0].pick).toBe("홈승");
+    expect(a.matches[0].result).toEqual({ actual: "H", hg: 2, ag: 0 });
+  });
+  it("최근 성적은 킥오프 전 저장 기준 안내와 제외 수를 보여준다", () => {
+    const b = buildRoundArticle({ ...base, matches: [m(1)], recent: [{ roundNo: 55, hits: 5, n: 9, excluded: 5 }] });
+    const h = renderArticleBodyHtml(b);
+    expect(h).toContain("55회차: 5/9 적중");
+    expect(h).toContain("채점 제외 5경기");
+    expect(h).toContain("저장 시각이 킥오프보다 이른 기록");
+    expect(h).not.toContain("공개한 예측 그대로");
+    expect(renderArticlePlainText(b)).toContain(RECENT_NOTE);
   });
 });
