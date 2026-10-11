@@ -115,7 +115,8 @@ describe("제외 규칙 - 행 하나씩", () => {
     expect(reasonOf(row({ kickoff_at: new Date(NOW).toISOString() })).reason).toBe("not_started");
     expect(reasonOf(row({ kickoff_at: new Date(NOW + 1).toISOString() })).reason).toBe("not_started");
     expect(
-      reasonOf(row({ kickoff_at: new Date(NOW - 1).toISOString(), captured_at: new Date(NOW - 3600e3).toISOString() })).reason,
+      // 정산 시각은 킥오프 이후여야 한다(기본값 10월 5일을 그대로 두면 invalid_result로 빠진다).
+      reasonOf(row({ kickoff_at: new Date(NOW - 1).toISOString(), captured_at: new Date(NOW - 3600e3).toISOString(), settled_at: new Date(NOW).toISOString() })).reason,
     ).toBeNull();
   });
 
