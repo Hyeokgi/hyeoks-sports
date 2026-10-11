@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   renderMatchPage, renderLeaguePage, renderHubPage, renderNotFoundPage, neutralSummary, matchTags, matchTitle, kstLabel, matchData,
-  matchIndexable, leagueIndexable, hubIndexable, SITE_LINKS, type MatchView, type SiblingView,
+  matchIndexable, leagueIndexable, hubIndexable, SITE_LINKS, MATCH_PAGES_INDEXED, type MatchView, type SiblingView,
 } from "../src/lib/matchPage";
 import { displayTeamName, leagueBySlug, leagueInfo, missingDisplayNames } from "../src/lib/teamNames";
 import { DISCLAIMER } from "../src/lib/roundArticle";
@@ -143,8 +143,10 @@ describe("색인 판정(noindex)", () => {
   it("근거 있는 예정 경기와 결과+사전 확률이 있는 끝난 경기는 색인한다", () => {
     expect(matchIndexable(view())).toBe(true);
     expect(matchIndexable(finished())).toBe(true);
+    // 내용이 준비됐어도 경기 상세는 색인하지 않는다(MATCH_PAGES_INDEXED=false, 2026-10-12 결정).
     const h = renderMatchPage(finished());
-    expect(h).toContain('<meta name="robots" content="index,follow">');
+    expect(MATCH_PAGES_INDEXED).toBe(false);
+    expect(h).toContain('<meta name="robots" content="noindex,follow">');
   });
   it("확률 없음·취소·근거 없는 예정 경기는 noindex", () => {
     const none = view({ basis: null, provenance: { kind: "unavailable", source: null, capturedAt: null }, reasons: [] });
