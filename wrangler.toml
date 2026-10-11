@@ -5,6 +5,8 @@ compatibility_date = "2025-07-01"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+# 정적 index가 공개 SSR 홈·서버 canonical 처리를 우회하지 않게 한다.
+run_worker_first = true
 
 [[d1_databases]]
 binding = "DB"

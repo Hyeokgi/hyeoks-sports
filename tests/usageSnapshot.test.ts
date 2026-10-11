@@ -1,6 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { classifySource, kstDay, USAGE_EVENTS } from "../src/lib/usage";
-import { snapshotToPrediction, shouldSnapshot, type SnapshotRow } from "../src/lib/predictionSnapshot";
+import {
+  snapshotToPrediction,
+  shouldSnapshot,
+  isVerifiedSnapshot,
+  isGroundedPrediction,
+  isSnapshotWritable,
+  classifyRecord,
+  parseSnapshotTimestamp,
+  SNAPSHOT_UPSERT_SQL,
+  type PredictionSnapshot,
+  type SnapshotRow,
+} from "../src/lib/predictionSnapshot";
+import type { MatchPrediction } from "../src/lib/prediction";
 import { buildRoundArticle, renderDraftPage, renderRoundPage, withUtm } from "../src/lib/roundArticle";
 
 describe("classifySource", () => {
@@ -59,7 +71,100 @@ describe("prediction snapshot", () => {
     expect(shouldSnapshot("2026-09-27T13:00:00Z", false, now)).toBe(true);
     expect(shouldSnapshot("2026-09-27T11:00:00Z", false, now)).toBe(false);
     expect(shouldSnapshot("2026-09-27T13:00:00Z", true, now)).toBe(false);
-    expect(shouldSnapshot(null, false, now)).toBe(true);
+    // 킥오프와 같은 순간도 쓰지 않는다(엄격히 now < kickoff).
+    expect(shouldSnapshot("2026-09-27T12:00:00Z", false, now)).toBe(false);
+  });
+  it("킥오프를 모르거나 못 읽으면 쓰지 않는다(킥오프 전 저장을 증명할 수 없다)", () => {
+    const now = Date.parse("2026-09-27T12:00:00Z");
+    expect(shouldSnapshot(null, false, now)).toBe(false);
+    expect(shouldSnapshot("", false, now)).toBe(false);
+    expect(shouldSnapshot("내일", false, now)).toBe(false);
+    expect(shouldSnapshot("2026-02-30T13:00:00Z", false, now)).toBe(false); // 없는 날짜
+    expect(shouldSnapshot("2026-09-28", false, now)).toBe(false); // 날짜만 - 시각 모름
+  });
+  it("시각 파서: ISO·오프셋·SQLite 표기를 같은 순간으로 읽는다", () => {
+    const t = Date.parse("2026-09-27T10:00:00Z");
+    expect(parseSnapshotTimestamp("2026-09-27T10:00:00.000Z")).toBe(t);
+    expect(parseSnapshotTimestamp("2026-09-27T19:00:00+09:00")).toBe(t);
+    expect(parseSnapshotTimestamp("2026-09-27 10:00:00")).toBe(t);
+    expect(parseSnapshotTimestamp(null)).toBeNull();
+  });
+});
+
+describe("엄격 스냅샷 검증", () => {
+  const pred = (over: Partial<MatchPrediction> = {}): MatchPrediction => ({
+    pHome: 0.5,
+    pDraw: 0.3,
+    pAway: 0.2,
+    rankedPicks: ["홈승", "무승부", "원정승"],
+    confidenceGap: 0.2,
+    basis: "market",
+    ...over,
+  });
+  const snap = (over: Partial<PredictionSnapshot> = {}, p: Partial<MatchPrediction> = {}): PredictionSnapshot => ({
+    prediction: pred(p),
+    tier: null,
+    nBookmakers: 5,
+    capturedAt: "2026-09-27T10:00:00.000Z",
+    ...over,
+  });
+  const KO = "2026-09-27T12:00:00Z";
+
+  it("저장 < 유효한 킥오프 + 근거 있음 + 확률 정상이면 검증된 기록", () => {
+    expect(isVerifiedSnapshot(snap(), KO)).toBe(true);
+    expect(isVerifiedSnapshot(snap({}, { basis: "model" }), KO)).toBe(true);
+    expect(isVerifiedSnapshot(snap({}, { basis: "national" }), KO)).toBe(true);
+  });
+  it("킥오프를 모르거나 못 읽으면 검증 실패", () => {
+    expect(isVerifiedSnapshot(snap(), null)).toBe(false);
+    expect(isVerifiedSnapshot(snap(), undefined)).toBe(false);
+    expect(isVerifiedSnapshot(snap(), "오류")).toBe(false);
+  });
+  it("킥오프 시각 또는 그 이후 저장, 저장 시각 누락·오류는 검증 실패", () => {
+    expect(isVerifiedSnapshot(snap({ capturedAt: KO }), KO)).toBe(false);
+    expect(isVerifiedSnapshot(snap({ capturedAt: "2026-09-27T12:30:00Z" }), KO)).toBe(false);
+    expect(isVerifiedSnapshot(snap({ capturedAt: "" }), KO)).toBe(false);
+    expect(isVerifiedSnapshot(snap({ capturedAt: "garbage" }), KO)).toBe(false);
+    expect(isVerifiedSnapshot(null, KO)).toBe(false);
+  });
+  it("근거 없음(none)·이상한 확률·잘못된 픽은 검증 실패", () => {
+    expect(isVerifiedSnapshot(snap({}, { basis: "none" }), KO)).toBe(false);
+    expect(isVerifiedSnapshot(snap({}, { pHome: NaN }), KO)).toBe(false);
+    expect(isVerifiedSnapshot(snap({}, { pHome: 0.6 }), KO)).toBe(false); // 합 1.1
+    expect(isVerifiedSnapshot(snap({}, { pHome: -0.1, pDraw: 0.6, pAway: 0.5 }), KO)).toBe(false);
+    expect(isVerifiedSnapshot(snap({}, { rankedPicks: ["원정승", "홈승", "무승부"] }), KO)).toBe(false); // 최고 확률 아님
+    expect(isGroundedPrediction(pred({ rankedPicks: ["무" as any, "홈승", "원정승"] }))).toBe(false);
+    // 동률이면 어느 쪽 픽이든 인정한다.
+    expect(isGroundedPrediction(pred({ pHome: 0.35, pDraw: 0.3, pAway: 0.35, rankedPicks: ["원정승", "홈승", "무승부"] }))).toBe(true);
+  });
+  it("쓰기 판정: 근거 없음·이상한 확률·킥오프 불명은 쓰지 않는다", () => {
+    const now = Date.parse("2026-09-27T10:00:00Z");
+    const ok = { kickoffAt: KO, predictedAfterKickoff: false, prediction: pred() };
+    expect(isSnapshotWritable(ok, now)).toBe(true);
+    expect(isSnapshotWritable({ ...ok, prediction: pred({ basis: "none" }) }, now)).toBe(false);
+    expect(isSnapshotWritable({ ...ok, prediction: pred({ pDraw: Infinity }) }, now)).toBe(false);
+    expect(isSnapshotWritable({ ...ok, kickoffAt: null }, now)).toBe(false);
+    expect(isSnapshotWritable(ok, Date.parse(KO))).toBe(false);
+  });
+  it("SQL이 저장 시각 < 킥오프를 julianday로 원자적으로 다시 확인한다", () => {
+    expect(SNAPSHOT_UPSERT_SQL).toContain("julianday(?) < julianday(rm.kickoff_at)");
+    expect(SNAPSHOT_UPSERT_SQL).toContain("julianday('now') < julianday(rm.kickoff_at)");
+    expect(SNAPSHOT_UPSERT_SQL).toContain("rm.kickoff_at IS NOT NULL");
+    // 바인딩 13개: 값 10 + round_match_id + captured_at 2회
+    expect(SNAPSHOT_UPSERT_SQL.split("?").length - 1).toBe(13);
+  });
+  it("기록 출처 분류: verified / no_prediction / unverified / reconstructed", () => {
+    const market = { basis: "market" as const };
+    expect(classifyRecord(snap(), KO, market, false)).toBe("verified");
+    // 사후 등록 경기는 스냅샷이 있어도 채점하지 않는다
+    expect(classifyRecord(snap(), KO, market, true)).toBe("unverified");
+    expect(classifyRecord(snap({ capturedAt: "2026-09-27T13:00:00Z" }), KO, market, false)).toBe("unverified");
+    expect(classifyRecord(snap(), null, market, false)).toBe("unverified");
+    expect(classifyRecord(snap({}, { basis: "none" }), KO, market, false)).toBe("no_prediction");
+    expect(classifyRecord(undefined, KO, { basis: "none" }, false)).toBe("no_prediction");
+    // 스냅샷이 없던 시절: 현재 코드 재계산 = 재구성(채점 제외)
+    expect(classifyRecord(undefined, KO, market, false)).toBe("reconstructed");
+    expect(classifyRecord(undefined, KO, market, true)).toBe("unverified");
   });
 });
 

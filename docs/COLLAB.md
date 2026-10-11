@@ -137,3 +137,13 @@
 | 광고·스폰서 자리 명세(광고주 없으면 숨김) | Codex | 초안 있음(`docs/specs/001-sponsor-slots.md`), 검토 대기 |
 | 제휴 문의 경로 | 사용자 | 결정: 블로그 안부글(제휴 안내 글 224423344071) |
 | 명세 받은 화면 구현 | Claude | 명세 대기 |
+
+
+## 9. 2026-10-11 공개 사이트 개편(명세 004) 이후 바뀐 계약
+
+- **주소:** `/`는 서버에서 그리는 데이터 홈이다. 기존 승무패 앱은 `/app`으로 옮겼다. `/?round=`, `/?view=`, `/?tab=` 링크는 `/app`으로 302 이동하므로 블로그 옛 링크도 그대로 동작한다. 새 링크는 `/app?round={회차}&utm_source=...`를 쓴다.
+- **새 공개 페이지:** `/performance`(경기 전 저장 예측만 채점하는 공개 기록, 원자료 `/performance/data.json`), `/methodology`, `/sources`, `/editorial`, `/contact`, `/guide/probability-reading`.
+- **`/round/{회차}/data.json` 추가 필드(선택, schema 1 유지):** `matches[].recordProvenance`(`verified|reconstructed|unverified|no_prediction`), `matches[].capturedAt`, `recent[].excluded`, `reportNotice`. `recent`의 적중 수는 `verified`만 센다. `appUrl`은 `/app?round=N`이다.
+- **`/match/{slug}/data.json`:** `basis`가 실제 출처(model/market/national, 없으면 null)다. `provenance`, `probabilityAsOf`, `fixtureContext`, `indexable`, `readinessGaps`가 추가됐다.
+- **유럽 4개 리그 보정표:** 검증 스크립트 결함(전체 기간 무승부율 혼입, 폼 단위 불일치)이 확인돼 재검증 전까지 `calib`를 null로 내보내고 화면에는 "과거 보정표 재검증 중"으로 표시한다. 계수는 바꾸지 않았다.
+- **광고:** 광고 스크립트는 모든 페이지에서 뺐다. 승인 후 CMP 확인을 거쳐 사람이 직접 켠다.

@@ -27,6 +27,8 @@ import { runDeadlineTrigger } from "./cron/deadlineTrigger";
 import { syncFixtures } from "./lib/fixtures";
 import { json } from "./lib/http";
 import type { Env } from "./types";
+import { handleDataHome, handlePerformancePage, handlePerformanceData, legacyAppLocation } from "./routes/sitePage";
+import { errorPage } from "./lib/publicSite";
 
 const ROUND_ID_RE = /^\/api\/rounds\/(\d+)(?:\/(predict|combinations|report|exclusive-pick))?$/;
 // 회차 분석 페이지(공개)와 블로그 초안. 정적 자산에 없는 경로라 워커로 넘어온다.
@@ -43,8 +45,7 @@ const ADMIN_ROUND_MARKET_ODDS_RE = /^\/api\/admin\/rounds\/(\d+)\/market-odds$/;
 const ADMIN_ROUND_VOTE_SHARE_RE = /^\/api\/admin\/rounds\/(\d+)\/vote-share$/;
 const ADMIN_ROUND_SALE_WINDOW_RE = /^\/api\/admin\/rounds\/(\d+)\/sale-window$/;
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+async function routeRequest(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const { pathname } = url;
 
@@ -61,6 +62,22 @@ export default {
     }
 
     try {
+      if (request.method === "GET" && !pathname.startsWith("/api/")) {
+        const legacy = legacyAppLocation(url);
+        if (legacy) return Response.redirect(legacy, 302);
+        let clean = pathname;
+        if (pathname === "/index.html") clean = "/";
+        else if (pathname === "/guide" || pathname === "/guide/index.html") clean = "/guide/";
+        else if (/^\/(app|about|privacy|methodology|sources|editorial|contact)\.html$/.test(pathname)) clean = pathname.replace(/\.html$/, "");
+        else if (/^\/guide\/[^/]+\.html$/.test(pathname)) clean = pathname.replace(/\.html$/, "");
+        else if (/^\/(app|matches|performance|about|privacy|methodology|sources|editorial|contact)\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
+        else if (/^\/round\/\d+\/?$/.test(pathname)) clean = `/round/${Number(pathname.match(/\d+/)![0])}`;
+        else if (/^\/(match|league)\/[^/]+\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
+        if (clean !== pathname) return Response.redirect(`${CANONICAL_ORIGIN}${clean}${url.search}`, 301);
+        if (pathname === "/") return await handleDataHome(env);
+        if (pathname === "/performance") return await handlePerformancePage(env);
+        if (pathname === "/performance/data.json") return await handlePerformanceData(env);
+      }
       if (pathname === "/api/rounds" && request.method === "GET") {
         return await handleListRounds(env);
       }
@@ -173,11 +190,25 @@ export default {
       if (pathname === "/sitemap.xml") return await handleSitemap(env, request);
       if (pathname === "/robots.txt") return handleRobots(request);
 
-      return env.ASSETS.fetch(request);
+      const asset = await env.ASSETS.fetch(request);
+      if (asset.status === 404 && request.method === "GET" && !/\.[a-z0-9]+$/i.test(pathname)) return errorPage(404);
+      return asset;
     } catch (err) {
       console.error(err);
-      return json({ error: "internal_error", message: (err as Error).message }, 500);
+      // 공개 화면에 데이터베이스 예외나 내부 상세를 노출하지 않는다.
+      if (pathname.startsWith("/api/") || pathname.endsWith(".json")) return json({ error: "temporarily_unavailable" }, 503);
+      return errorPage(503);
     }
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    // HEAD도 공개 GET과 같은 상태·헤더를 돌려준다(검색엔진·검수 도구가 HEAD로 확인하는 경우 대비).
+    if (request.method === "HEAD") {
+      const res = await routeRequest(new Request(request, { method: "GET" }), env);
+      return new Response(null, { status: res.status, headers: res.headers });
+    }
+    return routeRequest(request, env);
   },
 
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {

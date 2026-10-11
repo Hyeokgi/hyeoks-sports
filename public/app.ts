@@ -1,5 +1,18 @@
 // 프론트엔드 로직: 회차 조회, 변수 토글(클라이언트 즉시 재계산), 예산별 조합, AI 리포트
-import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type PredictionInputs } from "../src/lib/prediction";
+import {
+  DEFAULT_TOGGLES,
+  DEFAULT_MARKET_WEIGHT,
+  EUROPEAN_MARKET_WEIGHT,
+  type PredictionToggles,
+  type MatchPrediction,
+} from "../src/lib/prediction";
+import {
+  predictForClient,
+  clientMarketOnly,
+  normalizeMarketWeightOverride,
+  isCalibrationUnderReview,
+  CALIBRATION_REVIEW_LABEL,
+} from "../src/lib/clientPrediction";
 import { generateSystemBetTiers, DEFAULT_BUDGET_TIERS, generateSystemBet, type ComboMatch } from "../src/lib/combinations";
 import { findCalibrationBucket, confidenceTier, CALIBRATION, CALIBRATION_OVERALL } from "../src/lib/calibration";
 import { computeUpsetSignal } from "../src/lib/upsetSignal";
@@ -31,6 +44,9 @@ interface MatchData {
     cornersDiff: number | null;
     // 국가대표 경기의 Elo 격차(배당이 없을 때 쓰는 근거). 구버전 API면 undefined.
     nationalEloDiff?: number | null;
+    // 서버가 등록 시점 market_only로 확정한 배당 기반 여부. 구버전 API면 undefined
+    // (그때만 리그 기준으로 폴백 - clientPrediction.clientMarketOnly).
+    resolvedMarketOnly?: boolean;
   };
   // 회차가 정산되면 채워짐(경기 전이면 null) - 적중현황 표시용.
   result: { actual: "H" | "D" | "A"; hg: number; ag: number } | null;
@@ -58,8 +74,19 @@ const TOGGLE_LABELS: { key: keyof PredictionToggles; label: string; kind: "bool"
 ];
 
 let currentMatches: MatchData[] = [];
+// marketWeight는 여기서 쓰지 않는다. 경기마다 togglesForLeague가 리그 기본값(또는 아래 명시값)으로
+// 덮어쓴다. 예전엔 이 객체의 0.4가 모든 리그에 그대로 들어가 유럽 4대리그(서버 0.8) 확률이 화면에서만 달랐다.
 let currentToggles: PredictionToggles = { ...DEFAULT_TOGGLES };
+// 사용자가 '배당 반영 비율'을 직접 고른 값. null이면 리그 기본값(유럽 4대리그 0.8, 그 밖 0.4)을 쓴다.
+// 0.4를 직접 고른 것과 아무것도 안 고른 것을 구분해야 해서 값이 아니라 null 여부로 가른다.
+let marketWeightOverride: number | null = null;
 let currentRoundId: number | null = null;
+// 회차를 빠르게 바꿔 고르면 늦게 도착한 이전 회차 응답이 새 회차 화면을 덮어썼다.
+// 요청마다 세대 번호를 붙이고, 응답이 왔을 때 최신 요청이 아니면 버린다.
+let roundLoadGen = 0;
+// 경기 목록 영역의 상태. 로딩 중이거나 오류일 때 토글·배당 비율을 바꾸면 renderMatches가 스켈레톤/오류
+// 화면을 "등록된 경기가 없습니다"로 덮어썼다. "ready"일 때만 목록을 다시 그린다.
+let roundViewState: "loading" | "error" | "ready" = "loading";
 // 이용 측정(일별 집계만, 개인 식별 정보 없음 - src/lib/usage.ts). 유입 경로는 세션의 첫 방문
 // 기준으로 고정한다. 그래야 블로그에서 들어와 앱 안을 돌아다닌 이용이 전부 '블로그 유입'으로 잡힌다.
 const landing = (() => {
@@ -230,21 +257,22 @@ function icon(name: string, cls = "icon"): string {
   return `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
 }
 
-function toInputs(m: MatchData): PredictionInputs {
-  return {
-    eloDiff: m.raw.eloDiff,
-    formDiff: m.raw.formDiff,
-    h2hDiff: m.raw.h2hDiff,
-    leagueDrawRate: m.raw.leagueDrawRate,
-    marketOdds: m.raw.market,
-    xgDiff: m.raw.xgDiff,
-    cornersDiff: m.raw.cornersDiff,
-    league: m.league,
-    // UCL/UEL처럼 Elo(리그 내 상대평가)가 성립하지 않는 대회는 배당만 쓴다.
-    // 서버(predictRound.ts)와 같은 판단 기준을 써야 화면과 API가 갈리지 않는다.
-    marketOnly: !isModelLeague(m.league),
-    nationalEloDiff: m.raw.nationalEloDiff ?? null,
-  };
+// 화면 확률: 사용자의 토글과 (있으면) 명시 배당 비율을 반영한다. 리그별 기본값과 market-only 판정은
+// 서버(predictRound.ts)와 같은 함수(clientPrediction.ts)를 써야 화면과 API·회차 글이 갈리지 않는다.
+function predictCurrent(m: MatchData): MatchPrediction {
+  return predictForClient(m.league, m.raw, currentToggles, marketWeightOverride);
+}
+
+// 기록용 폴백 픽: 킥오프 전 스냅샷이 없는 경기(2026-09-26 이전)는 서버 정산과 같은 기본 설정으로
+// 다시 계산한다. 사용자 토글을 쓰면 변수를 끌 때마다 지난 적중 기록이 바뀌었다.
+// 이 픽은 당시 실제로 공개한 픽이 아니라는 사실을 화면에 함께 적는다.
+function recordPick(m: MatchData): { pick: MatchPrediction["rankedPicks"][number]; issued: boolean } {
+  if (m.snapshot?.pick) return { pick: m.snapshot.pick, issued: true };
+  return { pick: predictForClient(m.league, m.raw, DEFAULT_TOGGLES, null).rankedPicks[0], issued: false };
+}
+
+function isMarketOnly(m: MatchData): boolean {
+  return clientMarketOnly(m.raw.resolvedMarketOnly, m.league);
 }
 
 function skeletonCards(n: number): string {
@@ -264,6 +292,53 @@ function emptyState(iconName: string, text: string): string {
   return `<div class="empty-state">${icon(iconName, "icon")}${text}</div>`;
 }
 
+// '배당 반영 비율' 선택지. 기본은 "리그 기본값"(명시값 없음)이고, 숫자를 고를 때만 명시값이 된다.
+// "리그 기본값"을 다시 고르면 명시값을 지운다(null). 값 자체는 검증된 리그별 가중치를 바꾸지 않고,
+// 화면에서만 시뮬레이션한다.
+const MARKET_WEIGHT_CHOICES = [0, 0.2, 0.4, 0.6, 0.8, 1];
+let marketWeightSelect: HTMLSelectElement | null = null;
+
+function syncMarketWeightSelect() {
+  if (!marketWeightSelect) return;
+  marketWeightSelect.value = marketWeightOverride == null ? "" : String(marketWeightOverride);
+  // 배당 반영을 끄면 비율은 의미가 없다. 값은 지우지 않고(다시 켜면 그대로) 선택만 막는다.
+  marketWeightSelect.disabled = !currentToggles.useMarketOdds;
+}
+
+function renderMarketWeightControl() {
+  const wrap = document.createElement("label");
+  wrap.className = "toggle-item";
+  const span = document.createElement("span");
+  span.textContent = "배당 반영 비율";
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", "해외 배당 반영 비율");
+  select.title =
+    `리그 기본값: 유럽 4대리그 ${Math.round(EUROPEAN_MARKET_WEIGHT * 100)}%, ` +
+    `그 밖의 리그 ${Math.round(DEFAULT_MARKET_WEIGHT * 100)}%. 숫자를 고르면 모든 리그에 같은 비율을 씁니다.`;
+  const def = document.createElement("option");
+  def.value = "";
+  def.textContent = "리그 기본값";
+  select.appendChild(def);
+  for (const w of MARKET_WEIGHT_CHOICES) {
+    const opt = document.createElement("option");
+    opt.value = String(w);
+    opt.textContent = `${Math.round(w * 100)}%`;
+    select.appendChild(opt);
+  }
+  select.addEventListener("change", () => {
+    // ""(리그 기본값)이거나 이상한 값이면 null로 돌아간다 = 명시값 초기화.
+    marketWeightOverride = normalizeMarketWeightOverride(select.value);
+    syncMarketWeightSelect();
+    renderMatches();
+    renderCombos();
+  });
+  marketWeightSelect = select;
+  syncMarketWeightSelect();
+  wrap.appendChild(span);
+  wrap.appendChild(select);
+  toggleGrid.appendChild(wrap);
+}
+
 function renderToggles() {
   toggleGrid.innerHTML = "";
   for (const t of TOGGLE_LABELS) {
@@ -274,6 +349,7 @@ function renderToggles() {
     checkbox.checked = Boolean(currentToggles[t.key]);
     checkbox.addEventListener("change", () => {
       (currentToggles as any)[t.key] = checkbox.checked;
+      syncMarketWeightSelect();
       renderMatches();
       renderCombos();
     });
@@ -283,6 +359,7 @@ function renderToggles() {
     wrap.appendChild(checkbox);
     toggleGrid.appendChild(wrap);
   }
+  renderMarketWeightControl();
 }
 
 function renderRoundSummary() {
@@ -299,9 +376,11 @@ function renderRoundSummary() {
     return;
   }
   let correct = 0;
+  let regenerated = 0;
   for (const m of settled) {
-    const pick = m.snapshot?.pick ?? predictMatch(toInputs(m), currentToggles).rankedPicks[0];
-    if (pick === RESULT_LABEL[m.result!.actual]) correct++;
+    const rec = recordPick(m);
+    if (!rec.issued) regenerated++;
+    if (rec.pick === RESULT_LABEL[m.result!.actual]) correct++;
   }
   const pct = ((correct / settled.length) * 100).toFixed(1);
   const ongoing = currentMatches.filter((m) => !m.result).length;
@@ -309,7 +388,11 @@ function renderRoundSummary() {
   roundSummaryEl.innerHTML =
     `<span class="summary-stat">${icon("check")}${correct}/${settled.length} 적중 (${pct}%)</span>` +
     (ongoing > 0 ? `<span class="summary-note">진행중 ${ongoing}경기 제외</span>` : "") +
-    (late > 0 ? `<span class="summary-note">사후 등록 ${late}경기 제외</span>` : "");
+    (late > 0 ? `<span class="summary-note">사후 등록 ${late}경기 제외</span>` : "") +
+    // 스냅샷이 없던 경기는 당시 공개한 픽이 아니라 다시 계산한 픽이다. 그 사실을 숫자 옆에 둔다.
+    (regenerated > 0
+      ? `<span class="summary-note">${regenerated}경기는 킥오프 전 기록이 없어 현재 모델로 다시 계산한 픽 기준(당시 공개 픽과 다를 수 있음)</span>`
+      : "");
 }
 
 // 헤지(복식/삼복식)는 확신도가 낮은 경기부터 넣는 게 확률상 최적이다(combinations.ts와 동일 기준).
@@ -321,7 +404,7 @@ const CIRCLED = ["①", "②", "③", "④", "⑤", "⑥"];
 function hedgeRanks(): Map<number, number> {
   const scored = currentMatches.map((m) => ({
     seq: m.seq,
-    gap: predictMatch(toInputs(m), currentToggles).confidenceGap,
+    gap: predictCurrent(m).confidenceGap,
   }));
   scored.sort((a, b) => a.gap - b.gap);
   const out = new Map<number, number>();
@@ -330,7 +413,12 @@ function hedgeRanks(): Map<number, number> {
 }
 
 function renderMatches() {
+  if (roundViewState !== "ready") return;
   matchList.innerHTML = "";
+  matchList.removeAttribute("aria-busy");
+  const shownRoundNo = currentRoundId != null ? roundNoById.get(currentRoundId) : undefined;
+  if (shownRoundNo != null) matchList.dataset.roundNo = String(shownRoundNo);
+  else delete matchList.dataset.roundNo;
   renderRoundSummary();
   if (currentMatches.length === 0) {
     matchList.innerHTML = emptyState("matches", "이 회차에 등록된 경기가 없습니다.");
@@ -338,17 +426,21 @@ function renderMatches() {
   }
   // 회차 전체(또는 일부)가 배당 기반이면 목록 위에 한 번 설명한다. 카드마다 긴 문장을
   // 반복하면 읽히지 않고, 무엇보다 "왜 갑자기 근거가 달라졌는지"는 회차 단위의 이야기다.
-  const marketOnlyCount = currentMatches.filter((m) => !isModelLeague(m.league)).length;
+  // 배당 기반 여부는 서버가 등록 시점 값으로 확정한 판정을 따른다(지원 리그여도 팀 매핑이 없어
+  // 배당 기반으로 등록된 경기가 있다). 리그 이름만 보면 그 경기를 빠뜨린다.
+  const marketOnlyMatches = currentMatches.filter(isMarketOnly);
+  const marketOnlyCount = marketOnlyMatches.length;
   if (marketOnlyCount > 0) {
-    const comps = [...new Set(currentMatches.filter((m) => !isModelLeague(m.league)).map((m) => m.league))];
+    const comps = [...new Set(marketOnlyMatches.map((m) => m.league))];
     const notice = document.createElement("div");
     notice.className = "round-notice";
     const scope =
       marketOnlyCount === currentMatches.length
-        ? `이번 회차는 전 경기가 <b>${esc(comps.join("·"))}</b>입니다.`
-        : `이번 회차 ${marketOnlyCount}경기가 <b>${esc(comps.join("·"))}</b>입니다.`;
+        ? `이번 회차는 전 경기(<b>${esc(comps.join("·"))}</b>)가 배당 기반입니다.`
+        : `이번 회차 ${marketOnlyCount}경기(<b>${esc(comps.join("·"))}</b>)가 배당 기반입니다.`;
     notice.innerHTML =
-      `${scope} 리그 안에서만 의미가 있는 우리 클럽 Elo를 쓸 수 없어, 해당 경기는 ` +
+      `${scope} 리그 안에서만 의미가 있는 우리 클럽 Elo를 쓸 수 없거나(서로 다른 리그 클럽이 붙는 대회) ` +
+      `등록 당시 팀 데이터가 연결되지 않아, 해당 경기는 ` +
       `<b>해외 북메이커 배당</b>에서 마진을 뺀 확률을 그대로 씁니다. ` +
       (currentMatches.some((m) => m.raw.nationalEloDiff != null)
         ? `국가대표 경기는 배당이 올라오기 전까지 <b>국가대표 Elo</b>(1872년~ A매치 전체 결과)로 대신 예측합니다. `
@@ -359,13 +451,16 @@ function renderMatches() {
 
   const ranks = hedgeRanks();
   for (const m of currentMatches) {
-    const prediction = predictMatch(toInputs(m), currentToggles);
+    const prediction = predictCurrent(m);
     const card = document.createElement("div");
     card.className = "match-card";
     // 경기 분석 페이지 링크를 붙일 때 회차 경기 번호로 찾는다(matchesView.decorateRoundCards).
     card.dataset.seq = String(m.seq);
 
-    const tier = confidenceTier(m.league, prediction.confidenceGap);
+    // 유럽 4대리그는 보정표 재검증 전까지 등급·구간 적중률을 근거로 내세우지 않는다(clientPrediction.ts 참고).
+    // 확률·픽 계산은 그대로이고, 등급 라벨과 "과거 몇 % 맞았다"는 문구만 누른다.
+    const calibUnderReview = prediction.basis === "model" && isCalibrationUnderReview(m.league);
+    const tier = calibUnderReview ? "근거없음" : confidenceTier(m.league, prediction.confidenceGap);
     const meta = document.createElement("div");
     meta.className = "meta";
     let resultBadge = "";
@@ -383,12 +478,18 @@ function renderMatches() {
       resultBadge =
         `<span class="result-badge late" title="경기가 끝난 뒤 등록돼 예측에 결과가 반영됨 - 적중 집계 제외">사후 등록</span>`;
     } else if (m.result) {
-      const hit = (m.snapshot?.pick ?? prediction.rankedPicks[0]) === RESULT_LABEL[m.result.actual];
+      // 적중 여부는 킥오프 전 공개 픽(스냅샷)으로 매긴다. 스냅샷이 없던 경기는 기본 설정으로 다시
+      // 계산한 픽이라(사용자 토글과 무관) 배지 설명에 그 사실을 적는다.
+      const rec = recordPick(m);
+      const hit = rec.pick === RESULT_LABEL[m.result.actual];
+      const recTitle = rec.issued
+        ? "킥오프 전 공개한 픽 기준"
+        : "킥오프 전 기록이 없어 현재 모델 기본 설정으로 다시 계산한 픽 기준 - 당시 공개 픽과 다를 수 있음";
       // 스코어는 배지가 아니라 대진줄 가운데(중계 화면처럼)에 둔다 - 팀명 사이에 있어야
       // 어느 팀이 몇 점인지 바로 읽힌다. 배지는 우리 픽의 적중 여부만 말한다.
       resultBadge =
-        `<span class="result-badge ${hit ? "hit" : "miss"}">${icon(hit ? "check" : "x")}` +
-        `${hit ? "적중" : "실패"}</span>`;
+        `<span class="result-badge ${hit ? "hit" : "miss"}" title="${recTitle}">${icon(hit ? "check" : "x")}` +
+        `${hit ? "적중" : "실패"}${rec.issued ? "" : "*"}</span>`;
     }
     const rank = ranks.get(m.seq);
     const hedgeBadge =
@@ -399,7 +500,7 @@ function renderMatches() {
     // 백테스트 근거가 없는 예측을 있는 것처럼 보이게 하지 않기 위한 표시다.
     const basisBadge =
       prediction.basis === "market"
-        ? `<span class="basis-badge" title="이 대회는 Elo(리그 내 상대평가)가 성립하지 않아 해외배당 암시확률을 그대로 씁니다">배당 기반</span>`
+        ? `<span class="basis-badge" title="이 경기는 클럽 Elo 모델을 쓸 수 없어 해외배당 암시확률을 그대로 씁니다">배당 기반</span>`
         : prediction.basis === "national"
           ? `<span class="basis-badge" title="배당이 아직 없어 국가대표 Elo(A매치 전체 결과 기반)로 예측합니다. 배당이 수집되면 배당으로 바뀝니다">국가대표 Elo</span>`
         : prediction.basis === "none"
@@ -414,8 +515,10 @@ function renderMatches() {
     const confBadge =
       prediction.basis === "none"
         ? ""
+        : calibUnderReview
+          ? `<span class="confidence-badge t-근거없음" title="1위와 2위 픽의 확률 차이입니다. 이 리그의 확신도 등급은 ${CALIBRATION_REVIEW_LABEL}이라 붙이지 않습니다"><i class="tier-dot"></i>확신도 ${gapText}</span>`
         : prediction.basis === "market" || prediction.basis === "national"
-          ? `<span class="confidence-badge t-근거없음" title="1위와 2위 픽의 확률 차이입니다. 이 대회는 백테스트가 없어 등급(확신픽/보통/불확실)은 붙이지 않습니다"><i class="tier-dot"></i>확신도 ${gapText}</span>`
+          ? `<span class="confidence-badge t-근거없음" title="1위와 2위 픽의 확률 차이입니다. 이 확률 출처는 확신도 구간별 적중률 근거가 없어 등급(확신픽/보통/불확실)은 붙이지 않습니다"><i class="tier-dot"></i>확신도 ${gapText}</span>`
           : `<span class="confidence-badge t-${tier}"><i class="tier-dot"></i>${tier} · ${gapText}</span>`;
     // 메타줄을 두 줄로 나눈다. 예전엔 배지 5개(연번·리그 / 배당기반 / 헤지 / 확신도 / 일정)를
     // 한 줄에 밀어넣어서, 리그명이 긴 세리에A + 헤지 배지가 겹치는 카드는 360px에서 가로로
@@ -519,9 +622,18 @@ function renderMatches() {
     } else if (prediction.basis === "market") {
       // 이 대회는 백테스트 자체를 한 적이 없다. "데이터가 부족합니다"는 있는데 적다는 뜻으로
       // 읽히므로, 없다고 분명히 쓴다.
+      // 지원 리그인데 팀 매핑이 없어 배당 기반으로 등록된 경기는 "리그를 백테스트한 적이 없다"가
+      // 아니다. 리그 모델은 검증됐지만 이 경기엔 그 모델을 쓰지 않았다는 사실을 구분해 쓴다.
+      calibLine.textContent = isModelLeague(m.league)
+        ? `참고: 이 경기는 등록 당시 팀 데이터가 연결되지 않아 모델을 쓰지 않았고, ` +
+          `북메이커 배당에서 마진을 뺀 값을 그대로 씁니다. 이 확률에 대한 확신도별 적중률 근거는 없습니다.`
+        : `참고: ${m.league}는 백테스트한 적이 없어 적중률 근거가 없습니다. ` +
+          `이 확률은 북메이커 배당에서 마진을 뺀 값 그대로입니다.`;
+    } else if (calibUnderReview) {
+      // 이 리그 보정표는 평가 누수가 확인돼 다시 만드는 중이다. 예전 수치를 근거처럼 보여주지 않는다.
       calibLine.textContent =
-        `참고: ${m.league}는 백테스트한 적이 없어 적중률 근거가 없습니다. ` +
-        `이 확률은 북메이커 배당에서 마진을 뺀 값 그대로입니다.`;
+        `참고: ${CALIBRATION_REVIEW_LABEL} - 이 리그의 확신도 구간별 과거 적중률은 다시 산출할 때까지 표시하지 않습니다. ` +
+        `확률은 판단 보조 자료이며 적중을 보장하지 않습니다.`;
     } else {
       calibLine.textContent = `참고: ${
         bucket
@@ -539,7 +651,11 @@ function renderMatches() {
     if (upset.hasMarket && upset.agreement) {
       const upsetLine = document.createElement("div");
       upsetLine.className = upset.contrarian ? "calib-note upset-warn" : "calib-note";
-      upsetLine.textContent = upset.note;
+      // 보정표 재검증 중인 리그는 등급을 안 쓰므로(위 tier=근거없음) "확신도가 낮아"라는 설명이 틀린다.
+      upsetLine.textContent =
+        calibUnderReview && upset.agreement === "불일치"
+          ? `모델픽과 시장(해외배당) 픽이 다릅니다. ${CALIBRATION_REVIEW_LABEL}이라 역배당 신호로 보지 않습니다.`
+          : upset.note;
       card.appendChild(upsetLine);
     }
 
@@ -559,7 +675,10 @@ function renderMatches() {
         ${
           m.raw.nationalEloDiff != null
             ? `<div>국가대표 경기라 클럽 Elo·최근폼·상대전적 대신 국가대표 Elo(1872년~ A매치 전체 결과, eloratings.net 방식)를 씁니다.</div>`
-            : `<div>${esc(m.league)}는 서로 다른 리그의 클럽이 붙는 대회라 Elo·최근폼·상대전적을 계산하지 않았습니다.</div>
+            : isModelLeague(m.league)
+              ? `<div>이 경기는 등록 당시 팀 데이터가 연결되지 않아 Elo·최근폼·상대전적을 계산하지 않았습니다.</div>
+        <div>성분이 0으로 저장돼 있어 모델로 계산하면 홈 어드밴티지만 남는 가짜 예측이 되므로 배당을 그대로 씁니다.</div>`
+              : `<div>${esc(m.league)}는 서로 다른 리그의 클럽이 붙는 대회라 Elo·최근폼·상대전적을 계산하지 않았습니다.</div>
         <div>우리 Elo는 같은 리그 안에서만 의미가 있는 상대평가라, 국가가 다른 두 팀의 점수를 직접 비교할 수 없습니다.</div>`
         }
         ${
@@ -594,7 +713,9 @@ function renderMatches() {
     matchList.appendChild(card);
   }
   // 경기 분석 페이지가 있는 경기에 '경기 분석 →' 링크(목록은 한 번만 받아 둔다).
-  void decorateRoundCards(currentRoundId != null ? roundNoById.get(currentRoundId) : null);
+  // 목록을 기다리는 사이 회차가 바뀌면 이전 회차 링크가 새 카드에 붙지 않도록, 현재 목록의
+  // 회차번호를 data-round-no에 적어 두고 decorateRoundCards가 다시 확인한다.
+  void decorateRoundCards(matchList.dataset.roundNo ? Number(matchList.dataset.roundNo) : null);
 }
 
 function toComboMatches(): ComboMatch[] {
@@ -603,7 +724,7 @@ function toComboMatches(): ComboMatch[] {
     league: m.league,
     home: m.home,
     away: m.away,
-    prediction: predictMatch(toInputs(m), currentToggles),
+    prediction: predictCurrent(m),
   }));
 }
 
@@ -715,9 +836,10 @@ function renderExclusivePick() {
     league: m.league,
     home: m.home,
     away: m.away,
-    prediction: predictMatch(toInputs(m), currentToggles),
+    prediction: predictCurrent(m),
     voteShare: m.voteShare,
   }));
+  const basisBySeq = new Map(inputs.map((x) => [x.seq, x.prediction.basis]));
   const maxUpsets = Number(upsetCountSelect.value) || 0;
   const forceDrawCount = Number(drawForceSelect.value) || 0;
   const result = generateExclusivePick(inputs, { maxUpsets, forceDrawCount });
@@ -744,7 +866,9 @@ function renderExclusivePick() {
         : "";
     // 확률의 출처를 여기서도 정직하게 쓴다 - 배당 기반 경기에 "모델 61%"라고 적으면
     // 우리가 분석한 값처럼 읽힌다.
-    const src = isModelLeague(currentMatches.find((m) => m.seq === p.seq)?.league ?? "") ? "모델" : "배당";
+    // 리그 이름이 아니라 실제 확률 출처(basis)로 가른다 - 지원 리그에도 배당 기반 경기가 있다.
+    const basis = basisBySeq.get(p.seq);
+    const src = basis === "model" ? "모델" : basis === "national" ? "국가대표 Elo" : basis === "none" ? "임시값" : "배당";
     row.innerHTML =
       `<span>${p.seq}. ${p.home} vs ${p.away}<span class="vote-note">${src} ${(p.modelProb * 100).toFixed(0)}% · ${voteText}</span></span>` +
       `<span class="pick-tags">${upsetBadge}<span class="${p.pick}">${p.pick}</span></span>`;
@@ -774,7 +898,12 @@ function renderCalibrationTables() {
 
   const ranges = ["0~5%p", "5~15%p", "15~30%p", "30%p 이상"];
   const head = `<thead><tr><th>리그</th>${ranges.map((r) => `<th>${r}</th>`).join("")}</tr></thead>`;
+  // 유럽 4대리그 보정표는 재검증 전까지 수치를 빼고 그 사실만 적는다(clientPrediction.ts 참고).
+  // 같은 표본으로 묶인 그룹에 재검증 리그가 하나라도 있으면 그 줄 전체를 가린다.
+  const reviewRow = (leagues: string[], span: number) =>
+    `<tr><td class="calib-league">${leagues.join("·")}</td><td colspan="${span}"><span class="calib-n">${CALIBRATION_REVIEW_LABEL}</span></td></tr>`;
   const rows = [...groups.values()].map((g) => {
+    if (g.leagues.some((l) => isCalibrationUnderReview(l))) return reviewRow(g.leagues, ranges.length);
     const cells = g.buckets.map((b, i) => {
       const txt = `${(b.accuracy * 100).toFixed(1)}% <span class="calib-n">n=${b.n}</span>`;
       // 마지막 버킷(30%p+)이 실측 우위가 뚜렷한 구간이라 강조
@@ -794,6 +923,7 @@ function renderCalibrationTables() {
   }
   const oHead = `<thead><tr><th>리그</th><th>모델 적중률</th><th>홈승 베이스라인</th><th>우위</th><th>표본</th></tr></thead>`;
   const oRows = [...oGroups.values()].map(({ leagues, stat }) => {
+    if (leagues.some((l) => isCalibrationUnderReview(l))) return reviewRow(leagues, 4);
     const edge = (stat.accuracy - stat.homeBaseline) * 100;
     return `<tr><td class="calib-league">${leagues.join("·")}</td>` +
       `<td>${(stat.accuracy * 100).toFixed(1)}%</td>` +
@@ -807,12 +937,25 @@ function renderCalibrationTables() {
 // 실전 정산 기록: /api/settlement이 계산한 회차별 기본픽 실적을 그대로 보여준다(투표율 기반 픽 실적은 숨김).
 // 백테스트 수치와 섞이지 않도록 "실전"임을 명시하고, 표본이 적으면 그 사실도 같이 적는다.
 
+// 독식픽 정산 비교(summary.exclusivePick*, rounds[].exclusivePickHits)는 표시하지 않는다(2026-09-27 사용자 결정:
+// 투표율 기반 픽은 웹앱 비노출). 또 그 수치는 그때 공개한 픽이 아니라, 정산 조회 시점에 최신 투표율로
+// 독식픽을 다시 만들어 매긴 사후 비교다(settlementStats.computeRoundSettlement). 나중에 켜더라도 아래 문구를
+// 반드시 같이 보여 "실제로 낸 픽의 실적"처럼 읽히지 않게 한다.
+const SHOW_EXCLUSIVE_SETTLEMENT = false;
+const EXCLUSIVE_SETTLEMENT_LABEL =
+  "독식픽 사후 비교(참고): 당시 공개한 픽이 아니라, 나중에 저장된 최신 투표율로 다시 만든 비교용 결과입니다";
+
 async function loadSettlement() {
   let data: any;
   try {
     const res = await fetch("/api/settlement");
+    if (!res.ok) throw new Error(String(res.status));
     data = await res.json();
   } catch {
+    // 조용히 비워 두면 "정산 기록이 없다"와 구분되지 않는다. 불러오지 못했다고 쓴다.
+    settlementSummaryEl.hidden = false;
+    settlementSummaryEl.innerHTML = `<span class="summary-note">실전 정산 기록을 불러오지 못했습니다. 잠시 후 다시 확인해 주세요.</span>`;
+    settlementRoundsEl.innerHTML = "";
     return;
   }
   const s = data?.summary;
@@ -826,8 +969,14 @@ async function loadSettlement() {
   settlementSummaryEl.hidden = false;
   settlementSummaryEl.innerHTML =
     `<span class="summary-stat">${icon("ledger")}정산 ${s.rounds}회차 · ${s.settledMatches}경기</span>` +
-    `<span class="summary-note">적중률 ${(s.basePickAccuracy * 100).toFixed(1)}% · 실제 무승부 ${(s.drawRate * 100).toFixed(1)}%</span>` +
-    (s.rounds < 5 ? `<span class="summary-note">⚠️ 표본 ${s.rounds}회차 — 아직 판단 근거로 쓰기엔 부족합니다</span>` : "");
+    `<span class="summary-note">1픽 적중률 ${(s.basePickAccuracy * 100).toFixed(1)}% · 실제 무승부 ${(s.drawRate * 100).toFixed(1)}%</span>` +
+    // 스냅샷이 없던 경기(2026-09-26 이전)는 서버가 현재 코드로 다시 계산한 픽으로 센다.
+    // "실제로 낸 픽"과 다를 수 있다는 사실을 숫자 바로 옆에 둔다.
+    `<span class="summary-note">킥오프 전 공개 픽(예측 스냅샷) 기준. 스냅샷이 없던 2026-09-26 이전 경기는 현재 모델로 다시 계산한 픽이라 당시 공개 픽과 다를 수 있습니다. 사후 등록 경기는 제외했습니다.</span>` +
+    (s.rounds < 5 ? `<span class="summary-note">⚠️ 표본 ${s.rounds}회차 — 아직 판단 근거로 쓰기엔 부족합니다</span>` : "") +
+    (SHOW_EXCLUSIVE_SETTLEMENT && typeof s.exclusivePickAccuracy === "number"
+      ? `<span class="summary-note">${EXCLUSIVE_SETTLEMENT_LABEL} · ${(s.exclusivePickAccuracy * 100).toFixed(1)}%</span>`
+      : "");
 
   settlementRoundsEl.innerHTML = "";
   for (const r of rounds) {
@@ -843,7 +992,7 @@ async function loadSettlement() {
       : "";
     head.innerHTML =
       `<span>${r.roundNo ?? "?"}회차 ${moTag}</span>` +
-      `<span>적중 ${r.basePickHits}/${r.settledMatches}</span>`;
+      `<span>1픽 적중 ${r.basePickHits}/${r.settledMatches}</span>`;
     box.appendChild(head);
 
     const row = document.createElement("div");
@@ -851,11 +1000,18 @@ async function loadSettlement() {
     row.innerHTML =
       `<span>실제 무승부 ${r.drawsActual}경기</span>`;
     box.appendChild(row);
+    if (SHOW_EXCLUSIVE_SETTLEMENT && typeof r.exclusivePickHits === "number") {
+      const ex = document.createElement("div");
+      ex.className = "pick-row";
+      ex.innerHTML = `<span>${EXCLUSIVE_SETTLEMENT_LABEL}</span><span>${r.exclusivePickHits}/${r.settledMatches}</span>`;
+      box.appendChild(ex);
+    }
     settlementRoundsEl.appendChild(box);
   }
 }
 
 async function loadRounds() {
+  roundViewState = "loading";
   matchList.innerHTML = skeletonCards(5);
   let data: any;
   try {
@@ -863,11 +1019,17 @@ async function loadRounds() {
     if (!res.ok) throw new Error(String(res.status));
     data = await res.json();
   } catch {
-    matchList.innerHTML = emptyState("info", "회차 목록을 불러오지 못했습니다.<br />네트워크 상태를 확인해 주세요.");
+    roundViewState = "error";
+    matchList.innerHTML = emptyState(
+      "info",
+      "회차 목록을 불러오지 못했습니다.<br />네트워크 상태를 확인해 주세요." +
+        `<br /><button type="button" class="btn" data-retry-rounds>다시 시도</button>`,
+    );
     return;
   }
   roundSelect.innerHTML = "";
-  if (!(data.rounds?.length > 0)) {
+  if (!(data?.rounds?.length > 0)) {
+    roundViewState = "error";
     matchList.innerHTML = emptyState("matches", "아직 등록된 회차가 없습니다.");
     return;
   }
@@ -895,7 +1057,32 @@ async function loadRounds() {
   await loadRound(initial.id);
 }
 
+// 회차를 바꿀 때 이전 회차의 경기·조합·요약·리포트를 먼저 치운다. 예전엔 목록만 스켈레톤으로
+// 바뀌고 조합 탭과 currentMatches는 이전 회차 그대로여서, 로딩 중이거나 실패하면 다른 회차의
+// 조합이 새 회차 제목 아래 남아 있었다(예산 직접 입력도 이전 회차 경기로 계산됐다).
+function resetRoundView(): void {
+  currentMatches = [];
+  roundSummaryEl.hidden = true;
+  roundSummaryEl.innerHTML = "";
+  comboTiersEl.innerHTML = "";
+  exclusivePickEl.innerHTML = "";
+  reportText.textContent = "";
+  delete matchList.dataset.roundNo;
+}
+
+function showRoundError(roundId: number): void {
+  roundViewState = "error";
+  matchList.removeAttribute("aria-busy");
+  matchList.innerHTML = emptyState(
+    "info",
+    "회차 정보를 불러오지 못했습니다.<br />잠시 후 다시 시도해 주세요." +
+      `<br /><button type="button" class="btn" data-retry-round="${roundId}">다시 시도</button>`,
+  );
+}
+
 async function loadRound(roundId: number) {
+  // 이 호출의 세대 번호. 아래 await 뒤에서 더 새 호출이 있었으면 이 응답은 버린다.
+  const gen = ++roundLoadGen;
   currentRoundId = roundId;
   renderPhaseChip(roundId);
   const no = roundNoById.get(roundId);
@@ -904,9 +1091,10 @@ async function loadRound(roundId: number) {
     articleLink.hidden = no == null;
     if (no != null) articleLink.href = `/round/${no}`;
   }
-  reportText.textContent = "";
+  resetRoundView();
+  roundViewState = "loading";
   matchList.innerHTML = skeletonCards(5);
-  roundSummaryEl.hidden = true;
+  matchList.setAttribute("aria-busy", "true");
 
   let data: any;
   try {
@@ -914,11 +1102,18 @@ async function loadRound(roundId: number) {
     if (!res.ok) throw new Error(String(res.status));
     data = await res.json();
   } catch {
-    matchList.innerHTML = emptyState("info", "회차 정보를 불러오지 못했습니다.<br />잠시 후 다시 시도해 주세요.");
+    if (gen !== roundLoadGen) return;
+    showRoundError(roundId);
+    return;
+  }
+  if (gen !== roundLoadGen) return;
+  // 200이어도 모양이 다르면(프록시 오류 페이지 등) "경기 없음"이 아니라 오류로 보여준다.
+  if (!Array.isArray(data?.matches) || data.matches.some((m: any) => !m || typeof m.raw !== "object" || m.raw == null)) {
+    showRoundError(roundId);
     return;
   }
 
-  currentMatches = (data.matches ?? []).map((m: any) => ({
+  currentMatches = data.matches.map((m: any) => ({
     seq: m.seq,
     league: m.league,
     home: m.home,
@@ -936,12 +1131,16 @@ async function loadRound(roundId: number) {
       // 이 두 필드를 여기서 빠뜨려 화면에서 국가대표 Elo가 적용되지 않고(36/27/36 그대로),
       // 사후 등록 경기에 적중/실패가 붙었다. API 필드를 추가하면 이 매핑도 같이 늘려야 한다.
       nationalEloDiff: m.raw.nationalEloDiff ?? null,
+      // 서버가 등록 시점 값으로 확정한 배당 기반 여부. 필드가 없을 때(구버전 API)만 undefined로 두어
+      // clientMarketOnly가 리그 기준으로 폴백하게 한다. false도 유효한 값이라 `??`로 바꾸지 않는다.
+      resolvedMarketOnly: typeof m.raw.resolvedMarketOnly === "boolean" ? m.raw.resolvedMarketOnly : undefined,
     },
     predictedAfterKickoff: m.predictedAfterKickoff ?? false,
     snapshot: m.snapshot ?? null,
     result: m.result ?? null,
     voteShare: m.voteShare ?? null,
   }));
+  roundViewState = "ready";
   renderMatches();
   renderCombos();
 }
@@ -951,9 +1150,25 @@ roundSelect.addEventListener("change", () => {
   if (id) loadRound(id);
 });
 
+// 오류 화면의 '다시 시도' 버튼(목록을 다시 그리므로 위임으로 받는다).
+matchList.addEventListener("click", (e) => {
+  const t = e.target as HTMLElement;
+  const retryRound = t.closest<HTMLElement>("[data-retry-round]");
+  if (retryRound) {
+    const id = Number(retryRound.dataset.retryRound);
+    // 그사이 다른 회차를 골랐으면 그 회차를 다시 불러온다.
+    const target = currentRoundId ?? id;
+    if (target) void loadRound(target);
+    return;
+  }
+  if (t.closest("[data-retry-rounds]")) void loadRounds();
+});
+
 budgetBtn.addEventListener("click", () => {
   const budget = Number(budgetInput.value);
   if (!budget || budget < 1000) return;
+  // 회차를 불러오는 중이거나 실패해 경기가 없으면 빈 조합을 만들지 않는다.
+  if (currentMatches.length === 0) return;
   const comboMatches = toComboMatches();
   const guaranteeDrawCount = drawGuaranteeValue();
   const plan = generateSystemBet(comboMatches, budget, undefined, { guaranteeDrawCount });
@@ -1028,17 +1243,32 @@ if (brandEl) {
   });
 }
 
+// 이 버튼은 리포트를 만들지 않는다. GET /api/rounds/:id/report는 GitHub Actions가 미리 만들어 KV에 넣어 둔
+// 리포트를 읽기만 한다(src/routes/report.ts). 예전 "리포트 생성 중..." 문구는 누르면 생성이 시작되는 것처럼
+// 읽혔고, 아직 없을 때 다시 눌러도 만들어지지 않았다. 문구를 "불러오기"로 맞춘다.
+reportBtn.textContent = "이번 회차 리포트 보기";
 reportBtn.addEventListener("click", async () => {
-  if (!currentRoundId) return;
-  track("report_view", roundNoById.get(currentRoundId));
+  const roundId = currentRoundId;
+  if (!roundId) return;
+  track("report_view", roundNoById.get(roundId));
   reportBtn.disabled = true;
-  reportText.textContent = "리포트 생성 중...";
+  reportText.textContent = "저장된 리포트를 불러오는 중...";
   try {
-    const res = await fetch(`/api/rounds/${currentRoundId}/report`);
-    const data = await res.json();
-    reportText.textContent = data.report ?? data.error ?? "리포트를 가져오지 못했습니다.";
+    const res = await fetch(`/api/rounds/${roundId}/report`);
+    const data: any = await res.json().catch(() => null);
+    // 기다리는 사이 다른 회차로 바꿨으면 이전 회차 리포트를 새 회차 화면에 쓰지 않는다.
+    if (currentRoundId !== roundId) return;
+    if (res.ok && typeof data?.report === "string" && data.report.trim()) {
+      reportText.textContent = data.report;
+    } else if (res.ok) {
+      reportText.textContent =
+        "이번 회차 AI 리포트는 아직 준비되지 않았습니다. 리포트는 서버가 정해진 시각에 자동으로 만들며, " +
+        "이 버튼은 저장된 리포트를 불러오기만 합니다. 잠시 후 다시 확인해 주세요.";
+    } else {
+      reportText.textContent = "리포트를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.";
+    }
   } catch {
-    reportText.textContent = "리포트를 가져오지 못했습니다.";
+    if (currentRoundId === roundId) reportText.textContent = "리포트를 가져오지 못했습니다. 잠시 후 다시 시도해 주세요.";
   } finally {
     reportBtn.disabled = false;
   }

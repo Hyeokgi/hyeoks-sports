@@ -1,16 +1,13 @@
 // round_predictions에 저장된 원본 diff 성분을 읽어 토글이 반영된 확률로 재계산
 import { getRoundMatches, getRoundPredictions, getMarketOdds } from "./db";
-import {
-  predictMatch,
-  DEFAULT_TOGGLES,
-  marketWeightForLeague,
-  type PredictionToggles,
-  type MatchPrediction,
-} from "./prediction";
+import { predictMatch, DEFAULT_TOGGLES, type PredictionToggles, type MatchPrediction } from "./prediction";
 import { findCalibrationBucket, confidenceTier, type CalibrationBucket, type ConfidenceTier } from "./calibration";
 import { computeUpsetSignal, type UpsetSignal } from "./upsetSignal";
-import { isModelLeague } from "./nameMap";
+import { resolveMarketOnly, togglesForLeague } from "./clientPrediction";
 import type { Env, RoundMatchRow } from "../types";
+
+// 규칙 본체는 브라우저와 공유하는 clientPrediction.ts에 있다. 기존 import 경로(테스트 등)를 위해 다시 내보낸다.
+export { resolveMarketOnly };
 
 export interface MatchWithPrediction {
   match: RoundMatchRow;
@@ -33,14 +30,12 @@ export interface MatchWithPrediction {
     xgDiff: number | null;
     cornersDiff: number | null;
     nationalEloDiff: number | null;
+    // 서버가 등록 시점 market_only(없으면 리그 기준 폴백)로 확정한 판정. 브라우저 재계산이
+    // 이 값을 그대로 써야 화면과 API가 갈리지 않는다(public/app.ts loadRound 매핑 참고).
+    // 리그 이름만으로 다시 판단하면, 지원 리그인데 팀명 매핑이 없어 배당 기반으로 등록된 경기가
+    // 브라우저에서만 "모델 예측"(격차 0 + 홈어드밴티지)으로 뒤집힌다.
+    resolvedMarketOnly: boolean;
   };
-}
-
-// 등록 시점에 고정된 market_only를 쓰되, 그 컬럼이 없던 시절(migration 0008 이전) 회차는
-// 리그 기준으로 폴백한다. 이 판단이 뒤집히면 elo_diff=0으로 저장된 경기가 "모델 예측"으로
-// 표시되므로(격차 0 + 홈어드밴티지라는 가짜 신호), 규칙을 한 곳에 두고 테스트로 고정한다.
-export function resolveMarketOnly(storedMarketOnly: number | null | undefined, league: string): boolean {
-  return storedMarketOnly == null ? !isModelLeague(league) : storedMarketOnly === 1;
 }
 
 /**
@@ -76,6 +71,7 @@ export async function buildRoundPredictions(
   // marketWeight는 리그마다 다르다(유럽 4대리그만 큰 표본으로 검증됨 - prediction.ts 참고).
   // 호출자가 명시적으로 넘겼으면 그 값이 이긴다. 시뮬레이터가 슬라이더로 0.4를 고르는 것과
   // 아무것도 안 넘기는 것을 구분해야 해서 undefined 여부로 판단한다.
+  // 리그별 기본값 적용 규칙은 브라우저와 같은 함수(togglesForLeague)로 한다.
   const explicitMarketWeight = toggles?.marketWeight;
 
   return matches.map((m: RoundMatchRow) => {
@@ -87,6 +83,10 @@ export async function buildRoundPredictions(
     const market = marketRow
       ? { pHome: marketRow.p_home, pDraw: marketRow.p_draw, pAway: marketRow.p_away, nBookmakers: marketRow.n_bookmakers }
       : null;
+    // 등록 시점에 고정된 값을 쓴다. 여기서 리그로 다시 판단하면, 나중에 NAME_MAP에
+    // 팀명을 추가했을 때 성분이 0으로 저장된 경기가 "모델 예측"으로 뒤집힌다.
+    // market_only 컬럼이 없던 시절(0008 이전) 회차는 NULL이라 리그 기준으로 폴백한다.
+    const marketOnly = resolveMarketOnly(raw.market_only, m.league);
 
     const prediction = predictMatch(
       {
@@ -98,13 +98,10 @@ export async function buildRoundPredictions(
         xgDiff: raw.xg_diff,
         cornersDiff: raw.corners_diff,
         league: m.league,
-        // 등록 시점에 고정된 값을 쓴다. 여기서 리그로 다시 판단하면, 나중에 NAME_MAP에
-        // 팀명을 추가했을 때 성분이 0으로 저장된 경기가 "모델 예측"으로 뒤집힌다.
-        // market_only 컬럼이 없던 시절(0008 이전) 회차는 NULL이라 리그 기준으로 폴백한다.
-        marketOnly: resolveMarketOnly(raw.market_only, m.league),
+        marketOnly,
         nationalEloDiff: raw.nat_elo_diff ?? null,
       },
-      { ...merged, marketWeight: explicitMarketWeight ?? marketWeightForLeague(m.league) },
+      togglesForLeague(merged, m.league, explicitMarketWeight),
     );
     const calibration = {
       bucket: findCalibrationBucket(m.league, prediction.confidenceGap),
@@ -127,6 +124,7 @@ export async function buildRoundPredictions(
         xgDiff: raw.xg_diff,
         cornersDiff: raw.corners_diff,
         nationalEloDiff: raw.nat_elo_diff ?? null,
+        resolvedMarketOnly: marketOnly,
       },
     };
   });

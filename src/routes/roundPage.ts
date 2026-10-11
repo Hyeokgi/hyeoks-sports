@@ -11,15 +11,30 @@ import {
   buildRoundArticle,
   renderRoundPage,
   renderDraftPage,
+  isScoredRecord,
   type ArticleMatch,
   type RecentRecord,
   type RoundArticle,
 } from "../lib/roundArticle";
-import { getPredictionSnapshots } from "../lib/predictionSnapshot";
+import { classifyRecord, getPredictionSnapshots, hasValidProbabilities } from "../lib/predictionSnapshot";
 import { sitemapEntries } from "../lib/matchPage";
+import { isCalibrationUnderReview } from "../lib/clientPrediction";
+import { PUBLIC_ORIGIN } from "../lib/publicSite";
 import type { Env, RoundRow } from "../types";
 
 const RESULT_LABEL = { H: "홈승", D: "무승부", A: "원정승" } as const;
+
+// 선택 구간(리포트·최근 성적·기준 시각)은 실패해도 글 전체를 깨지 않고 그 구간만 비운다.
+// 예전에는 Promise.all 하나라 KV 일시 오류나 옛 회차 하나의 예측 원본 누락만으로 페이지·초안·data.json이
+// 통째로 500이 됐다. 현재 회차 경기(loadMatches)는 필수라 실패하면 그대로 오류를 올린다.
+async function optional<T>(label: string, fn: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await fn();
+  } catch (e) {
+    console.error(`roundArticle: ${label} 생략 - ${(e as Error)?.message ?? String(e)}`);
+    return fallback;
+  }
+}
 // 페이지는 배당이 2시간마다 바뀌는 정도라 10분 캐시면 충분하다(D1 조회를 매 요청마다 하지 않게).
 const PAGE_CACHE_SECONDS = 600;
 const RECENT_ROUNDS = 5;
@@ -48,9 +63,13 @@ async function loadMatches(env: Env, roundId: number, withDetail = false): Promi
   return preds.map((p) => {
     const r = results.get(p.match.id);
     const v = votes.get(p.match.id);
-    // 끝난 경기는 킥오프 전에 공개했던 예측(스냅샷)으로 보여주고 채점한다.
+    // 끝난 경기는 킥오프 전에 저장된 예측(스냅샷)으로 보여주고, 그것이 검증됐을 때만 채점한다.
+    // 스냅샷이 없거나 검증되지 않으면 recordProvenance로 그 사실을 붙여 표시만 한다(채점 제외).
     const snap = r ? snaps.get(p.match.id) : undefined;
-    const pred = snap?.prediction ?? p.prediction;
+    const recordProvenance = r ? classifyRecord(snap, p.match.kickoff_at, p.prediction, p.predictedAfterKickoff) : undefined;
+    // 확률이 깨진 스냅샷(NaN 등)은 표에도 쓰지 않는다. 그때는 재계산값을 보여주되 출처는 unverified로 남는다.
+    const useSnap = snap != null && hasValidProbabilities(snap.prediction);
+    const pred = useSnap ? snap.prediction : p.prediction;
     return {
       seq: p.match.seq,
       league: p.match.league,
@@ -64,11 +83,12 @@ async function loadMatches(env: Env, roundId: number, withDetail = false): Promi
       pick: pred.rankedPicks[0],
       confidenceGap: pred.confidenceGap,
       basis: pred.basis,
-      tier: (snap?.tier as string | undefined) ?? p.calibration.tier,
-      nBookmakers: p.raw.market?.nBookmakers ?? null,
+      tier: (useSnap ? (snap.tier as string | null) : null) ?? p.calibration.tier,
+      nBookmakers: useSnap ? (snap.nBookmakers ?? null) : (p.raw.market?.nBookmakers ?? null),
       vote: v ? { home: v.vote_home, draw: v.vote_draw, away: v.vote_away } : null,
       result: r ? { actual: r.actual, hg: r.hg, ag: r.ag } : null,
       predictedAfterKickoff: p.predictedAfterKickoff,
+      ...(recordProvenance ? { recordProvenance, capturedAt: useSnap ? snap.capturedAt : null } : {}),
       detail: withDetail && !r ? buildDetail(p, history?.get(p.match.id) ?? [], modelOnlyById.get(p.match.id) ?? null) : null,
     };
   });
@@ -95,29 +115,41 @@ function buildDetail(
       : null,
     marketOpen: open ? { pHome: open.p_home, pDraw: open.p_draw, pAway: open.p_away } : null,
     modelOnly: isModel && modelOnly && modelOnly.basis === "model" ? { pHome: modelOnly.pHome, pDraw: modelOnly.pDraw, pAway: modelOnly.pAway } : null,
-    calib: isModel && b ? { accuracy: b.accuracy, n: b.n, minGap: b.minGap, maxGap: b.maxGap } : null,
+    // 유럽 4개 리그 보정표는 검증 스크립트 결함(미래 무승부율 혼입·폼 단위) 때문에 재검증 전까지 적중률 근거로 쓰지 않는다.
+    calib: isModel && b && !isCalibrationUnderReview(p.match.league) ? { accuracy: b.accuracy, n: b.n, minGap: b.minGap, maxGap: b.maxGap } : null,
   };
 }
 
-/** 이 회차 이전의 정산 회차 성적. 사후 등록 경기는 예측이 아니므로 뺀다. */
+/**
+ * 이 회차 이전의 정산 회차 성적. 검증된 킥오프 전 저장 기록(isScoredRecord)만 채점한다.
+ * 재구성·미검증·근거 없음·사후 등록 경기는 excluded로만 센다. 한 회차를 못 읽으면 그 회차만 건너뛴다.
+ */
 async function loadRecent(env: Env, beforeId: number): Promise<RecentRecord[]> {
   const { results: rounds } = await env.DB.prepare(
     `SELECT id, round_no FROM rounds WHERE id < ? AND round_no IS NOT NULL
       AND EXISTS (SELECT 1 FROM round_results rr JOIN round_matches rm ON rm.id = rr.round_match_id WHERE rm.round_id = rounds.id)
       ORDER BY id DESC LIMIT ?`,
   )
-    .bind(beforeId, RECENT_ROUNDS + 3) // 사후 등록뿐인 회차(n=0)는 걸러지므로 여유 있게
+    // 검증된 기록이 없는 회차(n=0: 스냅샷 이전·사후 등록뿐)는 걸러지므로 여유 있게 읽는다.
+    // 그래도 5회차가 안 차면 덜 보여준다(재구성 회차로 채우지 않는다).
+    .bind(beforeId, RECENT_ROUNDS + 3)
     .all<{ id: number; round_no: number }>();
   // 회차별 조회를 동시에 보낸다. 순서대로 보내면 첫 로딩이 5초쯤 걸렸다(실측).
-  const loaded = await Promise.all((rounds ?? []).map(async (r) => ({ r, ms: await loadMatches(env, r.id) })));
+  const loaded = await Promise.all(
+    (rounds ?? []).map(async (r) => ({ r, ms: await optional<ArticleMatch[] | null>(`recent ${r.round_no}회차`, () => loadMatches(env, r.id), null) })),
+  );
   const out: RecentRecord[] = [];
   for (const { r, ms } of loaded) {
-    const scored = ms.filter((m) => m.result && !m.predictedAfterKickoff);
+    if (!ms) continue;
+    const finished = ms.filter((m) => m.result);
+    const scored = finished.filter(isScoredRecord);
     if (scored.length === 0) continue;
+    const excluded = finished.length - scored.length;
     out.push({
       roundNo: r.round_no,
       n: scored.length,
       hits: scored.filter((m) => m.pick === RESULT_LABEL[m.result!.actual]).length,
+      ...(excluded > 0 ? { excluded } : {}),
     });
     if (out.length >= RECENT_ROUNDS) break;
   }
@@ -128,10 +160,10 @@ export async function loadRoundArticle(env: Env, roundNo: number, origin: string
   const round = await findRoundByNo(env, roundNo);
   if (!round) return null;
   const [matches, report, recent, asOf] = await Promise.all([
-    loadMatches(env, round.id, true),
-    env.KV.get(reportCacheKey(round.id)),
-    loadRecent(env, round.id),
-    oddsAsOf(env, round.id),
+    loadMatches(env, round.id, true), // 필수: 실패하면 오류를 그대로 올린다
+    optional<string | null>("report", () => env.KV.get(reportCacheKey(round.id)), null),
+    optional<RecentRecord[]>("recent", () => loadRecent(env, round.id), []),
+    optional<string | null>("asOf", () => oddsAsOf(env, round.id), null),
   ]);
   if (matches.length === 0) return null;
   return buildRoundArticle({
@@ -213,14 +245,19 @@ export const GUIDE_PATHS = [
   "/guide/proto-check",
   "/guide/toto-refund",
   "/guide/toto-tax",
+  "/guide/probability-reading",
 ];
+// 운영·신뢰 정보 페이지. 도구(/app)는 검색 대상이 아니라 제외한다.
+export const SITE_PATHS = ["/", "/matches", "/performance", "/methodology", "/sources", "/editorial", "/about", "/contact", "/privacy"];
 
 export async function handleSitemap(env: Env, request: Request): Promise<Response> {
-  const origin = new URL(request.url).origin;
+  void request;
+  const origin = PUBLIC_ORIGIN;
+  // 경기 예측 성분이 있는 확정 회차만 내보낸다(빈 회차·등록 실패 회차를 색인에 올리지 않기 위해).
   const { results } = await env.DB.prepare(
-    `SELECT r.round_no, COALESCE((SELECT MAX(mo.updated_at) FROM market_odds mo JOIN round_matches rm ON rm.id = mo.round_match_id WHERE rm.round_id = r.id), r.created_at) AS lastmod FROM rounds r WHERE r.round_no IS NOT NULL AND r.round_no_confirmed = 1 ORDER BY r.id DESC LIMIT 200`
+    `SELECT r.round_no, COALESCE((SELECT MAX(mo.updated_at) FROM market_odds mo JOIN round_matches rm ON rm.id = mo.round_match_id WHERE rm.round_id = r.id), r.created_at) AS lastmod FROM rounds r WHERE r.round_no IS NOT NULL AND r.round_no_confirmed = 1 AND EXISTS (SELECT 1 FROM round_matches rm JOIN round_predictions p ON p.round_match_id = rm.id WHERE rm.round_id = r.id) ORDER BY r.id DESC LIMIT 200`
   ).all<{ round_no: number; lastmod: string }>();
-  const urls = [`<url><loc>${origin}/</loc></url>`, `<url><loc>${origin}/about</loc></url>`, ...GUIDE_PATHS.map((p) => `<url><loc>${origin}${p}</loc></url>`)].concat(
+  const urls = [...SITE_PATHS, ...GUIDE_PATHS].map((p) => `<url><loc>${origin}${p}</loc></url>`).concat(
     (results ?? []).map((r) => `<url><loc>${origin}/round/${r.round_no}</loc><lastmod>${r.lastmod.slice(0, 10)}</lastmod></url>`),
   );
   // 경기별 분석 페이지(리그·경기). 표가 없거나 조회가 실패해도 회차 사이트맵은 내보낸다.
@@ -236,7 +273,8 @@ export async function handleSitemap(env: Env, request: Request): Promise<Respons
 }
 
 export function handleRobots(request: Request): Response {
-  const origin = new URL(request.url).origin;
+  void request;
+  const origin = PUBLIC_ORIGIN;
   return new Response(
     `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /round/*/draft\nSitemap: ${origin}/sitemap.xml\n`,
     { headers: { "content-type": "text/plain; charset=utf-8" } },

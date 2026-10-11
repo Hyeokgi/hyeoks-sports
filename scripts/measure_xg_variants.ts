@@ -57,9 +57,12 @@ import {
   toProbs,
   evaluate,
   SPLITS,
+  chronologicalCut,
   type Features,
   type Probs,
 } from "./lib/evalHarness";
+// 분할 지점은 chronologicalCut으로 정한다 - floor(n*frac)로 자르면 같은 날 경기가 train/test
+// 양쪽에 걸친다(하네스 피처 계약 v2, 2026-10-11).
 import { DEFAULT_FORM_WEIGHT, DEFAULT_H2H_WEIGHT } from "../src/lib/prediction";
 import type { MatchRow } from "../src/lib/elo";
 
@@ -247,7 +250,7 @@ async function main() {
     console.log("분할  train/test   w    적중률(0->w)       Brier              로그손실           판정");
     let pass = 0;
     for (const frac of SPLITS) {
-      const cut = Math.floor(sub.length * frac);
+      const cut = chronologicalCut(sub, frac);
       const train = sub.slice(0, cut), test = sub.slice(cut);
       let bw = 0, bll = Infinity;
       for (let w = -150; w <= 150; w += 5) {
@@ -297,7 +300,7 @@ async function main() {
     console.log("\n분할  train/test   (wa,wd)     적중률(0->w)       Brier              로그손실           판정");
     let pass = 0;
     for (const frac of SPLITS) {
-      const cut = Math.floor(sub2.length * frac);
+      const cut = chronologicalCut(sub2, frac);
       const train = sub2.slice(0, cut), test = sub2.slice(cut);
       let bwa = 0, bwd = 0, bll = Infinity;
       for (let wa = -100; wa <= 100; wa += 10) {
