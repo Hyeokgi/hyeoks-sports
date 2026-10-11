@@ -101,7 +101,7 @@ export function toPredictionInputs(league: string, raw: ClientRawComponents): Pr
 // 목록은 유럽 marketWeight(0.8)를 쓰는 리그와 같다 - 테스트가 둘이 갈리지 않는지 확인한다.
 // 2026-10-12: 고친 하니스로 유럽 4개 리그 보정표를 재산출해 calibration.ts에 반영했다. 재검증 중인 리그 없음.
 // 다시 문제가 생기면 이 목록에 리그를 넣으면 화면·글에서 구간 적중률 표시가 숨겨진다.
-export const CALIBRATION_UNDER_REVIEW_LEAGUES: readonly string[] = [];
+export const CALIBRATION_UNDER_REVIEW_LEAGUES: readonly string[] = ["K리그1", "MLS"]; // 2026-10-12 배당 비중 0.4→0.8, 보정표 재산출 전
 export const CALIBRATION_REVIEW_LABEL = "과거 보정표 재검증 중";
 
 /** 이 리그의 확신도 보정표(구간별 과거 적중률·등급)를 지금 화면에 근거로 보여주면 안 되는가. */

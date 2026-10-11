@@ -96,11 +96,25 @@ export const DEFAULT_MARKET_WEIGHT = 0.4;
 // 모델을 블렌딩에 남겨 등급 체계를 유지한다(등급 자체는 0.8 기준으로 재산출했다).
 export const EUROPEAN_MARKET_WEIGHT = 0.8;
 
+// 2026-10-12: K리그1·MLS도 0.8로 올린다. 고친 검증 하니스(v2: 이전 경기만 사용, 운영과 같은 폼 단위,
+// 날짜 경계 분할)로 measure-market-weight-extra를 다시 돌린 결과(Actions run 38156191300), 시간순 4분할
+// 모두에서 적중률과 로그손실이 0.4보다 나빠지지 않았다(둘 다 4/4 개선). 분할 0.5/0.6/0.7/0.8, 적중/로그손실:
+//   K리그1 w=0.4  53.57/0.9734  53.85/0.9735  56.17/0.9589  55.08/0.9675
+//          w=0.8  54.50/0.9644  54.62/0.9637  56.28/0.9477  56.15/0.9524
+//   MLS    w=0.4  48.02/1.0387  47.30/1.0425  47.11/1.0408  48.59/1.0333
+//          w=0.8  48.80/1.0271  48.03/1.0298  47.85/1.0295  49.45/1.0221
+// 1.0이 아니라 0.8인 이유는 유럽과 같다(모델을 남겨 확신도 등급 체계를 유지). J1은 0.8이 적중률 3/4 분할에서
+// 떨어져 0.4를 유지하고, K리그2는 측정하지 않아 그대로 둔다. 두 리그의 보정표는 0.4 기준이라 재산출 전까지
+// clientPrediction.ts의 CALIBRATION_UNDER_REVIEW_LEAGUES로 구간 적중률 표시를 숨긴다.
+export const RAISED_THIN_MARKET_WEIGHT = 0.8;
+
 const MARKET_WEIGHT_BY_LEAGUE: Record<string, number> = {
   EPL: EUROPEAN_MARKET_WEIGHT,
   라리가: EUROPEAN_MARKET_WEIGHT,
   세리에A: EUROPEAN_MARKET_WEIGHT,
   분데스리가: EUROPEAN_MARKET_WEIGHT,
+  K리그1: RAISED_THIN_MARKET_WEIGHT,
+  MLS: RAISED_THIN_MARKET_WEIGHT,
 };
 
 export function marketWeightForLeague(league: string | undefined): number {
