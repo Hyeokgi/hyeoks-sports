@@ -3,6 +3,7 @@
 //
 // 원칙(앱과 동일): 확률의 출처(모델/배당/국가대표 Elo/근거없음)를 경기마다 밝히고,
 // 적중을 약속하는 표현을 쓰지 않으며, 구매는 공식 판매처에서만 가능하다는 고지를 항상 붙인다.
+import { siteHeader, siteFooter } from "./publicSite";
 import type { PredictionBasis } from "./prediction";
 import { analyzeMatch, who as whoOf, type MatchAnalysis, type MatchDetail } from "./matchAnalysis";
 // 타입만 가져온다(런타임 의존 없음 - 이 파일은 DB를 타지 않는 순수 함수로 남는다).
@@ -312,23 +313,47 @@ function matchLine(m: ArticleMatch): string {
 const who = (m: ArticleMatch, o: ArticleMatch["pick"]) => whoOf(o, m.home, m.away);
 const ADVANCED = "근거가 둘 이상 같은 방향이고 확률 차이가 큰 경기부터 싱글로, 박빙인 경기는 복식으로 덮는 것이 기본 전략입니다.";
 
+// 공개 웹페이지(/round/N)는 구매 전략 표현(단식·복식·조합) 대신 확률 분포를 설명하는 말을 쓴다.
+// 블로그 초안·data.json은 기존 표현을 그대로 유지한다(블로그 자동 발행 루틴이 이 값을 쓴다).
+const NEUTRAL_STANCE: Record<string, string> = {
+  단식: "확률 차 뚜렷",
+  "단식·여유 시 복식": "다소 기움",
+  복식: "두 결과 박빙",
+  "삼복식 고려": "세 결과 모두 열림",
+  "판단 보류": "판단 보류",
+};
+const stanceText = (s: string, neutral: boolean) => (neutral ? NEUTRAL_STANCE[s] ?? s : s);
+function neutralVerdict(m: ArticleMatch): string {
+  const an = m.analysis!;
+  const first = who(m, m.pick);
+  const second = an.cover.find((o) => o !== m.pick);
+  switch (an.stance) {
+    case "단식": return `${first} 쪽으로 확률이 뚜렷하게 기운 경기입니다. 그래도 확정된 결과는 아닙니다.`;
+    case "단식·여유 시 복식": return `${first} 쪽이 앞서지만${second ? ` ${who(m, second)}` : " 다른 결과"} 가능성도 적지 않게 남아 있습니다.`;
+    case "복식": return `${first}${second ? `과 ${who(m, second)}` : "와 다른 결과"}의 확률이 비슷하게 맞서는 경기입니다.`;
+    case "삼복식 고려": return "세 결과의 확률이 모두 비슷하게 열려 있는 경기입니다.";
+    default: return an.verdict;
+  }
+}
+
 /** 경기 한 개의 심층 분석 블록(HTML). 근거 → 위험 → 판단 순서. */
-function analysisBlockHtml(m: ArticleMatch): string {
+function analysisBlockHtml(m: ArticleMatch, neutral = false): string {
   const e = escapeHtml;
   const an = m.analysis!;
   const head =
     `<h3>${e(matchLine(m))} <small>${e(m.league)}${m.kickoffAt ? ` · ${e(formatKst(m.kickoffAt) ?? "")}` : ""}</small></h3>` +
-    `<p><b>판단: ${e(who(m, m.pick))} ${pct(m.pick === "홈승" ? m.pHome : m.pick === "무승부" ? m.pDraw : m.pAway)}</b> · ${e(an.stance)} ` +
+    `<p><b>${neutral ? "확률 1위" : "판단"}: ${e(who(m, m.pick))} ${pct(m.pick === "홈승" ? m.pHome : m.pick === "무승부" ? m.pDraw : m.pAway)}</b> · ${e(stanceText(an.stance, neutral))} ` +
     `<small>(홈 ${pct(m.pHome)} / 무 ${pct(m.pDraw)} / 원정 ${pct(m.pAway)}, 근거: ${e(BASIS_TEXT[m.basis])})</small></p>`;
   const reasons = an.reasons.length ? `<p><b>근거</b></p><ul>${an.reasons.map((r) => `<li>${e(r)}</li>`).join("")}</ul>` : "";
   const risks = an.risks.length
     ? `<p><b>변수·위험</b></p><ul>${an.risks.map((r) => `<li>${e(r)}</li>`).join("")}</ul>`
     : `<p><b>변수·위험</b>: 뚜렷한 반대 신호는 없습니다. 다만 단일 경기는 언제든 뒤집힐 수 있습니다.</p>`;
-  return head + reasons + risks + `<p>→ ${e(an.verdict)}</p>`;
+  return head + reasons + risks + `<p>→ ${e(neutral ? neutralVerdict(m) : an.verdict)}</p>`;
 }
 
 /** 페이지와 블로그 초안이 공유하는 본문 HTML. 블로그 편집기에 붙여넣을 수 있게 단순한 태그만 쓴다. */
-export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "round_page"): string {
+export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "round_page", opts: { neutral?: boolean } = {}): string {
+  const neutral = opts.neutral === true;
   const e = escapeHtml;
   const parts: string[] = [];
   const appLink = withUtm(a.appUrl, source, a.roundNo);
@@ -365,13 +390,13 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
   if (keys.length) {
     parts.push(`<h2>핵심 경기 심층 분석</h2>`);
     parts.push(`<p><small>확신도가 가장 높은 경기, 대중과 판단이 갈린 경기, 가장 박빙인 경기를 골랐습니다.</small></p>`);
-    for (const m of keys) parts.push(analysisBlockHtml(m));
+    for (const m of keys) parts.push(analysisBlockHtml(m, neutral));
   }
 
   // 4. 전체 경기 확률표 + 한 줄 코멘트
   parts.push(`<h2>전체 경기 확률표</h2>`);
   parts.push(
-    `<table><thead><tr><th>번호</th><th>경기</th><th>홈</th><th>무</th><th>원정</th><th>판단</th><th>근거</th></tr></thead><tbody>` +
+    `<table><thead><tr><th>번호</th><th>경기</th><th>홈</th><th>무</th><th>원정</th><th>${neutral ? "확률 1위" : "판단"}</th><th>근거</th></tr></thead><tbody>` +
       a.matches
         .map((m) => {
           const basis =
@@ -380,7 +405,7 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
           // 재구성·미검증·근거 없음은 그 사실을 바로 아래에 적는다.
           const res = resultText(m);
           const label = recordLabel(m);
-          const call = !hasCall(m) ? "-" : m.analysis && !m.result ? `${m.pick}<br><small>${e(m.analysis.stance)}</small>` : m.pick;
+          const call = !hasCall(m) ? "-" : m.analysis && !m.result ? `${m.pick}<br><small>${e(stanceText(m.analysis.stance, neutral))}</small>` : m.pick;
           return (
             `<tr><td>${m.seq}</td><td>${e(`${m.home} vs ${m.away}`)}<br><small>${e(m.league)}${m.kickoffAt ? ` · ${e(formatKst(m.kickoffAt) ?? "")}` : ""}</small></td>` +
             `<td>${pct(m.pHome)}</td><td>${pct(m.pDraw)}</td><td>${pct(m.pAway)}</td>` +
@@ -404,13 +429,13 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
     for (const m of rest) {
       const why = m.analysis!.reasons[0] ?? "";
       const risk = m.analysis!.risks[0] ? ` 주의: ${m.analysis!.risks[0]}` : "";
-      parts.push(`<li><b>${e(matchLine(m))}</b> — ${e(m.analysis!.verdict)} ${e(why)}${e(risk)}</li>`);
+      parts.push(`<li><b>${e(matchLine(m))}</b> — ${e(neutral ? neutralVerdict(m) : m.analysis!.verdict)} ${e(why)}${e(risk)}</li>`);
     }
     parts.push(`</ul>`);
   }
 
   // 5. 조합 전략
-  if (a.strategy) {
+  if (a.strategy && !neutral) {
     parts.push(`<h2>조합 전략</h2>`);
     parts.push(`<p>${e(a.strategy)}</p><p><small>${e(ADVANCED)}</small></p>`);
   }
@@ -426,7 +451,9 @@ export function renderArticleBodyHtml(a: RoundArticle, source: LinkSource = "rou
     }
     parts.push(`</ul><p><small>${e(RECENT_NOTE)}</small></p>`);
   }
-  parts.push(`<p>경기별 근거를 직접 조절해 조합을 짜보려면: <a href="${e(appLink)}">${e(a.appUrl)}</a></p>`);
+  parts.push(neutral
+    ? `<p>이 회차 14경기의 확률을 한 화면에서 보고 변수를 바꿔 보려면 <a href="${e(appLink)}">승무패 도구</a>를 이용하세요. 도구의 계산은 참고용 시뮬레이션입니다.</p>`
+    : `<p>경기별 근거를 직접 조절해 조합을 짜보려면: <a href="${e(appLink)}">${e(a.appUrl)}</a></p>`);
   parts.push(`<p><small>${e(DISCLAIMER)}</small></p>`);
   return parts.join("\n");
 }
@@ -487,35 +514,46 @@ textarea{width:100%;min-height:220px;background:var(--card);color:var(--ink);bor
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}.ok{color:#3ecf8e;font-size:.9rem}
 `;
 
-/** 검색 노출용 회차 분석 페이지. */
+/** 공개 회차 페이지 제목. data.json의 title(블로그용)과 달리 구매 전략 표현을 넣지 않는다. */
+export function publicRoundTitle(a: Pick<RoundArticle, "roundNo" | "leagues" | "matches">): string {
+  return `${a.roundNo}회차 승무패 ${a.matches.length}경기 확률과 근거 | ${a.leagues.join("·")}`;
+}
+
+/**
+ * 공개 회차 분석 페이지. 2026-10-12부터 검색 색인에서 뺀다(noindex). 토토 회차 페이지는 구매 전략
+ * 성격이 강해 사이트 전체가 베팅 정보 사이트로 읽힐 수 있어서다. 블로그·앱에서 오는 방문자용으로 유지한다.
+ */
 export function renderRoundPage(a: RoundArticle): string {
   const e = escapeHtml;
+  const title = publicRoundTitle(a);
+  const description = `${a.roundNo}회차 승무패 ${a.matches.length}경기(${a.leagues.join("·")})의 경기별 확률, 근거와 변수, 지난 회차 저장 예측 기록을 정리했습니다.`;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: a.title,
-    description: a.description,
+    headline: title,
+    description,
     inLanguage: "ko-KR",
     mainEntityOfPage: a.pageUrl,
   };
   return `<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${e(a.title)}</title>
-<meta name="description" content="${e(a.description)}">
+<title>${e(title)} | HYEOKS</title>
+<meta name="description" content="${e(description)}">
+<meta name="robots" content="noindex,follow">
 <link rel="canonical" href="${e(a.pageUrl)}">
-<meta property="og:type" content="article"><meta property="og:title" content="${e(a.title)}">
-<meta property="og:description" content="${e(a.description)}"><meta property="og:url" content="${e(a.pageUrl)}">
+<meta property="og:type" content="article"><meta property="og:title" content="${e(title)}">
+<meta property="og:description" content="${e(description)}"><meta property="og:url" content="${e(a.pageUrl)}">
 <script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, "\\u003c")}</script>
-<style>${PAGE_CSS}</style></head>
-<body><main>
-<p class="meta"><a href="/">HYEOKS 승무패 분석</a> · ${a.roundNo}회차</p>
-<h1>${e(a.title)}</h1>
-<a class="cta" id="cta-app" href="${e(withUtm(a.appUrl, "round_page", a.roundNo))}">앱에서 조합 직접 짜보기 →</a>
+<link rel="stylesheet" href="/fonts/pretendard/pretendard.css"><style>${PAGE_CSS}</style><link rel="stylesheet" href="/nav.css"></head>
+<body>${siteHeader(`/round/${a.roundNo}`)}<main id="content">
+<p class="meta"><a href="/">홈</a> › <a href="/app">승무패 도구</a> › ${a.roundNo}회차</p>
+<h1>${e(title)}</h1>
+<a class="cta" id="cta-app" href="${e(withUtm(a.appUrl, "round_page", a.roundNo))}">승무패 도구에서 이 회차 보기 →</a>
 <div class="card table-wrap">
-${renderArticleBodyHtml(a, "round_page")}
+${renderArticleBodyHtml(a, "round_page", { neutral: true })}
 </div>
-<p class="meta" style="margin-top:28px;text-align:center"><a href="/about">서비스 소개</a> · <a href="/privacy">개인정보처리방침</a> · <a href="/">웹앱</a></p>
 </main>
+${siteFooter()}
 <script>
 (function(){try{var q=new URLSearchParams(location.search);var d={r:${a.roundNo},u:q.get("utm_source"),ref:document.referrer};
 function send(e){try{d.e=e;navigator.sendBeacon("/api/e",JSON.stringify(d))}catch(_){}}

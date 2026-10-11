@@ -23,6 +23,7 @@ import { displayTeamName, leagueInfo, leagueBySlug, LEAGUE_INFO, type LeagueInfo
 import { DISCLAIMER, escapeHtml as e } from "./roundArticle";
 import { FALLBACK_DRAW_RATE, type PredictionBasis } from "./prediction";
 import type { Env } from "../types";
+import { siteHeader as publicHeader, siteFooter as publicFooter } from "./publicSite";
 
 // 대표 주소는 요청 주소와 상관없이 고정한다(옛 workers.dev 주소로 들어와도 canonical·사이트맵은 hyeoks.com).
 export const SITE = "https://hyeoks.com";
@@ -790,25 +791,7 @@ export const SITE_LINKS: readonly { href: string; label: string }[] = [
   { href: "/app", label: "승무패 도구" },
   { href: "/privacy", label: "개인정보처리방침" },
 ];
-const NAV_PRIMARY = [
-  { href: "/matches", label: "경기 분석" },
-  { href: "/performance", label: "기록" },
-  { href: "/guide/", label: "가이드" },
-  { href: "/app", label: "승무패 도구" },
-] as const;
-
-function siteHeader(active: string | null): string {
-  const links = NAV_PRIMARY.map((l) => `<a href="${l.href}"${l.href === active ? ' aria-current="page"' : ""}>${e(l.label)}</a>`).join("");
-  return `<a class="skip" href="#main">본문 바로가기</a><header class="top"><a class="brand" href="/"><i aria-hidden="true"></i><span>HYEOKS 풋볼 데이터<small>축구 경기 확률과 기록, 계산 근거를 함께 봅니다</small></span></a><nav class="primary" aria-label="주요 메뉴">${links}</nav><p class="howto">이 데이터를 읽는 법: <a href="/methodology">방법론</a> · <a href="/sources">출처·데이터 주의사항</a></p></header>`;
-}
-
-// 스폰서 모집 칸 대신 눈에 띄지 않는 연락처와 책임 있는 이용 안내만 둔다.
-function siteFooter(): string {
-  return `<footer class="site"><nav aria-label="사이트 안내">${SITE_LINKS.map((l) => `<a href="${l.href}">${e(l.label)}</a>`).join("")}</nav>
-<p id="responsible-use"><b>책임 있는 이용</b> · 이 사이트는 경기 확률과 기록을 설명하는 정보 서비스이며 구매를 권하지 않습니다. 체육진흥투표권은 공식 판매처에서만, 만 19세 이상만 구매할 수 있습니다. 도박 문제로 고민된다면 한국도박문제예방치유원 상담전화 <a href="tel:1336">1336</a>에서 도움을 받을 수 있습니다.</p>
-<p>오류 제보·문의: <a href="/contact">문의 안내</a> · <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></p>
-<p>${e(DISCLAIMER)}</p></footer>`;
-}
+// 머리말·꼬리말은 publicSite의 공통 메뉴를 쓴다(화면 종류마다 메뉴가 달라지지 않게).
 
 const beacon = (event: string) => `<script>(function(){try{var q=new URLSearchParams(location.search);var d={e:${JSON.stringify(event)},u:q.get("utm_source"),ref:document.referrer};navigator.sendBeacon("/api/e",JSON.stringify(d))}catch(_){}})();</script>`;
 
@@ -835,12 +818,12 @@ function pageShell(o: ShellOpts): string {
 ${o.keywords?.length ? `<meta name="keywords" content="${e(o.keywords.join(", "))}">\n` : ""}${o.canonical ? `<link rel="canonical" href="${e(o.canonical)}">
 <meta property="og:type" content="${o.ogType ?? "website"}"><meta property="og:title" content="${e(o.title)}"><meta property="og:description" content="${e(o.description)}"><meta property="og:url" content="${e(o.canonical)}">\n` : ""}<meta name="theme-color" content="#0a0c12">
 <link rel="stylesheet" href="/fonts/pretendard/pretendard.css">
-${ld}<style>${CSS}</style></head>
-<body>${siteHeader(o.active)}
-<main id="main">
+${ld}<style>${CSS}</style><link rel="stylesheet" href="/nav.css"></head>
+<body>${publicHeader(o.canonical ? new URL(o.canonical).pathname : o.active ?? "/matches")}
+<main id="content">
 ${o.body}
 </main>
-${siteFooter()}
+${publicFooter(DISCLAIMER)}
 ${o.event ? beacon(o.event) : ""}
 </body></html>`;
 }
@@ -997,15 +980,21 @@ ${v.context ? `<section class="card" aria-labelledby="h-ctx"><h2 id="h-ctx">경�
 ${v.siblings.length ? `<section class="card" aria-labelledby="h-sib"><h2 id="h-sib">${e(v.leagueName)} 다른 경기</h2><div class="rows">${v.siblings.map(rowHtml).join("")}</div><p class="note"><a href="/league/${e(v.leagueSlug)}">${e(v.leagueName)} 경기 전체 보기 →</a></p></section>` : ""}
 
 <section class="card" aria-labelledby="h-app"><h2 id="h-app">승무패 도구</h2><p class="note" style="margin:0">${v.round ? `이 경기가 포함된 승무패 ${v.round.roundNo}회차 14경기를 도구에서 함께 볼 수 있습니다.` : "승무패 회차별 경기 확률은 별도 도구에서 볼 수 있습니다."} 도구의 사용자 설정 재계산은 공식 저장 기록과 다릅니다.</p>
-<p style="margin:12px 0 0"><a class="cta" href="/app?${v.round ? `round=${v.round.roundNo}&amp;` : ""}utm_source=match_page">승무패 도구 열기 →</a></p></section>
-
-<section aria-label="관련 검색어"><p class="note" style="margin:0 0 6px">관련 검색어</p><div class="tags">${tags.map((t) => `<span>#${e(t)}</span>`).join("")}</div></section>`;
+<p style="margin:12px 0 0"><a class="cta" href="/app?${v.round ? `round=${v.round.roundNo}&amp;` : ""}utm_source=match_page">승무패 도구 열기 →</a></p></section>`;
 
   return pageShell({
-    title, description: desc, canonical: url, indexable: matchIndexable(v), ogType: "article", keywords: tags, jsonLd,
+    title, description: desc, canonical: url, indexable: MATCH_PAGES_INDEXED && matchIndexable(v), ogType: "article", keywords: tags, jsonLd,
     event: "match_view", active: "/matches", body,
   });
 }
+
+/**
+ * 경기 상세 페이지는 검색 색인에 넣지 않는다(2026-10-12). 템플릿으로 만든 경기 페이지가 사이트맵의
+ * 85%(311개 중 265개)를 차지해 '검토 없이 대량 생성한 페이지'로 보일 위험이 있었다. 페이지와 링크는
+ * 그대로 두고, 색인은 리그·가이드·기록처럼 사람이 읽을 가치가 큰 페이지에 집중한다.
+ * matchIndexable은 '내용이 준비됐는가' 판정으로 남겨 둔다(data.json의 indexable·readinessGaps).
+ */
+export const MATCH_PAGES_INDEXED = false;
 
 export function renderLeaguePage(d: LeagueView): string {
   const n = d.info.name;
@@ -1018,7 +1007,6 @@ export function renderLeaguePage(d: LeagueView): string {
     const k = kstLabel(s.kickoffAt, false);
     byDay.set(k, [...(byDay.get(k) ?? []), s]);
   }
-  const others = Object.entries(LEAGUE_INFO).filter(([k]) => k !== d.league).map(([, v]) => `<a class="chip" href="/league/${v.slug}">${e(v.name)}</a>`).join("");
   // 지난 경기 '확률 1위 적중 수'는 싣지 않는다. fixture 확률은 검증된 사전 공개 기록이 아니므로
   // 리그별 성적처럼 보이게 집계하지 않고, 검증 기록은 /performance로 보낸다.
   const body = `<p class="crumb"><a href="/">HYEOKS</a> › <a href="/matches">경기 분석</a> › ${e(n)}</p>
@@ -1026,10 +1014,8 @@ export function renderLeaguePage(d: LeagueView): string {
 <h1>${e(n)} 승부예측</h1>
 <p class="sub">${e(d.info.country)} · 이번 주 경기 확률과 최근 경기 결과</p>
 <p class="note">범위: 킥오프 3시간 전 이후 예정 경기(최대 60경기)와 최근 3주 종료 경기(최대 30경기). 수집되지 않았거나 결과가 아직 확인되지 않은 경기는 빠질 수 있습니다. 확률이 없는 경기는 '확률 없음'으로 표시합니다.</p>
-<div class="chips" style="margin-top:10px">${others}</div>
 ${byDay.size ? [...byDay.entries()].map(([day, list]) => `<section class="card"><h2>${e(day)}</h2><div class="rows">${list.map(rowHtml).join("")}</div></section>`).join("") : `<section class="card"><h2>예정 경기</h2><p class="note" style="margin:0">이 기간에 수집된 예정 경기가 없습니다.</p></section>`}
-${d.recent.length ? `<section class="card"><h2>최근 경기 결과</h2><p class="note" style="margin:0 0 6px">스코어와 함께, 킥오프 전에 저장된 것이 확인된 확률만 막대로 표시합니다. 적중 여부의 집계는 검증된 저장 기록 기준으로 <a href="/performance">기록</a> 페이지에서 따로 공개합니다.</p><div class="rows">${d.recent.map(rowHtml).join("")}</div></section>` : ""}
-<section aria-label="관련 검색어"><p class="note" style="margin:0 0 6px">관련 검색어</p><div class="tags">${tags.map((t) => `<span>#${e(t)}</span>`).join("")}</div></section>`;
+${d.recent.length ? `<section class="card"><h2>최근 경기 결과</h2><p class="note" style="margin:0 0 6px">스코어와 함께, 킥오프 전에 저장된 것이 확인된 확률만 막대로 표시합니다. 적중 여부의 집계는 검증된 저장 기록 기준으로 <a href="/performance">기록</a> 페이지에서 따로 공개합니다.</p><div class="rows">${d.recent.map(rowHtml).join("")}</div></section>` : ""}`;
   return pageShell({ title, description: desc, canonical: url, indexable: leagueIndexable(d), keywords: tags, event: "league_view", active: "/matches", body });
 }
 
@@ -1044,14 +1030,11 @@ export function renderHubPage(d: HubView): string {
     .sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0]))
     .map(([lg, list]) => { const li = leagueInfo(lg); return `<section class="card"><h2>${e(li.name)} <span style="color:var(--muted);font-weight:600;font-size:.85rem">${list.length}경기</span></h2><div class="rows">${list.slice(0, 10).map(rowHtml).join("")}</div><p class="note"><a href="/league/${li.slug}">${e(li.name)} 전체 보기 →</a></p></section>`; })
     .join("");
-  const chips = Object.values(LEAGUE_INFO).map((v) => `<a class="chip" href="/league/${v.slug}">${e(v.name)}</a>`).join("");
   const body = `<span class="eyebrow">경기 분석</span>
 <h1>이번 주 축구 승부예측</h1>
 <p class="sub">지원 리그 킥오프 3시간 전 이후 ~ 앞으로 8일 예정 경기 ${total}개</p>
 <p class="note">각 경기의 확률 출처(통계 모델·해외 배당·국가대표 Elo)와 계산 시각은 경기 페이지에 함께 적습니다. 승무패 회차에 포함된 경기는 회차와 같은 확률을 보여줍니다. <a href="/methodology">계산 방법</a> · <a href="/sources">데이터 출처</a></p>
-<div class="chips" style="margin-top:10px">${chips}</div>
-${sections || `<section class="card"><h2>예정 경기</h2><p class="note" style="margin:0">이 기간에 수집된 예정 경기가 없습니다. 승무패 회차는 <a href="/app">승무패 도구</a>에서 볼 수 있습니다.</p></section>`}
-<section aria-label="관련 검색어"><p class="note" style="margin:0 0 6px">관련 검색어</p><div class="tags">${tags.map((t) => `<span>#${e(t)}</span>`).join("")}</div></section>`;
+${sections || `<section class="card"><h2>예정 경기</h2><p class="note" style="margin:0">이 기간에 수집된 예정 경기가 없습니다. 승무패 회차는 <a href="/app">승무패 도구</a>에서 볼 수 있습니다.</p></section>`}`;
   return pageShell({ title, description: desc, canonical: url, indexable: hubIndexable(d), keywords: tags, event: "hub_view", active: "/matches", body });
 }
 
