@@ -1,0 +1,35 @@
+/* 모든 공개 화면이 같은 메뉴를 쓰도록 머리말·꼬리말 스타일만 따로 둔다.
+   페이지마다 배경색이 달라 색은 currentColor 기반으로 잡고, 강조색만 고정한다. */
+.skip-link{position:absolute;left:12px;top:-120px;z-index:1000;padding:10px 14px;border-radius:8px;background:#edbc68;color:#101624;font-weight:700;text-decoration:none}
+.skip-link:focus{top:12px}
+.site-header{max-width:1120px;margin:0 auto;padding:14px 20px 0;display:block;border-bottom:1px solid rgba(127,140,160,.28);font-family:Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif}
+.site-header-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.site-brand{display:inline-flex;align-items:baseline;gap:6px;min-height:44px;color:inherit;text-decoration:none;font-weight:850;font-size:1.2rem;letter-spacing:.02em;white-space:nowrap}
+.site-brand span{font-size:.82rem;font-weight:500;opacity:.72;letter-spacing:-.01em}
+.site-nav{display:flex;flex-wrap:nowrap;gap:2px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;margin:0 -4px}
+.site-nav::-webkit-scrollbar{display:none}
+.site-nav a{flex:0 0 auto;display:inline-flex;align-items:center;min-height:44px;padding:0 13px;border-radius:9px;color:inherit;opacity:.78;text-decoration:none;font-size:.95rem;font-weight:600;white-space:nowrap}
+.site-nav a:hover{opacity:1;background:rgba(127,140,160,.14)}
+.site-nav a[aria-current]{opacity:1;background:rgba(127,140,160,.18);box-shadow:inset 0 -2px 0 #edbc68}
+.site-nav a.site-nav-tool{opacity:1;margin-left:6px;border:1px solid rgba(237,188,104,.55);color:#edbc68}
+.site-nav a.site-nav-tool[aria-current]{background:rgba(237,188,104,.14)}
+.site-subnav{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:none;padding:8px 0 12px;margin:0 -2px}
+.site-subnav::-webkit-scrollbar{display:none}
+.site-subnav a{flex:0 0 auto;display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border:1px solid rgba(127,140,160,.32);border-radius:999px;color:inherit;opacity:.82;text-decoration:none;font-size:.84rem;white-space:nowrap}
+.site-subnav a:hover{opacity:1}
+.site-subnav a[aria-current]{opacity:1;border-color:#aebcff;background:rgba(174,188,255,.14);font-weight:700}
+.site-header:not(:has(.site-subnav)){padding-bottom:10px}
+.site-footer{max-width:1120px;margin:40px auto 0;padding:28px 20px 40px;border-top:1px solid rgba(127,140,160,.28);font-size:.86rem;line-height:1.7;font-family:Pretendard,-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif}
+.site-footer-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;margin-bottom:18px}
+.site-footer-groups h2{font-size:.8rem;margin:0 0 6px;padding:0;border:0;background:none;opacity:.65;font-weight:700;letter-spacing:.04em;line-height:1.5}
+.site-footer-groups ul{list-style:none;margin:0;padding:0}
+.site-footer-groups li{margin:0;padding:0}
+.site-footer-groups a{display:inline-flex;align-items:center;min-height:36px;color:inherit;opacity:.85;text-decoration:none}
+.site-footer-groups a:hover{opacity:1;text-decoration:underline}
+.site-footer p{margin:6px 0;opacity:.75}
+.site-footer p a{color:inherit;text-decoration:underline}
+.site-nav a:focus-visible,.site-subnav a:focus-visible,.site-brand:focus-visible,.site-footer a:focus-visible{outline:3px solid #edbc68;outline-offset:2px}
+.app-footer-wrap{padding-bottom:96px}
+@media (max-width:720px){.site-header{padding:10px 14px 0}.site-header-row{gap:2px}.site-nav{width:calc(100% + 8px)}.site-nav a{padding:0 11px;font-size:.92rem}.site-footer{padding:24px 16px 32px}.site-footer-groups{grid-template-columns:1fr 1fr}}
+@media (max-width:400px){.site-footer-groups{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.skip-link{transition:none}}
