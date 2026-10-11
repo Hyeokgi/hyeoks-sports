@@ -1659,3 +1659,6 @@ body.mode-match .match-picker-link { display: inline-flex; color: #aeb4ff; }
   #round-select { padding: 6px 8px; font-size: 0.76rem; }
   .round-article-link { font-size: 0.7rem; }
 }
+
+/* 도구에서도 서비스 근거와 운영 정보를 탭 밖에서 확인하도록 유지한다. */
+.app-public-nav,.app-public-footer,.app-noscript{max-width:1180px;margin:0 auto;padding:14px 20px;font-size:.86rem;line-height:1.7}.app-public-nav{display:flex;flex-wrap:wrap;gap:12px;border-bottom:1px solid #35425a}.app-public-nav a,.app-public-footer a,.app-noscript a{color:#aebcff;text-underline-offset:3px;min-height:44px;display:inline-flex;align-items:center}.app-public-footer{padding-bottom:100px;color:#b5bfd0}.app-public-footer p{margin:8px 0}.app-public-footer nav{display:flex;flex-wrap:wrap;gap:8px}.app-public-nav a:focus-visible,.app-public-footer a:focus-visible{outline:3px solid #edbc68;outline-offset:3px}

@@ -49,6 +49,12 @@ function whenText(iso: string): string {
 
 let cards: MatchCard[] | null = null;
 let loading: Promise<MatchCard[]> | null = null;
+// 목록을 못 받은 상태. 예전엔 실패하면 빈 배열을 캐시해 "예정 경기가 없습니다"(리그 휴식기)로 보였고,
+// 새로고침 전엔 다시 받지도 않았다. 실패는 캐시하지 않고, 빈 목록과 다른 화면(다시 시도)을 보여준다.
+let loadFailedAt: number | null = null;
+// 실패 직후 카드 렌더링마다(토글 클릭마다) 자동 재요청이 몰리지 않게 잠깐 쉬었다가 다시 시도한다.
+// '다시 시도' 버튼은 이 대기와 상관없이 즉시 다시 받는다(force).
+const RETRY_COOLDOWN_MS = 30_000;
 let league = "all";
 // 경기 분석의 홈은 '오늘'(2026-10-02 사용자 요청). 오늘 경기가 없으면 빈 화면에서 7일 보기로 안내한다.
 let day: DayFilter = "today";
@@ -56,15 +62,38 @@ const DAY_ORDER: DayFilter[] = ["today", "tomorrow", "week", "past"];
 let trackFn: (e: string) => void = () => {};
 let team: string | null = null; // 팀·국가 검색으로 고른 팀(있으면 리그·날짜 필터 대신 그 팀 경기 전체)
 
-export function loadMatchCards(): Promise<MatchCard[]> {
+/** 경기 목록을 한 번 받아 둔다. 실패하면 []를 돌려주되 캐시하지 않는다(다음 호출이 다시 받는다). */
+export function loadMatchCards(force = false): Promise<MatchCard[]> {
   if (cards) return Promise.resolve(cards);
-  if (!loading) {
-    loading = fetch("/api/matches")
-      .then((r) => (r.ok ? r.json() : { matches: [] }))
-      .then((d) => (cards = (d.matches ?? []) as MatchCard[]))
-      .catch(() => (cards = []));
-  }
+  if (loading) return loading;
+  if (!force && loadFailedAt != null && Date.now() - loadFailedAt < RETRY_COOLDOWN_MS) return Promise.resolve([]);
+  loading = fetch("/api/matches")
+    .then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    })
+    .then((d) => {
+      // 200이어도 모양이 다르면 오류다. 빈 배열([])은 정상적인 "경기 없음"이다.
+      if (!Array.isArray(d?.matches)) throw new Error("bad_payload");
+      loadFailedAt = null;
+      cards = d.matches as MatchCard[];
+      return cards;
+    })
+    .catch(() => {
+      loadFailedAt = Date.now();
+      return [] as MatchCard[];
+    })
+    .finally(() => {
+      loading = null;
+    });
   return loading;
+}
+
+/** '다시 시도': 실패 상태를 지우고 바로 다시 받는다. */
+function retryLoad(): void {
+  loadFailedAt = null;
+  render();
+  void loadMatchCards(true).then(render);
 }
 
 /** 회차 카드(app.ts renderMatches)에 '경기 분석 →' 링크를 붙인다. 경기 페이지가 있는 경기만. */
@@ -72,7 +101,10 @@ export async function decorateRoundCards(roundNo: number | null | undefined): Pr
   if (roundNo == null) return;
   const list = await loadMatchCards();
   const bySeq = new Map(list.filter((c) => c.round?.roundNo === roundNo).map((c) => [c.round!.seq, c.slug]));
-  for (const card of Array.from(document.querySelectorAll<HTMLElement>("#match-list .match-card[data-seq]"))) {
+  // 목록을 기다리는 사이 다른 회차로 바뀌었으면 카드의 경기 번호(seq)가 같아도 다른 경기다.
+  // app.ts가 현재 목록의 회차번호를 data-round-no에 적어 두므로, 그 회차 카드에만 링크를 붙인다.
+  const selector = `#match-list[data-round-no="${roundNo}"] .match-card[data-seq]`;
+  for (const card of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
     const slug = bySeq.get(Number(card.dataset.seq));
     const line = card.querySelector<HTMLElement>(".pick-line");
     if (!slug || !line || line.querySelector(".to-match")) continue;
@@ -142,7 +174,12 @@ function render(): void {
   const daysEl = document.getElementById("mx-days");
   if (!root || !chipsEl || !daysEl) return;
   if (!cards) {
-    root.innerHTML = `<div class="mx-empty">경기 목록을 불러오는 중입니다…</div>`;
+    // 불러오기 실패는 "경기 없음"과 다르게 보여주고 다시 시도할 수 있게 한다.
+    root.innerHTML =
+      loadFailedAt != null && !loading
+        ? `<div class="mx-empty">경기 목록을 불러오지 못했습니다.<br><span>네트워크 상태를 확인한 뒤 다시 시도해 주세요.</span>` +
+          `<br><button type="button" class="mx-empty-btn" data-retry>다시 시도</button></div>`
+        : `<div class="mx-empty">경기 목록을 불러오는 중입니다…</div>`;
     return;
   }
   const now = Date.now();
@@ -374,6 +411,10 @@ export function initModeSwitch(track: (e: string) => void): void {
   document.getElementById("mx-list")?.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
     if (t.closest(".mx-card")) trackFn("match_card_click");
+    if (t.closest("[data-retry]")) {
+      retryLoad();
+      return;
+    }
     const empty = t.closest<HTMLButtonElement>(".mx-empty-btn[data-day]");
     if (empty) {
       day = empty.dataset.day as DayFilter;
