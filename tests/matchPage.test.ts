@@ -58,7 +58,9 @@ describe("경기 페이지", () => {
     expect(matchTitle(v)).toBe("콜럼버스 크루 vs 인터 마이애미 승부예측 · 9월 28일 MLS 확률 분석 | HYEOKS");
     const h = renderMatchPage(v);
     expect(h).toContain('<link rel="canonical" href="https://hyeoks.com/match/2026-10-04-columbus-crew-inter-miami-cf">');
-    expect(h).toContain("#콜럼버스 크루 인터 마이애미 승부예측");
+    // 화면의 해시태그 나열은 뺐고(키워드 나열 방지), 검색 태그는 meta keywords로만 남는다.
+    expect(h).not.toContain("#콜럼버스 크루 인터 마이애미 승부예측");
+    expect(h).toMatch(/<meta name="keywords" content="[^"]*콜럼버스 크루 인터 마이애미 승부예측/);
     expect(h).toContain('"@type":"SportsEvent"');
     expect(matchTags(v).length).toBeGreaterThanOrEqual(6);
   });
