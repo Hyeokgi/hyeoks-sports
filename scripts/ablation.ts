@@ -59,6 +59,7 @@ import {
   evaluate,
   fmtMetrics,
   SPLITS,
+  chronologicalCut,
   type Features,
   type Probs,
   type MarketProbs,
@@ -277,8 +278,10 @@ async function main() {
   console.log("\n" + "═".repeat(78));
   console.log("시간순 4분할 워크포워드 (test 구간에서만 평가)");
   console.log("═".repeat(78));
+  // 분할 지점은 하네스의 chronologicalCut을 쓴다 - floor(n*frac)로 자르면 같은 날 경기가
+  // train/test 양쪽에 걸친다(피처 계약 v2, 2026-10-11).
   for (const frac of SPLITS) {
-    const cut = Math.floor(common.length * frac);
+    const cut = chronologicalCut(common, frac);
     const test = common.slice(cut);
     console.log(`\n── 분할 ${frac} (train ${cut} / test ${test.length}) ──`);
     for (const arm of ARMS) {
@@ -293,7 +296,7 @@ async function main() {
   console.log("═".repeat(78));
   const avgLl = (arm: Arm) => {
     const v = SPLITS.map((frac) => {
-      const m = evalArm(arm, common.slice(Math.floor(common.length * frac)));
+      const m = evalArm(arm, common.slice(chronologicalCut(common, frac)));
       return m ? m.logloss : NaN;
     });
     return v.reduce((a, b) => a + b, 0) / v.length;
@@ -332,7 +335,7 @@ async function main() {
   console.log("  w      " + SPLITS.map((f) => `분할${f.toFixed(1)} 적중/로그손실`).join("   "));
   for (const w of WS) {
     const cells = SPLITS.map((frac) => {
-      const m = evalArm(blendArm(w), common.slice(Math.floor(common.length * frac)))!;
+      const m = evalArm(blendArm(w), common.slice(chronologicalCut(common, frac)))!;
       return `${(m.acc * 100).toFixed(2)}%/${m.logloss.toFixed(4)}`;
     });
     const mark = Math.abs(w - DEFAULT_MARKET_WEIGHT) < 1e-9 ? "  <- 현행" : "";
@@ -342,7 +345,7 @@ async function main() {
   console.log("\n  train에서 로그손실 최적 w를 골라 test 평가:");
   console.log("  분할  train/test    선택w   test 적중률(0.4 -> 선택w)   test 로그손실(0.4 -> 선택w)");
   for (const frac of SPLITS) {
-    const cut = Math.floor(common.length * frac);
+    const cut = chronologicalCut(common, frac);
     const train = common.slice(0, cut), test = common.slice(cut);
     let bw = 0, bll = Infinity;
     for (let w = 0; w <= 1.0001; w += 0.05) {

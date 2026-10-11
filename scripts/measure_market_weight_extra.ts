@@ -11,7 +11,9 @@
 // 이 레포에서 열 이름을 가정했다가 0건을 '데이터 없음'으로 오판할 뻔한 전례가 여러 번 있었다.
 //
 // 실행: npx tsx scripts/measure_market_weight_extra.ts
-import { buildFeatures, blend, evaluate, toProbs, SPLITS, type Features } from "./lib/evalHarness";
+// 분할 지점은 chronologicalCut으로 정한다 - floor(n*frac)로 자르면 같은 날 경기가 train/test
+// 양쪽에 걸친다(하네스 피처 계약 v2, 2026-10-11).
+import { buildFeatures, blend, evaluate, toProbs, SPLITS, chronologicalCut, type Features } from "./lib/evalHarness";
 import type { MatchRow } from "../src/lib/elo";
 import { DEFAULT_FORM_WEIGHT, DEFAULT_H2H_WEIGHT } from "../src/lib/prediction";
 
@@ -146,7 +148,7 @@ async function main() {
     console.log(`\n  w별 4분할 test 적중률/로그손실 (현행 0.4)`);
     for (const w of GRID) {
       const cells = SPLITS.map((frac) => {
-        const cut = Math.floor(common.length * frac);
+        const cut = chronologicalCut(common, frac);
         const m = at(w, common.slice(cut));
         return `${(m.acc * 100).toFixed(2)}%/${m.logloss.toFixed(4)}`;
       });
@@ -158,7 +160,7 @@ async function main() {
     let pass = 0;
     const picks: number[] = [];
     for (const frac of SPLITS) {
-      const cut = Math.floor(common.length * frac);
+      const cut = chronologicalCut(common, frac);
       const tr = common.slice(0, cut), te = common.slice(cut);
       let best = { w: 0.4, ll: Infinity };
       for (const w of [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]) {
@@ -184,7 +186,7 @@ async function main() {
     let pass2 = 0;
     const picks2: number[] = [];
     for (const frac of SPLITS) {
-      const cut = Math.floor(common.length * frac);
+      const cut = chronologicalCut(common, frac);
       const tr = common.slice(0, cut), te = common.slice(cut);
       let best = { w: 0.4, acc: -1, ll: Infinity };
       for (const w of [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]) {
