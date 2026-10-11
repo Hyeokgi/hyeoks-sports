@@ -89,7 +89,8 @@ export async function handleLeaguePage(env: Env, request: Request, leagueSlug: s
   return cached(request, `/league/${leagueSlug}`, () =>
     safePage("handleLeaguePage", async () => {
       const d = await loadLeagueView(env, leagueSlug);
-      return d ? html(renderLeaguePage(d), { noindex: !leagueIndexable(d) }) : notFoundPage();
+      // 순위 자료만 실패한 페이지(tables === null)는 1분만 캐시해 곧 다시 시도하게 한다. 정상 페이지는 10분 그대로.
+      return d ? html(renderLeaguePage(d), { noindex: !leagueIndexable(d), cacheSeconds: d.tables === null ? 60 : undefined }) : notFoundPage();
     }),
   );
 }
