@@ -31,5 +31,9 @@
 .site-nav a:focus-visible,.site-subnav a:focus-visible,.site-brand:focus-visible,.site-footer a:focus-visible{outline:3px solid #edbc68;outline-offset:2px}
 .app-footer-wrap{padding-bottom:96px}
 @media (max-width:720px){.site-header{padding:10px 14px 0}.site-header-row{gap:2px}.site-nav{width:calc(100% + 8px)}.site-nav a{padding:0 11px;font-size:.92rem}.site-footer{padding:24px 16px 32px}.site-footer-groups{grid-template-columns:1fr 1fr}}
+@media (max-width:720px){.site-subnav{-webkit-mask-image:linear-gradient(to right,#000 88%,transparent);mask-image:linear-gradient(to right,#000 88%,transparent);padding-right:28px}}
+/* 360~420px 폰에서도 주 메뉴 5개가 스크롤 없이 한 줄에 보이게 간격만 줄인다(터치 높이 44px는 유지). */
+@media (max-width:420px){.site-nav a{padding:0 8px;font-size:.88rem}.site-nav a.site-nav-tool{margin-left:2px;padding:0 9px}}
+@media (max-width:370px){.site-nav a{padding:0 6px;font-size:.86rem}}
 @media (max-width:400px){.site-footer-groups{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.skip-link{transition:none}}
