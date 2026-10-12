@@ -25,6 +25,7 @@ import { NATIONAL_MIN_MATCHES } from "./nationalEloStore";
 import { NATIONAL_HOME_ADV } from "./nationalElo";
 import { nationalKrOf } from "./nationalNames";
 import { displayTeamName, LEAGUE_INFO } from "./teamNames";
+import { dedupeResults, isAliasTeamName } from "./teamAlias";
 
 /** Elo 변화량을 보는 기간(일). */
 export const CHANGE_DAYS = 30;
@@ -99,6 +100,9 @@ interface NationalRow {
 }
 
 const toEloInput = (r: TeamEloRow): EloInput => ({ team: r.team_en, elo: r.elo, lastMatchDate: r.last_match_date });
+// team_elo에 남은 옛 별칭 표기 줄(예: "Atlético Madrid")은 다음 재계산 때 지워진다. 그 전에도 순위에 같은 팀이
+// 두 번 나오지 않게 읽을 때 뺀다(정식 키 줄은 합쳐진 기록으로 계산된 값이다).
+const canonicalEloRows = (rows: readonly TeamEloRow[]): TeamEloRow[] => rows.filter((r) => !isAliasTeamName(r.team_en));
 const maxStr = (xs: (string | null | undefined)[]): string | null =>
   xs.reduce<string | null>((m, x) => (x && (!m || x > m) ? x : m), null);
 
@@ -138,8 +142,10 @@ export async function loadLeagueTables(env: Env, league: string, now = Date.now(
   )
     .bind(league, HISTORY_LIMIT)
     .all<ResultRow>();
-  const rows = (hist ?? []).slice().reverse();
-  const truncated = rows.length >= HISTORY_LIMIT;
+  const raw = hist ?? [];
+  const truncated = raw.length >= HISTORY_LIMIT;
+  // 팀명을 정식 키로 바꾸고 같은 경기의 두 표기는 하나만 남긴다(teamAlias.ts).
+  const rows: ResultRow[] = dedupeResults(raw.map((r) => ({ ...r, league })).reverse());
   const { results: eloRows } = await env.DB.prepare(
     "SELECT team_en, elo, last_match_date FROM team_elo WHERE league = ? ORDER BY elo DESC LIMIT ?",
   )
@@ -150,7 +156,7 @@ export async function loadLeagueTables(env: Env, league: string, now = Date.now(
   // team_elo에는 강등·이탈한 팀도 남아 있다. 이번(마지막) 시즌 순위표에 있는 팀만 Elo 순위에 넣는다.
   const teams = standings ? new Set(standings.rows.map((r) => r.team)) : null;
   const changes = truncated || rows.length === 0 ? null : eloChangeSince(league, rows, isoDay(now - CHANGE_DAYS * 86400e3));
-  const elo = rankElo((eloRows ?? []).map(toEloInput), { teams, changes, activeSince: isoDay(now - RECENT_DAYS * 86400e3) });
+  const elo = rankElo(canonicalEloRows(eloRows ?? []).map(toEloInput), { teams, changes, activeSince: isoDay(now - RECENT_DAYS * 86400e3) });
   const suppressed = STANDINGS_SUPPRESSED[league] ?? null;
   return {
     kind: "club", league, generatedAt,
@@ -201,14 +207,16 @@ export async function loadRatingsOverview(env: Env, now = Date.now()): Promise<R
   ]);
   if (recentRes.status === "rejected") throw recentRes.reason;
   if (eloRes.status === "rejected") throw eloRes.reason;
-  const recent = recentRes.value.results ?? [];
-  const truncated = recent.length >= RECENT_LIMIT;
-  if (truncated) console.error(`loadRatingsOverview: 최근 경기 ${recent.length}행이 한도에 닿아 순위표를 생략`);
+  const recentRaw = recentRes.value.results ?? [];
+  const truncated = recentRaw.length >= RECENT_LIMIT;
+  // 최신순 그대로 정식 키로 바꾸고 중복 표기를 뺀다. 아래에서 리그별로 나눈 뒤 시간순으로 뒤집는다.
+  const recent = dedupeResults(recentRaw);
+  if (truncated) console.error(`loadRatingsOverview: 최근 경기 ${recentRaw.length}행이 한도에 닿아 순위표를 생략`);
 
   const byLeague = new Map<string, ResultRow[]>();
   for (const r of recent) byLeague.set(r.league, [...(byLeague.get(r.league) ?? []), r]);
   const eloByLeague = new Map<string, EloInput[]>();
-  for (const r of eloRes.value.results ?? []) {
+  for (const r of canonicalEloRows(eloRes.value.results ?? [])) {
     const lg = r.league ?? "";
     eloByLeague.set(lg, [...(eloByLeague.get(lg) ?? []), toEloInput(r)]);
   }

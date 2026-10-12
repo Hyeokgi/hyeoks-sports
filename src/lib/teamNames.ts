@@ -6,6 +6,9 @@
 //
 // 키는 FotMob 영문 표기(matches·fixtures·team_elo와 같은 키). 없는 팀은 영문명으로 보여주고,
 // syncFixtures 결과의 missingNames로 드러나게 해서 채워 넣는다(추측으로 번역하지 않는다).
+// 키는 정식 팀 키(teamAlias.ts)만 쓴다. 별칭("Atlético Madrid")은 조회할 때 정식 키로 바꿔 찾는다.
+import { canonicalTeamName } from "./teamAlias";
+
 export const TEAM_DISPLAY_KR: Record<string, string> = {
   // K리그1
   "Gangwon FC": "강원 FC",
@@ -162,6 +165,8 @@ export const TEAM_DISPLAY_KR: Record<string, string> = {
   "Deportivo A Coruña": "데포르티보 라코루냐",
   "Malaga": "말라가",
   "Racing Santander": "라싱 산탄데르",
+  "Cadiz": "카디스",
+  "Leganes": "레가네스",
   // 분데스리가
   "Bayern München": "바이에른 뮌헨",
   "Borussia Dortmund": "보루시아 도르트문트",
@@ -188,12 +193,12 @@ export const TEAM_DISPLAY_KR: Record<string, string> = {
 
 /** 표시용 한글명. 없으면 영문명(추측 번역 금지). */
 export function displayTeamName(nameEn: string): string {
-  return TEAM_DISPLAY_KR[nameEn] ?? nameEn;
+  return TEAM_DISPLAY_KR[nameEn] ?? TEAM_DISPLAY_KR[canonicalTeamName(nameEn)] ?? nameEn;
 }
 
 /** 표시용 이름이 없는 팀(수집 결과에 모아 사람이 채운다). */
 export function missingDisplayNames(namesEn: string[]): string[] {
-  return [...new Set(namesEn.filter((n) => !(n in TEAM_DISPLAY_KR)))];
+  return [...new Set(namesEn.filter((n) => !(n in TEAM_DISPLAY_KR) && !(canonicalTeamName(n) in TEAM_DISPLAY_KR)))];
 }
 
 // 리그: 주소 조각·표시 이름·검색용 별칭(태그·메타 키워드). 주소는 한 번 정하면 바꾸지 않는다.

@@ -1,6 +1,7 @@
 // D1 조회/저장 헬퍼
 import type { Env, RoundMatchRow, RoundPredictionRow, RoundRow } from "../types";
 import type { MatchRow } from "./elo";
+import { dedupeResults } from "./teamAlias";
 
 export async function listRounds(env: Env): Promise<RoundRow[]> {
   const { results } = await env.DB.prepare(
@@ -166,11 +167,14 @@ export async function getLatestVoteShare(
   return map;
 }
 
+// Elo·폼·상대 전적·무승부율의 원본. 팀명을 정식 키로 바꾸고 같은 경기의 두 표기(악센트 유무)는 하나만 남긴다
+// (teamAlias.ts). DB에 이미 들어간 옛 표기 줄도 여기서 합쳐지므로 DB를 고치지 않아도 계산이 맞는다.
+// 리그·날짜는 바뀌지 않으므로 SQL 정렬(리그, 날짜 오름차순)이 그대로 유지된다.
 export async function getAllMatches(env: Env): Promise<MatchRow[]> {
   const { results } = await env.DB.prepare(
     "SELECT league, date, home, away, hg, ag FROM matches ORDER BY league ASC, date ASC",
   ).all<MatchRow>();
-  return results ?? [];
+  return dedupeResults(results ?? []);
 }
 
 export async function getLeagueDrawRate(env: Env, league: string): Promise<number> {

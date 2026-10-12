@@ -1,4 +1,7 @@
 // FotMob __NEXT_DATA__ 스크래핑 (crawl_and_update.py의 pageProps 이중 방어 파싱 이식)
+// 팀명은 저장 전에 정식 키로 바꾼다(teamAlias.ts). FotMob 원문은 "Atlético Madrid"처럼 악센트가 붙어
+// 과거 백필 표기("Atletico Madrid")와 다른 팀으로 저장되기 때문이다.
+import { canonicalTeamName } from "./teamAlias";
 export const LEAGUE_IDS: Record<string, string> = {
   "K리그1": "9080",
   "K리그2": "9116",
@@ -146,7 +149,7 @@ export async function fetchFinishedMatches(leagueId: string): Promise<FotmobFini
     if (!date) continue;
 
     const id = typeof match.id === "number" ? match.id : Number(match.id) || null;
-    results.push({ id, date, home, away, hg, ag });
+    results.push({ id, date, home: canonicalTeamName(home), away: canonicalTeamName(away), hg, ag });
   }
   return results;
 }
@@ -180,7 +183,7 @@ export async function fetchUpcomingMatches(leagueId: string): Promise<FotmobUpco
     const date = extractMatchDate(match);
     if (!date) continue;
 
-    results.push({ date, home, away, utcKickoff: status.utcTime ?? null });
+    results.push({ date, home: canonicalTeamName(home), away: canonicalTeamName(away), utcKickoff: status.utcTime ?? null });
   }
   return results.sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -306,8 +309,8 @@ export async function fetchLeagueFixtures(leagueId: string): Promise<FotmobFixtu
       id,
       date,
       utcKickoff: status.utcTime ?? null,
-      home,
-      away,
+      home: canonicalTeamName(home),
+      away: canonicalTeamName(away),
       finished: !!status.finished,
       cancelled: !!status.cancelled,
       hg,
