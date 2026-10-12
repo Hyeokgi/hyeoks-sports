@@ -821,6 +821,7 @@ export const SITE_LINKS: readonly { href: string; label: string }[] = [
   { href: "/methodology", label: "방법론" },
   { href: "/performance", label: "기록" },
   { href: "/editorial", label: "편집 원칙" },
+  { href: "/responsible", label: "건전 이용 안내" },
   { href: "/sources", label: "출처·데이터 주의사항" },
   { href: "/about", label: "소개" },
   { href: "/contact", label: "문의" },

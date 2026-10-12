@@ -20,6 +20,7 @@ import { nationalKrOf } from "./nationalNames";
 import { confidenceTier } from "./calibration";
 import { TEAM_ENTRIES } from "./nameMap";
 import { missingDisplayNames } from "./teamNames";
+import { canonicalTeamName } from "./teamAlias";
 import type { Env } from "../types";
 
 /** 킥오프까지 이 기간 안에 든 경기만 만든다(명세 2장: 경기 7일 전부터). */
@@ -67,8 +68,9 @@ for (const e of TEAM_ENTRIES) {
   const k = `${e.league}|${e.nameEn}`;
   if (!KR_BY_EN.has(k)) KR_BY_EN.set(k, e.nameKr);
 }
+// fixtures.home_en에는 정규화 전 표기("Atlético Madrid")가 남아 있을 수 있어 정식 키로 바꿔 찾는다(teamAlias.ts).
 export function teamKr(league: string, nameEn: string): string | null {
-  return KR_BY_EN.get(`${league}|${nameEn}`) ?? null;
+  return KR_BY_EN.get(`${league}|${nameEn}`) ?? KR_BY_EN.get(`${league}|${canonicalTeamName(nameEn)}`) ?? null;
 }
 
 /**
@@ -114,7 +116,10 @@ export async function syncFixtures(env: Env, now = Date.now()): Promise<SyncFixt
     } catch (e) {
       console.error(`syncFixtures: ${league} 일정 조회 실패(스킵) - ${(e as Error).message}`);
     }
-    const upcoming = list.filter((f) => f.id != null && inFixtureWindow(f, now));
+    // 파서가 이미 정식 키로 바꿔 주지만, Elo·폼·상대 전적 조회 키가 어긋나지 않도록 여기서도 맞춘다(teamAlias.ts).
+    const upcoming = list
+      .filter((f) => f.id != null && inFixtureWindow(f, now))
+      .map((f) => ({ ...f, home: canonicalTeamName(f.home), away: canonicalTeamName(f.away) }));
     const stmts: D1PreparedStatement[] = [];
 
     if (upcoming.length > 0) {

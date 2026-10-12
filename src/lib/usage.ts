@@ -26,6 +26,8 @@ export const USAGE_EVENTS = [
   "hub_view",
   // 리그별 Elo 전력 순위 페이지(/ratings)
   "ratings_view",
+  // 리그별 홈승·무승부·원정승 비율 페이지(/insights/draw-rates)
+  "draw_rates_view",
   // 앱 영역 전환(public/matchesView.ts)
   "mode_match",
   "mode_round",

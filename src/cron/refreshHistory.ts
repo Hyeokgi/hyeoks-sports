@@ -7,6 +7,7 @@ import { settleRounds } from "../lib/settlement";
 import { refreshNationalElo, snapshotNationalEloDiffs } from "../lib/nationalEloStore";
 import { snapshotUpcomingRounds } from "../lib/predictionSnapshot";
 import { remapUpcomingMarketOnly } from "../lib/remapRound";
+import { ALIAS_TEAM_NAMES } from "../lib/teamAlias";
 import type { Env, League } from "../types";
 
 // D1 batch 한 번에 넣을 문장 수. 너무 크면 한 트랜잭션이 길어지니 적당히 자른다.
@@ -26,7 +27,10 @@ interface NewK2Match {
 
 export async function refreshHistory(
   env: Env,
-): Promise<{ inserted: number; leagues: string[]; national: Record<string, unknown>; remapped: number | string; snapshots: number | string }> {
+  // forceRecompute: 새 경기가 없어도 Elo·무승부율을 다시 계산한다(관리자 POST /api/admin/sync?recompute=1).
+  // 팀명 정규화(teamAlias.ts)처럼 계산 원본의 읽는 방식만 바뀐 배포 직후에 쓴다.
+  opts: { forceRecompute?: boolean } = {},
+): Promise<{ inserted: number; recomputed: boolean; leagues: string[]; national: Record<string, unknown>; remapped: number | string; snapshots: number | string }> {
   let inserted = 0;
   const newK2Matches: NewK2Match[] = [];
 
@@ -58,7 +62,8 @@ export async function refreshHistory(
     }
   }
 
-  if (inserted > 0) {
+  const recomputed = inserted > 0 || opts.forceRecompute === true;
+  if (recomputed) {
     await recomputeEloAndDrawRates(env);
   }
 
@@ -92,7 +97,7 @@ export async function refreshHistory(
   }
   await settleRounds(env);
 
-  return { inserted, leagues: Object.keys(LEAGUE_IDS), national, remapped, snapshots };
+  return { inserted, recomputed, leagues: Object.keys(LEAGUE_IDS), national, remapped, snapshots };
 }
 
 async function fetchAndStoreK2Corners(env: Env, matches: NewK2Match[]): Promise<void> {
@@ -170,6 +175,14 @@ export async function recomputeEloAndDrawRates(env: Env): Promise<void> {
       env.DB.prepare(
         "INSERT OR REPLACE INTO team_elo (league, team_en, elo, last_season, last_match_date) VALUES (?, ?, ?, ?, ?)",
       ).bind(league, team, state.elo, state.lastSeason, lastMatchDate.get(k) ?? null),
+    );
+  }
+
+  // 팀명 정규화(teamAlias.ts) 전에 별칭 표기(예: "Atlético Madrid")로 저장됐던 줄을 지운다. getAllMatches가 정식 키로
+  // 합쳐 돌려주므로 위에서 별칭 키로 다시 쓰이는 일은 없다. 읽기에서도 빼지만(leagueTablesStore) 표를 깨끗하게 둔다.
+  if (ALIAS_TEAM_NAMES.length > 0) {
+    stmts.push(
+      env.DB.prepare(`DELETE FROM team_elo WHERE team_en IN (${ALIAS_TEAM_NAMES.map(() => "?").join(",")})`).bind(...ALIAS_TEAM_NAMES),
     );
   }
 

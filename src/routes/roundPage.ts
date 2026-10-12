@@ -248,7 +248,7 @@ export const GUIDE_PATHS = [
   "/guide/probability-reading",
 ];
 // 운영·신뢰 정보 페이지. 도구(/app)는 검색 대상이 아니라 제외한다.
-export const SITE_PATHS = ["/", "/matches", "/ratings", "/performance", "/methodology", "/sources", "/editorial", "/about", "/contact", "/privacy"];
+export const SITE_PATHS = ["/", "/matches", "/ratings", "/insights/draw-rates", "/performance", "/methodology", "/sources", "/editorial", "/responsible", "/about", "/contact", "/privacy"];
 
 /**
  * 사이트맵에는 사람이 읽을 가치가 큰 페이지만 넣는다(2026-10-12).
