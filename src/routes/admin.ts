@@ -14,7 +14,9 @@ export async function handleSync(env: Env, request: Request): Promise<Response> 
   const authError = requireAdmin(request, env);
   if (authError) return authError;
 
-  const result = await refreshHistory(env);
+  // ?recompute=1: 새 경기가 없어도 Elo·무승부율을 다시 계산한다(팀명 정규화 같은 읽기 방식 변경 배포 뒤).
+  const forceRecompute = new URL(request.url).searchParams.get("recompute") === "1";
+  const result = await refreshHistory(env, { forceRecompute });
   return json({ ok: true, ...result });
 }
 
