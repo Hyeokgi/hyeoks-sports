@@ -29,6 +29,7 @@ import { json } from "./lib/http";
 import type { Env } from "./types";
 import { handleDataHome, handlePerformancePage, handlePerformanceData, legacyAppLocation } from "./routes/sitePage";
 import { handleRatingsPage } from "./routes/ratingsPage";
+import { handleDrawRatesPage } from "./routes/drawRatesPage";
 import { errorPage, siteHeader, siteFooter } from "./lib/publicSite";
 
 /**
@@ -87,9 +88,10 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
         let clean = pathname;
         if (pathname === "/index.html") clean = "/";
         else if (pathname === "/guide" || pathname === "/guide/index.html") clean = "/guide/";
-        else if (/^\/(app|about|privacy|methodology|sources|editorial|contact)\.html$/.test(pathname)) clean = pathname.replace(/\.html$/, "");
+        else if (/^\/(app|about|privacy|methodology|sources|editorial|contact|responsible)\.html$/.test(pathname)) clean = pathname.replace(/\.html$/, "");
         else if (/^\/guide\/[^/]+\.html$/.test(pathname)) clean = pathname.replace(/\.html$/, "");
-        else if (/^\/(app|matches|performance|ratings|about|privacy|methodology|sources|editorial|contact)\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
+        else if (/^\/(app|matches|performance|ratings|about|privacy|methodology|sources|editorial|contact|responsible)\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
+        else if (pathname === "/insights/draw-rates/") clean = "/insights/draw-rates";
         else if (/^\/round\/\d+\/?$/.test(pathname)) clean = `/round/${Number(pathname.match(/\d+/)![0])}`;
         else if (/^\/(match|league)\/[^/]+\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
         if (clean !== pathname) return Response.redirect(`${CANONICAL_ORIGIN}${clean}${url.search}`, 301);
@@ -98,6 +100,8 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
         if (pathname === "/performance/data.json") return await handlePerformanceData(env);
         // 리그별 Elo 전력 순위(자체 집계 순위표와 비교). 정적 자산이 아니라 워커가 그린다.
         if (pathname === "/ratings") return await handleRatingsPage(env);
+        // 리그·시즌별 홈승·무승부·원정승 비율(저장 결과 집계). 워커가 그린다.
+        if (pathname === "/insights/draw-rates") return await handleDrawRatesPage(env);
       }
       if (pathname === "/api/rounds" && request.method === "GET") {
         return await handleListRounds(env);
