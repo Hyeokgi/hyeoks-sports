@@ -88,12 +88,18 @@ describe("경기 페이지", () => {
 
   it("공통 메뉴·푸터 링크와 책임 있는 이용 안내", () => {
     const h = renderMatchPage(view());
-    for (const href of ["/", "/matches", "/guide/", "/methodology", "/performance", "/editorial", "/sources", "/contact", "/app", "/privacy"]) {
+    for (const href of ["/", "/matches", "/guide/", "/methodology", "/performance", "/editorial", "/sources", "/contact", "/app", "/privacy", "/responsible", "/insights/draw-rates"]) {
       expect(h, href).toContain(`href="${href}"`);
     }
     expect(SITE_LINKS.length).toBeGreaterThanOrEqual(10);
+    expect(SITE_LINKS.map((l) => l.href)).toContain("/responsible");
     expect(h).toContain('id="responsible-use"');
     expect(h).toContain("1336");
+    // 책임 있는 이용 문단은 상담 전화와 함께 /responsible 안내로 이어진다.
+    const resp = h.slice(h.indexOf('id="responsible-use"'));
+    const respPara = resp.slice(0, resp.indexOf("</p>"));
+    expect(respPara).toContain('href="tel:1336"');
+    expect(respPara).toContain('href="/responsible"');
   });
 
   it("앱 링크는 /app으로 간다(회차가 있으면 회차 번호 포함)", () => {
