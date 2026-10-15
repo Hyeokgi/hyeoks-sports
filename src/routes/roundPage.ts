@@ -20,6 +20,9 @@ import { classifyRecord, getPredictionSnapshots, hasValidProbabilities } from ".
 import { sitemapEntries } from "../lib/matchPage";
 import { isCalibrationUnderReview } from "../lib/clientPrediction";
 import { PUBLIC_ORIGIN } from "../lib/publicSite";
+import { loadRatingsOverview } from "../lib/leagueTablesStore";
+import { computeRankGaps, rankGapIndexable } from "../lib/rankGapPage";
+import { loadProbabilityAudit, probabilityAuditIndexable } from "../lib/probabilityAuditPage";
 import type { Env, RoundRow } from "../types";
 
 const RESULT_LABEL = { H: "홈승", D: "무승부", A: "원정승" } as const;
@@ -248,7 +251,9 @@ export const GUIDE_PATHS = [
   "/guide/probability-reading",
 ];
 // 운영·신뢰 정보 페이지. 도구(/app)는 검색 대상이 아니라 제외한다.
-export const SITE_PATHS = ["/", "/matches", "/ratings", "/insights/draw-rates", "/performance", "/methodology", "/sources", "/editorial", "/responsible", "/about", "/contact", "/privacy"];
+export // 해설은 실제 자료가 내부 편집 기준을 충족할 때만 사이트맵에 넣는다.
+// 페이지 자체는 표본이 적어도 열리지만 noindex이며, 경기는 과거 재계산으로 보충하지 않는다.
+const SITE_PATHS = ["/", "/matches", "/ratings", "/insights/draw-rates", "/performance", "/methodology", "/sources", "/editorial", "/responsible", "/about", "/contact", "/privacy"];
 
 /**
  * 사이트맵에는 사람이 읽을 가치가 큰 페이지만 넣는다(2026-10-12).
@@ -270,6 +275,17 @@ export async function handleSitemap(env: Env, request: Request): Promise<Respons
     urls.push(entry);
   };
   for (const p of [...SITE_PATHS, ...GUIDE_PATHS]) add(`<url><loc>${origin}${p}</loc></url>`);
+  try {
+    const rankGap = computeRankGaps(await loadRatingsOverview(env));
+    if (rankGapIndexable(rankGap)) add(`<url><loc>${origin}/insights/rank-gap</loc></url>`);
+  } catch (e) {
+    console.error(`sitemap: 순위 비교 해설 생략 - ${(e as Error).message}`);
+  }
+  try {
+    if (probabilityAuditIndexable(await loadProbabilityAudit(env))) add(`<url><loc>${origin}/insights/probability-audit</loc></url>`);
+  } catch (e) {
+    console.error(`sitemap: 확률 성적표 생략 - ${(e as Error).message}`);
+  }
   // 리그 페이지. 표가 없거나 조회가 실패해도 고정 페이지 사이트맵은 내보낸다.
   try {
     for (const entry of await sitemapEntries(env, origin)) add(entry);

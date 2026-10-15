@@ -250,3 +250,12 @@ scripts/backtest_national_elo.ts  국가대표 Elo 4분할 검증
 scripts/recent_accuracy.ts      실전 적중률 분해
 .github/workflows/fetch_vote_share.yml  pipeline + 수동 태스크 모음(deploy 포함)
 ```
+
+
+## 2026-10-15 데이터 관찰실
+
+- 명세: `docs/specs/005-data-observatory.md`. 홈에서 순위·전력 차이(`/insights/rank-gap`), 확률 성적표(`/insights/probability-audit`), 기존 리그별 결과 비율(`/insights/draw-rates`)로 연결한다.
+- 순위 차이는 현재 시즌 참가 팀 집합 안에서 Elo를 다시 순위화한다. 최소 8팀·모든 팀 5경기·모든 팀 Elo 조건. J1은 시즌 구분 문제로 제외. 순위 차이를 운·저평가·향후 수렴의 근거로 쓰지 않는다.
+- 확률 성적표는 사전 스냅샷·확정 결과만 평가하며 입력 계산 시각까지 추가 검증한다. 기존 `/performance`와 경기 수가 다를 수 있다. 소표본·Wilson 95% 구간·모델 버전 미기록을 공개한다. 100경기 미만 noindex는 내부 편집 기준이며 검색엔진 요구가 아니다.
+- 새 `prediction_history`(migration 0014)는 앞으로 관측한 확률·출처 변화만 추가 저장한다. 기존 마지막 스냅샷 동작은 유지한다. 과거 데이터 복원·UPDATE·DELETE 금지. `history-instrumentation-v1`은 수집 규격 출발점이지 검증된 모델 버전이 아니다. 상세: `docs/specs/prediction-history.md`.
+- 배포 시 migration을 먼저 적용한다. CI는 타입·단위테스트·빌드에 더해 `scripts/test_prediction_history_sql.mjs`로 실제 SQLite 구문과 추가 전용 제약을 검사한다. 모델 수학·가중치 변경 없음.

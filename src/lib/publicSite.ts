@@ -18,8 +18,8 @@ export type NavSection = "home" | "matches" | "performance" | "guide" | "tool" |
 export function navSection(path: string): NavSection {
   const p = path.split("?")[0] || "/";
   if (p === "/") return "home";
-  if (p.startsWith("/matches") || p.startsWith("/league/") || p.startsWith("/match/") || p === "/ratings" || p === "/insights/draw-rates") return "matches";
-  if (p.startsWith("/performance")) return "performance";
+  if (p.startsWith("/matches") || p.startsWith("/league/") || p.startsWith("/match/") || p === "/ratings" || p === "/insights/draw-rates" || p === "/insights/rank-gap") return "matches";
+  if (p.startsWith("/performance") || p === "/insights/probability-audit") return "performance";
   if (p.startsWith("/guide") || p === "/methodology" || p === "/sources") return "guide";
   if (p.startsWith("/app") || p.startsWith("/round/")) return "tool";
   if (["/about", "/editorial", "/responsible", "/contact", "/privacy"].includes(p)) return "about";
@@ -37,7 +37,8 @@ const PRIMARY: { href: string; label: string; section: NavSection; tool?: boolea
 
 function subnavItems(section: NavSection): { href: string; label: string }[] {
   // 전력 순위(/ratings)·무승부 비율(/insights/draw-rates)은 리그 공통 비교 페이지라 '이번 주 전체' 바로 뒤에 둔다.
-  if (section === "matches") return [{ href: "/matches", label: "이번 주 전체" }, { href: "/ratings", label: "전력 순위" }, { href: "/insights/draw-rates", label: "무승부 비율" }, ...Object.values(LEAGUE_INFO).map((l) => ({ href: `/league/${l.slug}`, label: l.name }))];
+  if (section === "matches") return [{ href: "/matches", label: "이번 주 전체" }, { href: "/ratings", label: "전력 순위" }, { href: "/insights/draw-rates", label: "무승부 비율" }, { href: "/insights/rank-gap", label: "순위와 전력" }, ...Object.values(LEAGUE_INFO).map((l) => ({ href: `/league/${l.slug}`, label: l.name }))];
+  if (section === "performance") return [{ href: "/performance", label: "전체 예측 기록" }, { href: "/insights/probability-audit", label: "확률 성적표" }];
   if (section === "guide") return [
     { href: "/guide/", label: "전체 가이드" },
     { href: "/guide/probability-reading", label: "확률 읽는 법" },
@@ -70,7 +71,7 @@ export function siteHeader(path = "/"): string {
 /** 꼬리말은 목적별 세 묶음으로 나눈다. note는 화면별 추가 고지(예: 경기 페이지의 면책 문구). */
 export function siteFooter(note?: string): string {
   const group = (title: string, links: [string, string][]) => `<div><h2>${title}</h2><ul>${links.map(([h, l]) => `<li><a href="${h}">${l}</a></li>`).join("")}</ul></div>`;
-  return `<footer class="site-footer"><div class="site-footer-groups">${group("둘러보기", [["/", "홈"], ["/matches", "경기 분석"], ["/performance", "예측 기록"], ["/app", "승무패 도구"]])}${group("알아보기", [["/guide/", "가이드"], ["/guide/probability-reading", "확률 읽는 법"], ["/methodology", "계산 방법"], ["/sources", "출처·데이터 주의사항"], ["/insights/draw-rates", "리그별 무승부 비율"]])}${group("운영 정보", [["/about", "소개"], ["/editorial", "편집 원칙"], ["/responsible", "건전 이용 안내"], ["/contact", "문의·오류 제보"], ["/privacy", "개인정보처리방침"]])}</div>${note ? `<p>${escapeText(note)}</p>` : ""}<p>HYEOKS는 개인이 운영하는 축구 데이터 서비스입니다. 확률과 기록은 자동 계산·집계이며 경기 결과나 수익을 보장하지 않습니다.</p><p id="responsible-use">체육진흥투표권은 만 19세 이상만, 공식 판매처에서만 구매할 수 있습니다. 도박 문제 상담: 한국도박문제예방치유원 <a href="tel:1336">1336</a> · <a href="/responsible">건전한 이용 안내</a></p><p>문의: <a href="mailto:hyeoks.data@gmail.com">hyeoks.data@gmail.com</a></p></footer>`;
+  return `<footer class="site-footer"><div class="site-footer-groups">${group("둘러보기", [["/", "홈"], ["/matches", "경기 분석"], ["/performance", "예측 기록"], ["/app", "승무패 도구"]])}${group("알아보기", [["/guide/", "가이드"], ["/guide/probability-reading", "확률 읽는 법"], ["/methodology", "계산 방법"], ["/sources", "출처·데이터 주의사항"], ["/insights/draw-rates", "리그별 무승부 비율"], ["/insights/rank-gap", "순위와 전력의 차이"], ["/insights/probability-audit", "확률 성적표"]])}${group("운영 정보", [["/about", "소개"], ["/editorial", "편집 원칙"], ["/responsible", "건전 이용 안내"], ["/contact", "문의·오류 제보"], ["/privacy", "개인정보처리방침"]])}</div>${note ? `<p>${escapeText(note)}</p>` : ""}<p>HYEOKS는 개인이 운영하는 축구 데이터 서비스입니다. 확률과 기록은 자동 계산·집계이며 경기 결과나 수익을 보장하지 않습니다.</p><p id="responsible-use">체육진흥투표권은 만 19세 이상만, 공식 판매처에서만 구매할 수 있습니다. 도박 문제 상담: 한국도박문제예방치유원 <a href="tel:1336">1336</a> · <a href="/responsible">건전한 이용 안내</a></p><p>문의: <a href="mailto:hyeoks.data@gmail.com">hyeoks.data@gmail.com</a></p></footer>`;
 }
 export function renderSitePage(options: { title: string; description: string; path: string; body: string; noindex?: boolean; event?: string }): string {
   const e = escapeText;
