@@ -85,6 +85,13 @@ describe("관측 단위·경계·불확실성", () => {
 });
 
 describe("공개 화면과 조회 경계", () => {
+  it("요약 해설 수치도 포함 경기에서 직접 계산하며 인과를 단정하지 않는다", () => {
+    const html = renderProbabilityAuditPage(audit([row(1), row(2, {actual: "D", hg: 0, ag: 0})]));
+    expect(html).toContain("이번 표본에서 확인한 것");
+    expect(html).toContain("1순위 평균 확률은 70.0%, 실제 결과와 일치한 비율은 50.0%");
+    expect(html).toContain("차이는 -20.0%p");
+    expect(html).toContain("지속적인 모델 편향을 입증하지 않습니다");
+  });
   it("고유 100경기부터 색인하되 중복은 기준을 부풀리지 않는다", () => {
     const rows = Array.from({ length: 100 }, (_, i) => row(i + 1));
     expect(probabilityAuditIndexable(audit(rows.slice(0, 99)))).toBe(false);
