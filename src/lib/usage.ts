@@ -28,6 +28,9 @@ export const USAGE_EVENTS = [
   "ratings_view",
   // 리그별 홈승·무승부·원정승 비율 페이지(/insights/draw-rates)
   "draw_rates_view",
+  // 직접 계산한 비교·검증 해설. 외부 조회와 구분해 일별 합계만 센다.
+  "rank_gap_view",
+  "probability_audit_view",
   // 앱 영역 전환(public/matchesView.ts)
   "mode_match",
   "mode_round",

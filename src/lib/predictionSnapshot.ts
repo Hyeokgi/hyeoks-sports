@@ -14,6 +14,7 @@
 //   - 읽는 쪽은 isVerifiedSnapshot으로 "저장 시각 < 유효한 킥오프 + 근거 있음 + 확률 정상"을 확인한 값만
 //     실제 기록으로 센다. 그 밖의 행(옛 규칙으로 쓰인 행 포함)은 보여줄 수는 있어도 채점하지 않는다.
 import { buildRoundPredictions } from "./predictRound";
+import { appendPredictionHistory } from "./predictionHistory";
 import type { MatchPrediction, PredictionBasis } from "./prediction";
 import type { Env } from "../types";
 
@@ -241,34 +242,42 @@ SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 export async function snapshotRound(env: Env, roundId: number, now?: number): Promise<number> {
   const preds = await buildRoundPredictions(env, roundId);
   // 조립(여러 D1 조회) 뒤의 실제 시각. 조립 중에 킥오프가 지난 경기는 여기서 걸러진다.
-  const capturedMs = Math.max(now ?? 0, Date.now());
+  const observedMs = Date.now();
+  const capturedMs = Math.max(now ?? 0, observedMs);
   const at = new Date(capturedMs).toISOString();
-  const stmts = preds
-    .filter((p) =>
-      isSnapshotWritable(
-        { kickoffAt: p.match.kickoff_at, predictedAfterKickoff: p.predictedAfterKickoff, prediction: p.prediction },
-        capturedMs,
-      ),
-    )
-    .map((p) =>
-      env.DB.prepare(SNAPSHOT_UPSERT_SQL).bind(
-        p.match.id,
-        p.prediction.pHome,
-        p.prediction.pDraw,
-        p.prediction.pAway,
-        p.prediction.rankedPicks[0],
-        p.prediction.basis,
-        p.prediction.confidenceGap,
-        p.calibration.tier,
-        p.raw.market?.nBookmakers ?? null,
-        at,
-        p.match.id,
-        at,
-        at,
-      ),
-    );
+  const writable = preds.filter((p) =>
+    isSnapshotWritable(
+      { kickoffAt: p.match.kickoff_at, predictedAfterKickoff: p.predictedAfterKickoff, prediction: p.prediction },
+      capturedMs,
+    ),
+  );
+  const stmts = writable.map((p) =>
+    env.DB.prepare(SNAPSHOT_UPSERT_SQL).bind(
+      p.match.id,
+      p.prediction.pHome,
+      p.prediction.pDraw,
+      p.prediction.pAway,
+      p.prediction.rankedPicks[0],
+      p.prediction.basis,
+      p.prediction.confidenceGap,
+      p.calibration.tier,
+      p.raw.market?.nBookmakers ?? null,
+      at,
+      p.match.id,
+      at,
+      at,
+    ),
+  );
   if (stmts.length === 0) return 0;
   const results = await env.DB.batch(stmts);
+  // 별도 batch여야 새 계측 테이블 장애가 기존 실제 기록 저장을 롤백하지 않는다.
+  // now 인자는 기존 스냅샷 의미를 유지하되, 이력 시각은 실제 관측 시각만 기록한다.
+  try {
+    await appendPredictionHistory(env, writable, new Date(observedMs).toISOString());
+  } catch (error) {
+    // 마이그레이션 누락도 포함해 운영 로그에 남긴다. 성공한 기존 저장의 반환값은 바꾸지 않는다.
+    console.error("prediction_history append failed; existing snapshots preserved", { roundId, error });
+  }
   return results.reduce((s, r) => s + (r?.meta?.changes ?? 0), 0);
 }
 
