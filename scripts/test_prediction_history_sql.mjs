@@ -7,7 +7,8 @@ import assert from 'node:assert/strict';
 
 const dir = mkdtempSync(join(tmpdir(), 'hyeoks-history-'));
 const db = join(dir, 'smoke.sqlite');
-const sql = (query) => execFileSync('sqlite3', ['-batch', db, query], {encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
+// SQL을 표준입력으로 넘겨 --로 시작하는 주석이 CLI 옵션으로 해석되지 않게 한다.
+const sql = (query) => execFileSync('sqlite3', ['-batch', db], {input:query,encoding:'utf8',stdio:['pipe','pipe','pipe']}).trim();
 const literal = (v) => typeof v === 'number' ? String(v) : "'" + String(v).replaceAll("'", "''") + "'";
 const source = readFileSync('src/lib/predictionHistory.ts','utf8');
 const template = source.match(/export const PREDICTION_HISTORY_INSERT_SQL = `([\s\S]*?)`;/)?.[1];
