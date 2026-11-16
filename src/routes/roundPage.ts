@@ -1,7 +1,8 @@
+import { STORY_PATHS } from "../lib/stories";
 // GET /round/:no           - 검색 노출용 회차 분석 페이지(HTML)
 // GET /round/:no/draft     - 블로그 초안(검색 제외, 복사 버튼)
 // GET /sitemap.xml, /robots.txt
-import { getRoundResults, getLatestVoteShare, getMarketOddsHistory } from "../lib/db";
+import { getRoundResults, getLatestVoteShare, getMarketOddsHistory, getAllMatches } from "../lib/db";
 import { nationalProbs, NATIONAL_HOME_ADV } from "../lib/nationalElo";
 import type { MatchDetail } from "../lib/matchAnalysis";
 import { nationalDisplayName } from "../lib/nationalNames";
@@ -22,6 +23,8 @@ import { isCalibrationUnderReview } from "../lib/clientPrediction";
 import { PUBLIC_ORIGIN } from "../lib/publicSite";
 import { loadRatingsOverview } from "../lib/leagueTablesStore";
 import { computeRankGaps, rankGapIndexable } from "../lib/rankGapPage";
+import { ratingsIndexable } from "../lib/ratingsPage";
+import { computeDrawRates, drawRatesIndexable } from "../lib/drawRatesPage";
 import { loadProbabilityAudit, probabilityAuditIndexable } from "../lib/probabilityAuditPage";
 import type { Env, RoundRow } from "../types";
 
@@ -251,9 +254,8 @@ export const GUIDE_PATHS = [
   "/guide/probability-reading",
 ];
 // 운영·신뢰 정보 페이지. 도구(/app)는 검색 대상이 아니라 제외한다.
-export // 해설은 실제 자료가 내부 편집 기준을 충족할 때만 사이트맵에 넣는다.
-// 페이지 자체는 표본이 적어도 열리지만 noindex이며, 경기는 과거 재계산으로 보충하지 않는다.
-const SITE_PATHS = ["/", "/matches", "/ratings", "/insights/draw-rates", "/performance", "/methodology", "/sources", "/editorial", "/responsible", "/about", "/contact", "/privacy"];
+// 조건부 데이터 페이지는 아래 렌더러와 같은 자격 검사 뒤에만 넣는다.
+export const SITE_PATHS = ["/", "/performance", "/methodology", "/sources", "/editorial", "/responsible", "/about", "/contact", "/privacy"];
 
 /**
  * 사이트맵에는 사람이 읽을 가치가 큰 페이지만 넣는다(2026-10-12).
@@ -274,12 +276,19 @@ export async function handleSitemap(env: Env, request: Request): Promise<Respons
     seen.add(loc);
     urls.push(entry);
   };
-  for (const p of [...SITE_PATHS, ...GUIDE_PATHS]) add(`<url><loc>${origin}${p}</loc></url>`);
+  for (const p of [...SITE_PATHS, ...GUIDE_PATHS, ...STORY_PATHS]) add(`<url><loc>${origin}${p}</loc></url>`);
   try {
-    const rankGap = computeRankGaps(await loadRatingsOverview(env));
+    const ratings = await loadRatingsOverview(env);
+    if (ratingsIndexable(ratings)) add(`<url><loc>${origin}/ratings</loc></url>`);
+    const rankGap = computeRankGaps(ratings);
     if (rankGapIndexable(rankGap)) add(`<url><loc>${origin}/insights/rank-gap</loc></url>`);
   } catch (e) {
     console.error(`sitemap: 순위 비교 해설 생략 - ${(e as Error).message}`);
+  }
+  try {
+    if (drawRatesIndexable(computeDrawRates(await getAllMatches(env)))) add(`<url><loc>${origin}/insights/draw-rates</loc></url>`);
+  } catch (e) {
+    console.error(`sitemap: 리그별 결과 비율 생략 - ${(e as Error).message}`);
   }
   try {
     if (probabilityAuditIndexable(await loadProbabilityAudit(env))) add(`<url><loc>${origin}/insights/probability-audit</loc></url>`);

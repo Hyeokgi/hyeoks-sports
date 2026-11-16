@@ -7,7 +7,7 @@ import type { Env } from "../types";
 const TTL = 600;
 export async function handleRankGapPage(env: Env): Promise<Response> {
   const cache = (globalThis as any).caches?.default as Cache | undefined;
-  const key = new Request(PUBLIC_ORIGIN + "/insights/rank-gap", { method: "GET" });
+  const key = new Request(PUBLIC_ORIGIN + "/insights/rank-gap?release=editorial-20261116", { method: "GET" });
   try {
     const hit = cache ? await cache.match(key) : undefined;
     if (hit) return hit;

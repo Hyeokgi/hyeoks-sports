@@ -1,3 +1,4 @@
+import { parseCsvLine, parseFdResult } from "../src/lib/footballDataResults";
 // 유럽 리그 과거경기 백필 데이터 생성 (npx tsx scripts/backfill_leagues.ts, GitHub Actions 러너용).
 //
 // 46회차(2026-08-22)가 EPL 7 + 세리에A 7 경기 회차로 처음 등장했는데, 두 리그는 matches 히스토리가
@@ -99,37 +100,6 @@ interface BackfillMatch {
   ag: number;
 }
 
-// football-data Date는 dd/mm/yyyy(간혹 dd/mm/yy) 형식
-function parseFdDate(s: string): string | null {
-  const m = s.trim().match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);
-  if (!m) return null;
-  const yyyy = m[3].length === 2 ? `20${m[3]}` : m[3];
-  return `${yyyy}-${m[2]}-${m[1]}`;
-}
-
-// 따옴표 필드까지 처리하는 최소 CSV 파서 (football-data는 대부분 단순하지만 방어적으로)
-function parseCsvLine(line: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i];
-    if (inQuotes) {
-      if (ch === '"' && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else if (ch === '"') inQuotes = false;
-      else cur += ch;
-    } else if (ch === '"') inQuotes = true;
-    else if (ch === ",") {
-      out.push(cur);
-      cur = "";
-    } else cur += ch;
-  }
-  out.push(cur);
-  return out;
-}
-
 async function fetchSeasonCsv(season: string, fdCode: string): Promise<string | null> {
   const url = `https://www.football-data.co.uk/mmz4281/${season}/${fdCode}.csv`;
   const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
@@ -145,6 +115,7 @@ function sqlEscape(s: string): string {
 }
 
 async function main() {
+  const now = Date.now();
   const all: BackfillMatch[] = [];
   const errors: string[] = [];
   const fotmobNames: Record<string, string[]> = {};
@@ -153,7 +124,7 @@ async function main() {
     // FotMob 현재시즌 팀명 집합(검증 기준) - 종료+예정 경기의 home/away 합집합
     const leagueId = LEAGUE_IDS[league];
     const [finished, upcoming] = await Promise.all([
-      fetchFinishedMatches(leagueId),
+      fetchFinishedMatches(leagueId, now),
       fetchUpcomingMatches(leagueId),
     ]);
     const currentSet = new Set<string>();
@@ -191,12 +162,9 @@ async function main() {
       let count = 0;
       for (const line of lines.slice(1)) {
         const cols = parseCsvLine(line);
-        const date = parseFdDate(cols[iDate] ?? "");
-        const fdHome = (cols[iHome] ?? "").trim();
-        const fdAway = (cols[iAway] ?? "").trim();
-        const hg = Number(cols[iHg]);
-        const ag = Number(cols[iAg]);
-        if (!date || !fdHome || !fdAway || !Number.isFinite(hg) || !Number.isFinite(ag)) continue;
+        const parsed = parseFdResult({ date: cols[iDate], home: cols[iHome], away: cols[iAway], hg: cols[iHg], ag: cols[iAg] }, now);
+        if (!parsed) continue;
+        const { date, home: fdHome, away: fdAway, hg, ag } = parsed;
 
         const home = nameMap[fdHome] ?? fdHome;
         const away = nameMap[fdAway] ?? fdAway;

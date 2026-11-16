@@ -1,6 +1,7 @@
 // FotMob __NEXT_DATA__ 스크래핑 (crawl_and_update.py의 pageProps 이중 방어 파싱 이식)
 // 팀명은 저장 전에 정식 키로 바꾼다(teamAlias.ts). FotMob 원문은 "Atlético Madrid"처럼 악센트가 붙어
 // 과거 백필 표기("Atletico Madrid")와 다른 팀으로 저장되기 때문이다.
+import { isEligibleResultDate, parseResultDate, parseResultScore, resultUtcCutoff } from "./resultEligibility";
 import { canonicalTeamName } from "./teamAlias";
 export const LEAGUE_IDS: Record<string, string> = {
   "K리그1": "9080",
@@ -88,14 +89,18 @@ function extractPageProps(fullJson: any): any | null {
   return pageProps;
 }
 
-function extractMatchDate(match: any): string | null {
+function extractMatchDateValue(match: any): unknown {
   const status = match?.status;
-  if (status?.utcTime) return String(status.utcTime).split("T")[0];
+  if (status?.utcTime) return status.utcTime;
   for (const field of ["date", "time", "timeStr"]) {
     const val = match?.[field];
-    if (typeof val === "string") return val.includes("T") ? val.split("T")[0] : val;
+    if (typeof val === "string") return val;
   }
   return null;
+}
+
+function extractMatchDate(match: any): string | null {
+  return parseResultDate(extractMatchDateValue(match))?.day ?? null;
 }
 
 function extractFixtureList(data: any): any[] {
@@ -121,7 +126,8 @@ function extractFixtureList(data: any): any[] {
   return [];
 }
 
-export async function fetchFinishedMatches(leagueId: string): Promise<FotmobFinishedMatch[]> {
+export async function fetchFinishedMatches(leagueId: string, now = Date.now()): Promise<FotmobFinishedMatch[]> {
+  resultUtcCutoff(now);
   const url = `https://www.fotmob.com/ko/leagues/${leagueId}/overview/`;
   const fullJson = await fetchNextData(url);
   if (!fullJson) return [];
@@ -137,13 +143,14 @@ export async function fetchFinishedMatches(leagueId: string): Promise<FotmobFini
     if (!home || !away) continue;
 
     const status = match.status ?? {};
-    if (!status.finished) continue;
-    const scoreStr: string = status.scoreStr ?? "";
+    if (status.finished !== true) continue;
+    if (!isEligibleResultDate(extractMatchDateValue(match), now)) continue;
+    const scoreStr: string = typeof status.scoreStr === "string" ? status.scoreStr : "";
     const parts = scoreStr.split("-");
     if (parts.length !== 2) continue;
-    const hg = Number(parts[0].trim());
-    const ag = Number(parts[1].trim());
-    if (!Number.isFinite(hg) || !Number.isFinite(ag)) continue;
+    const hg = parseResultScore(parts[0]);
+    const ag = parseResultScore(parts[1]);
+    if (hg == null || ag == null) continue;
 
     const date = extractMatchDate(match);
     if (!date) continue;
@@ -275,7 +282,8 @@ export interface FotmobFixture {
   ag: number | null;
 }
 
-export async function fetchLeagueFixtures(leagueId: string): Promise<FotmobFixture[]> {
+export async function fetchLeagueFixtures(leagueId: string, now = Date.now()): Promise<FotmobFixture[]> {
+  resultUtcCutoff(now);
   const url = `https://www.fotmob.com/ko/leagues/${leagueId}/overview/`;
   const fullJson = await fetchNextData(url);
   if (!fullJson) return [];
@@ -294,16 +302,18 @@ export async function fetchLeagueFixtures(leagueId: string): Promise<FotmobFixtu
     let hg: number | null = null;
     let ag: number | null = null;
     if (status.finished) {
+      if (!isEligibleResultDate(extractMatchDateValue(match), now)) continue;
       const parts = String(status.scoreStr ?? "").split("-");
       if (parts.length === 2) {
-        const h = Number(parts[0].trim());
-        const a = Number(parts[1].trim());
-        if (Number.isFinite(h) && Number.isFinite(a)) {
+        const h = parseResultScore(parts[0]);
+        const a = parseResultScore(parts[1]);
+        if (h != null && a != null) {
           hg = h;
           ag = a;
         }
       }
     }
+    if (status.finished && (hg == null || ag == null)) continue;
     const id = typeof match.id === "number" ? match.id : Number(match.id) || null;
     out.push({
       id,

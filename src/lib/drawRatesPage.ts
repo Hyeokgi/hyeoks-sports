@@ -14,6 +14,7 @@ import { leagueInfo, LEAGUE_INFO } from "./teamNames";
 import { NATIONAL_LEAGUE } from "./fixtures";
 import { seasonOf, homeAdvForLeague, HOME_ADV, type MatchRow } from "./elo";
 import { isValidResult, seasonLabel } from "./leagueTables";
+import { isEligibleStoredResult } from "./resultEligibility";
 
 /** 시즌 한 줄을 보여줄 최소 경기 수. 미만이면 비율 대신 '표본 부족'. */
 export const MIN_SEASON_MATCHES = 30;
@@ -57,7 +58,7 @@ export interface LeagueSplit {
   currentSeason: number;
   /** 현재 시즌부터 최신순. */
   seasons: SeasonSplit[];
-  /** 최근 완료 시즌(현재 시즌 직전 PREVIOUS_SEASONS개) 합계. */
+  /** 과거 구간 중 저장 자료가 있는 결과 합계(전체 시즌 수집을 보증하지 않는다). */
   summary: OutcomeSplit & { seasons: number[]; label: string; enough: boolean };
 }
 export interface DrawRatesOverview {
@@ -119,7 +120,7 @@ export function computeDrawRates(rows: readonly MatchRow[], now = Date.now()): D
   const today = isoDay(now);
   const byLeague = new Map<string, MatchRow[]>();
   for (const r of rows) {
-    if (!isValidResult(r)) continue;
+    if (!isValidResult(r) || !isEligibleStoredResult(r, now)) continue;
     const list = byLeague.get(r.league);
     if (list) list.push(r);
     else byLeague.set(r.league, [r]);
@@ -180,7 +181,7 @@ const tableWrap = (id: string, caption: string, head: string[], rows: string) =>
   `<div class="site-table-wrap" role="region" aria-labelledby="${id}" tabindex="0"><table><caption id="${id}">${e(caption)}</caption><thead><tr>${head.map((h) => `<th scope="col">${e(h)}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></div>`;
 
 function seasonRow(s: SeasonSplit): string {
-  const status = s.current ? (s.matches > 0 ? "진행 중" : "시작 전") : "완료";
+  const status = s.current ? (s.matches > 0 ? "현재 구간 저장분" : "저장 자료 없음") : "과거 구간 저장분";
   const head = `<th scope="row">${e(s.label)}</th><td>${status}</td><td>${s.matches}</td>`;
   if (!s.enough) return `<tr>${head}<td colspan="5">표본 부족(${MIN_SEASON_MATCHES}경기 미만)</td></tr>`;
   return `<tr>${head}<td>${pct(s.homeRate)}</td><td>${pct(s.drawRate)}</td><td>${pct(s.awayRate)}</td><td>${fmtGoals(s.avgGoals)}</td><td>${e(s.firstDate ?? "-")} ~ ${e(s.lastDate ?? "-")}</td></tr>`;
@@ -202,22 +203,24 @@ function summarySection(ov: DrawRatesOverview): string {
   const rows = ov.leagues
     .map((l) => {
       const s = l.summary;
-      const head = `<th scope="row">${e(l.name)}</th><td>${e(s.label)}</td><td>${s.matches}</td>`;
+      const missing = l.seasons.filter((x) => !x.current && !s.seasons.includes(x.season)).map((x) => x.label);
+      const coverage = `${s.seasons.length}/${PREVIOUS_SEASONS}개 구간 저장분${missing.length ? ` · 자료 없는 구간: ${missing.join(", ")}` : ""}${l.calendarNote ? " · 역년 기준" : ""}`;
+      const head = `<th scope="row">${e(l.name)}</th><td>${e(s.label)}</td><td>${e(coverage)}</td><td>${s.matches}</td>`;
       if (!s.enough) return `<tr>${head}<td colspan="4">표본 부족(${MIN_SEASON_MATCHES}경기 미만)</td></tr>`;
       return `<tr>${head}<td>${pct(s.homeRate)}</td><td>${pct(s.drawRate)}</td><td>${pct(s.awayRate)}</td><td>${fmtGoals(s.avgGoals)}</td></tr>`;
     })
     .join("");
-  return `<section class="site-panel" aria-labelledby="h-summary"><h2 id="h-summary">최근 완료 시즌 합계</h2><p class="site-note">리그마다 현재 시즌 직전 ${PREVIOUS_SEASONS}개 시즌(진행 중인 시즌 제외)을 합친 값입니다.</p>${tableWrap("d-summary", `리그별 최근 완료 ${PREVIOUS_SEASONS}시즌 합계`, ["리그", "시즌", "경기 수", "홈승", "무승부", "원정승", "경기당 골"], rows)}${highlights(ov)}</section>`;
+  return `<section class="site-panel" aria-labelledby="h-summary"><h2 id="h-summary">최근 과거 구간의 저장 결과 합계</h2><p class="site-note">현재 구간 직전 최대 ${PREVIOUS_SEASONS}개 시즌 구간에서 저장 자료가 있는 경기를 합쳤습니다. 시즌 전체 수집을 확인한 자료가 아니며 리그마다 포함 구간 수와 수집 범위가 다릅니다. 빈 구간을 무승부 0건이나 완전한 시즌으로 해석하지 않습니다.</p>${tableWrap("d-summary", "리그별 과거 구간 저장분 합계 · 수집 완전성 미확인", ["리그", "저장 자료 기간", "수집 범위", "경기 수", "홈승", "무승부", "원정승", "경기당 골"], rows)}${highlights(ov)}</section>`;
 }
 
 /** 요약 표에서 바로 읽을 수 있는 사실만 문장으로 만든다(숫자는 모두 집계값). */
 export function highlights(ov: DrawRatesOverview): string {
   const ok = ov.leagues.filter((l) => l.summary.enough);
-  if (ok.length === 0) return `<p>최근 완료 시즌 자료가 충분히 쌓인 리그가 아직 없어 리그 간 비교 문장은 생략합니다.</p>`;
+  if (ok.length === 0) return `<p>최근 과거 구간의 저장 자료가 충분히 쌓인 리그가 아직 없어 리그 간 비교 문장은 생략합니다.</p>`;
   const parts: string[] = [];
   const pooled = outcomeTotals(ok.map((l) => l.summary));
   parts.push(
-    `표본이 충분한 ${ok.length}개 리그의 최근 완료 시즌 ${pooled.matches}경기를 합치면 홈승 ${pct(pooled.homeRate)}, 무승부 ${pct(pooled.drawRate)}, 원정승 ${pct(pooled.awayRate)}입니다.`,
+    `표본이 충분한 ${ok.length}개 리그의 과거 구간 저장분 ${pooled.matches}경기를 합치면 홈승 ${pct(pooled.homeRate)}, 무승부 ${pct(pooled.drawRate)}, 원정승 ${pct(pooled.awayRate)}입니다.`,
   );
   const homeAhead = ok.filter((l) => (l.summary.homeRate ?? 0) > (l.summary.awayRate ?? 0)).length;
   parts.push(`${ok.length}개 리그 중 ${homeAhead}개 리그에서 홈승 비율이 원정승 비율보다 높았습니다.`);
@@ -229,7 +232,7 @@ export function highlights(ov: DrawRatesOverview): string {
       `무승부 비율이 가장 높은 리그는 ${e(hi.name)}(${pct(hi.summary.drawRate)}), 가장 낮은 리그는 ${e(lo.name)}(${pct(lo.summary.drawRate)})로 두 리그의 차이는 ${(((hi.summary.drawRate ?? 0) - (lo.summary.drawRate ?? 0)) * 100).toFixed(1)}%p입니다.`,
     );
   }
-  return `<p>${parts.join(" ")}</p>`;
+  return `<p>${parts.join(" ")}</p><p class="site-note">리그별 포함 연도·구간 수·수집 완전성이 다르므로 동일 기간의 공식 리그 통계 비교나 리그 특성의 확정 근거로 해석하지 마세요.</p>`;
 }
 
 function outcomeTotals(xs: readonly OutcomeSplit[]): { matches: number; homeRate: number | null; drawRate: number | null; awayRate: number | null } {
@@ -260,7 +263,7 @@ function explainSection(ov: DrawRatesOverview): string {
 <li>날짜는 UTC 기준입니다. 한국 시간과 하루 차이가 날 수 있고, 시즌 경계 부근 경기는 다른 시즌으로 묶일 수 있습니다.</li>
 <li>EPL·세리에A·라리가·분데스리가는 7월 1일을 경계로, 나머지 리그는 1~12월 역년으로 시즌을 나눕니다(Elo 계산과 같은 기준).</li>
 <li>같은 경기가 팀명 표기 차이로 두 번 저장된 경우에는 한 번만 셉니다.</li>
-<li>현재 시즌은 오늘 날짜로 정하므로, 시즌이 끝난 뒤 다음 시즌이 시작되기 전까지도 '진행 중'으로 표시될 수 있습니다.</li>
+<li>현재 구간은 오늘 날짜와 달력 경계로 정합니다. ‘현재 구간 저장분’은 공식 대회의 진행·종료나 시즌 전체 수집을 확인했다는 의미가 아닙니다.</li>
 </ul>
 </section>`;
 }

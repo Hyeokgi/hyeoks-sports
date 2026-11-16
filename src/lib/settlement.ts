@@ -1,7 +1,9 @@
+import { isEligibleStoredResult, parseResultDate } from "./resultEligibility";
 // upcoming 라운드의 round_matches를 matches 테이블의 실제 결과와 대조해 정산(round_results 채움)
 import { NAME_MAP } from "./nameMap";
 import { discoverRoundMasterSeq, fetchRoundResults } from "./wisetoto";
 import type { Env } from "../types";
+const FINISH_BUFFER_MS = 2.5 * 60 * 60 * 1000;
 
 export async function settleRounds(env: Env): Promise<{ settled: number; matchesUpdated: number }> {
   const { results: upcomingRounds } = await env.DB.prepare(
@@ -9,6 +11,7 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
   ).all<{ id: number; round_no: number | null }>();
   if (!upcomingRounds || upcomingRounds.length === 0) return { settled: 0, matchesUpdated: 0 };
 
+  const now = Date.now();
   let matchesUpdated = 0;
   let roundsSettled = 0;
 
@@ -36,15 +39,19 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
       const awayEn = NAME_MAP[rm.away_kr];
       if (!homeEn || !awayEn) continue;
 
-      // kickoff_at은 정확한 UTC 시각, matches.date는 날짜 단위라 하루 오차를 허용해 대조한다.
-      const kickoffDate = rm.kickoff_at ? rm.kickoff_at.slice(0, 10) : null;
-      const match = await env.DB.prepare(
+      // 날짜만 있는 결과는 종료 시각을 증명하지 않으므로 주 경로도 킥오프+여유시간을 기다린다.
+      const kickoff = parseResultDate(rm.kickoff_at);
+      const kickoffMs = kickoff?.granularity === "timestamp" ? kickoff.ms : NaN;
+      if (!Number.isFinite(kickoffMs) || kickoffMs + FINISH_BUFFER_MS > now) continue;
+      const kickoffDate = new Date(kickoffMs).toISOString().slice(0, 10);
+      // 최신의 부적격 행이 유효 후보를 가리지 않게 좁은 날짜 창의 후보를 읽는다.
+      const { results: candidates } = await env.DB.prepare(
         `SELECT hg, ag, date FROM matches WHERE league = ? AND home = ? AND away = ?
-         ${kickoffDate ? "AND date BETWEEN date(?, '-1 day') AND date(?, '+1 day')" : ""}
-         ORDER BY date DESC LIMIT 1`,
-      )
-        .bind(...(kickoffDate ? [rm.league, homeEn, awayEn, kickoffDate, kickoffDate] : [rm.league, homeEn, awayEn]))
-        .first<{ hg: number; ag: number; date: string }>();
+         AND date BETWEEN date(?, '-1 day') AND date(?, '+1 day')
+         ORDER BY date DESC LIMIT 5`,
+      ).bind(rm.league, homeEn, awayEn, kickoffDate, kickoffDate)
+        .all<{ hg: number; ag: number; date: string }>();
+      const match = (candidates ?? []).find(m => isEligibleStoredResult({ ...m, league: rm.league, home: homeEn, away: awayEn }, now));
       if (!match) continue;
 
       const actual = match.hg > match.ag ? "H" : match.hg === match.ag ? "D" : "A";
@@ -62,8 +69,6 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
     // 모르면 조회할 수 없으므로 그때는 그냥 다음 주기를 기다린다.
     // 아직 안 끝난 경기까지 매 주기(3시간)마다 wisetoto에 물어보면, 발매중인 회차가 있는 동안
     // 계속 무의미한 요청을 보내게 된다. 킥오프 + 여유시간이 지난 경기가 하나라도 있을 때만 조회한다.
-    const FINISH_BUFFER_MS = 2.5 * 60 * 60 * 1000; // 킥오프 후 경기가 끝나기까지의 여유
-    const now = Date.now();
     const unsettled = roundMatches.filter(
       (rm) =>
         !settledIds.has(rm.id) &&

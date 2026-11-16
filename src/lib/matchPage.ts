@@ -1,3 +1,4 @@
+import { leagueEditorialHtml } from "./leagueEditorial";
 // 경기별 분석 페이지(docs/specs/002-match-pages.md, 004 5·6·10장)
 //   /match/{slug}, /match/{slug}/data.json, /league/{slug}, /matches, /api/matches, 사이트맵 항목
 //
@@ -1123,7 +1124,7 @@ export function leagueTablesHtml(t: LeagueTablesView | null | undefined, leagueN
 
 export function renderLeaguePage(d: LeagueView): string {
   const n = d.info.name;
-  const title = `${n} 승부예측 · 이번 주 경기 확률 분석 | HYEOKS`;
+  const title = `${n} 경기 데이터 · 결과와 전력 지수 | HYEOKS`;
   const url = `${SITE}/league/${d.info.slug}`;
   const hasTables = d.tables != null;
   const desc = hasTables
@@ -1139,9 +1140,10 @@ export function renderLeaguePage(d: LeagueView): string {
   // 리그별 성적처럼 보이게 집계하지 않고, 검증 기록은 /performance로 보낸다.
   const body = `<p class="crumb"><a href="/">HYEOKS</a> › <a href="/matches">경기 분석</a> › ${e(n)}</p>
 <span class="eyebrow">경기 분석</span>
-<h1>${e(n)} 승부예측</h1>
+<h1>${e(n)} 경기 데이터</h1>
 <p class="sub">${e(d.info.country)} · 이번 주 경기 확률과 최근 경기 결과</p>
 <p class="note">범위: 킥오프 3시간 전 이후 예정 경기(최대 60경기)와 최근 3주 종료 경기(최대 30경기). 수집되지 않았거나 결과가 아직 확인되지 않은 경기는 빠질 수 있습니다. 확률이 없는 경기는 '확률 없음'으로 표시합니다.</p>
+${leagueEditorialHtml(d.league)}
 ${byDay.size ? [...byDay.entries()].map(([day, list]) => `<section class="card"><h2>${e(day)}</h2><div class="rows">${list.map(rowHtml).join("")}</div></section>`).join("") : `<section class="card"><h2>예정 경기</h2><p class="note" style="margin:0">이 기간에 수집된 예정 경기가 없습니다.</p></section>`}
 ${d.recent.length ? `<section class="card"><h2>최근 경기 결과</h2><p class="note" style="margin:0 0 6px">스코어와 함께, 킥오프 전에 저장된 것이 확인된 확률만 막대로 표시합니다. 적중 여부의 집계는 검증된 저장 기록 기준으로 <a href="/performance">기록</a> 페이지에서 따로 공개합니다.</p><div class="rows">${d.recent.map(rowHtml).join("")}</div></section>` : ""}
 ${leagueTablesHtml(d.tables, n)}`;
@@ -1149,7 +1151,7 @@ ${leagueTablesHtml(d.tables, n)}`;
 }
 
 export function renderHubPage(d: HubView): string {
-  const title = "이번 주 축구 승부예측 · 리그별 경기 확률 분석 | HYEOKS";
+  const title = "이번 주 축구 경기 데이터 · 리그별 확률과 출처 | HYEOKS";
   const url = `${SITE}/matches`;
   const desc = "EPL·라리가·세리에A·분데스리가·K리그·J리그·MLS·A매치 이번 주 경기별 홈승·무승부·원정승 확률과 출처·계산 시각을 리그별로 모았습니다.";
   const tags = ["축구 승부예측", "이번 주 축구 경기 분석", "해외축구 승부예측", "K리그 승부예측", "EPL 승부예측", "축구 경기 확률"];
@@ -1160,7 +1162,7 @@ export function renderHubPage(d: HubView): string {
     .map(([lg, list]) => { const li = leagueInfo(lg); return `<section class="card"><h2>${e(li.name)} <span style="color:var(--muted);font-weight:600;font-size:.85rem">${list.length}경기</span></h2><div class="rows">${list.slice(0, 10).map(rowHtml).join("")}</div><p class="note"><a href="/league/${li.slug}">${e(li.name)} 전체 보기 →</a></p></section>`; })
     .join("");
   const body = `<span class="eyebrow">경기 분석</span>
-<h1>이번 주 축구 승부예측</h1>
+<h1>이번 주 축구 경기 데이터</h1>
 <p class="sub">지원 리그 킥오프 3시간 전 이후 ~ 앞으로 8일 예정 경기 ${total}개</p>
 <p class="note">각 경기의 확률 출처(통계 모델·해외 배당·국가대표 Elo)와 계산 시각은 경기 페이지에 함께 적습니다. 승무패 회차에 포함된 경기는 회차와 같은 확률을 보여줍니다. <a href="/methodology">계산 방법</a> · <a href="/sources">데이터 출처</a></p>
 ${sections || `<section class="card"><h2>예정 경기</h2><p class="note" style="margin:0">이 기간에 수집된 예정 경기가 없습니다. 승무패 회차는 <a href="/app">승무패 도구</a>에서 볼 수 있습니다.</p></section>`}`;
