@@ -212,11 +212,11 @@ describe("리그·허브 페이지", () => {
   it("예정 경기가 없으면 빈 상태 안내 + noindex", () => {
     const empty = { league: "EPL", info: leagueInfo("EPL"), upcoming: [], recent: [] };
     const h = renderLeaguePage(empty);
-    expect(h).toContain("프리미어리그 승부예측");
+    expect(h).toContain("프리미어리그 경기 데이터");
     expect(h).toContain("이 기간에 수집된 예정 경기가 없습니다");
     expect(leagueIndexable(empty)).toBe(false);
     expect(h).toContain("noindex");
-    expect(renderHubPage({ byLeague: new Map() })).toContain("이번 주 축구 승부예측");
+    expect(renderHubPage({ byLeague: new Map() })).toContain("이번 주 축구 경기 데이터");
     expect(hubIndexable({ byLeague: new Map() })).toBe(false);
   });
   it("리그 지난 경기 '적중 수'를 사전 기록처럼 집계하지 않고 기록 페이지로 보낸다", () => {

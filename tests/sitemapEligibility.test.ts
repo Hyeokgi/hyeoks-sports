@@ -1,6 +1,7 @@
 // 조건부 색인 페이지를 정적 목록에 넣어 noindex 판정을 우회하지 않도록 한다.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { handleSitemap, SITE_PATHS } from "../src/routes/roundPage";
+import { STORY_PATHS } from "../src/lib/stories";
 import { getAllMatches } from "../src/lib/db";
 import { loadRatingsOverview } from "../src/lib/leagueTablesStore";
 import { loadProbabilityAudit, computeProbabilityAudit } from "../src/lib/probabilityAuditPage";
@@ -19,6 +20,11 @@ beforeEach(()=>{
   vi.mocked(sitemapEntries).mockResolvedValue([]);
 });
 describe("사이트맵과 데이터 색인 자격 일치",()=>{
+  it("완성 기사만 사이트맵에 싣고 집계 JSON은 제외한다",async()=>{
+    const xml=await (await handleSitemap({} as Env,new Request("https://hyeoks.com/sitemap.xml"))).text();
+    for(const p of STORY_PATHS) expect(xml).toContain("<loc>https://hyeoks.com"+p+"</loc>");
+    expect(xml).not.toContain("snapshot.json");
+  });
   it("조건부 페이지는 고정 목록에 두지 않는다",()=>{
     for(const p of ["/matches","/ratings","/insights/draw-rates"]) expect(SITE_PATHS).not.toContain(p);
   });
