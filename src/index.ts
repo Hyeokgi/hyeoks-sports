@@ -1,3 +1,4 @@
+import { handleStoriesPage } from "./routes/storiesPage";
 // Worker 엔트리: API 라우팅 + 정적 자산 서빙 + Cron 디스패치
 import { handleListRounds, handleGetRound } from "./routes/rounds";
 import { handlePredict } from "./routes/predict";
@@ -42,7 +43,7 @@ function withSiteChrome(res: Response, path: string): Response {
   if (res.status !== 200 || !(res.headers.get("content-type") ?? "").includes("text/html")) return res;
   let mainSeen = false;
   return new HTMLRewriter()
-    .on("head", { element(el) { el.append('<link rel="stylesheet" href="/nav.css">', { html: true }); } })
+    .on("head", { element(el) { el.append('<link rel="stylesheet" href="/nav.css?v=editorial-20261116">', { html: true }); } })
     .on("a.skip-link", { element(el) { el.remove(); } })
     .on("header.site-header", { element(el) { el.replace(siteHeader(path), { html: true }); } })
     .on("nav.app-public-nav", { element(el) { el.replace(siteHeader(path), { html: true }); } })
@@ -93,10 +94,13 @@ async function routeRequest(request: Request, env: Env): Promise<Response> {
         else if (/^\/(app|about|privacy|methodology|sources|editorial|contact|responsible)\.html$/.test(pathname)) clean = pathname.replace(/\.html$/, "");
         else if (/^\/guide\/[^/]+\.html$/.test(pathname)) clean = pathname.replace(/\.html$/, "");
         else if (/^\/(app|matches|performance|ratings|about|privacy|methodology|sources|editorial|contact|responsible)\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
+        else if (/^\/stories(?:\/[a-z0-9-]+)?\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
         else if (/^\/insights\/(draw-rates|rank-gap|probability-audit)\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
         else if (/^\/round\/\d+\/?$/.test(pathname)) clean = `/round/${Number(pathname.match(/\d+/)![0])}`;
         else if (/^\/(match|league)\/[^/]+\/$/.test(pathname)) clean = pathname.replace(/\/$/, "");
         if (clean !== pathname) return Response.redirect(`${CANONICAL_ORIGIN}${clean}${url.search}`, 301);
+        const storyResponse = handleStoriesPage(pathname);
+        if (storyResponse) return storyResponse;
         if (pathname === "/") return await handleDataHome(env);
         if (pathname === "/performance") return await handlePerformancePage(env);
         if (pathname === "/performance/data.json") return await handlePerformanceData(env);
