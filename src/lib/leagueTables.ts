@@ -1,4 +1,4 @@
-import { isEligibleResult, isEligibleResultDate, parseResultDate, resultUtcCutoff } from "./resultEligibility";
+import { isEligibleStoredResult, isEligibleResultDate, parseResultDate, resultUtcCutoff } from "./resultEligibility";
 // 리그 순위표(자체 집계)와 Elo 전력 순위 - 순수 계산 모듈(D1·화면 의존 없음).
 //
 // 왜 만들었나(2026-10 AdSense '가치 낮은 콘텐츠' 대응 2단계)
@@ -95,7 +95,7 @@ export function latestSeason(league: string, rows: readonly ResultRow[], now = D
   let best = -Infinity;
   let date: string | null = null;
   for (const r of rows) {
-    if (!isValidResult(r) || !isEligibleResult(r, now)) continue;
+    if (!isValidResult(r) || !isEligibleStoredResult({ ...r, league }, now)) continue;
     const t = Date.parse(r.date);
     if (t > best) {
       best = t;
@@ -130,7 +130,7 @@ interface Acc {
  */
 export function computeStandings(league: string, rows: readonly ResultRow[], season?: number, now = Date.now()): Standings | null {
   resultUtcCutoff(now);
-  const valid = rows.filter((r) => isValidResult(r) && isEligibleResult(r, now));
+  const valid = rows.filter((r) => isValidResult(r) && isEligibleStoredResult({ ...r, league }, now));
   if (valid.length === 0) return null;
   const target = season ?? latestSeason(league, valid, now);
   if (target == null) return null;
@@ -279,7 +279,7 @@ export function eloChangeSince(league: string, rows: readonly ResultRow[], cutof
   resultUtcCutoff(nowMs);
   const cutoff = parseResultDate(cutoffDate)?.ms ?? NaN;
   if (!Number.isFinite(cutoff)) return out;
-  const valid = rows.filter((r) => isValidResult(r) && isEligibleResult(r, nowMs)).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  const valid = rows.filter((r) => isValidResult(r) && isEligibleStoredResult({ ...r, league }, nowMs)).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
   const toMatch = (r: ResultRow) => ({ league, date: r.date, home: r.home, away: r.away, hg: r.hg, ag: r.ag });
   const now = computeEloAndHistory(valid.map(toMatch)).elo;
   const past = computeEloAndHistory(valid.filter((r) => Date.parse(r.date) <= cutoff).map(toMatch)).elo;

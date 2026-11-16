@@ -1,7 +1,7 @@
 // D1 조회/저장 헬퍼
 import type { Env, RoundMatchRow, RoundPredictionRow, RoundRow } from "../types";
 import type { MatchRow } from "./elo";
-import { isEligibleResult, resultUtcCutoff } from "./resultEligibility";
+import { isEligibleStoredResult, resultUtcCutoff } from "./resultEligibility";
 import { dedupeResults } from "./teamAlias";
 
 export async function listRounds(env: Env): Promise<RoundRow[]> {
@@ -177,7 +177,7 @@ export async function getAllMatches(env: Env, now = Date.now()): Promise<MatchRo
     "SELECT league, date, home, away, hg, ag FROM matches WHERE julianday(date) <= julianday(?) ORDER BY league ASC, date ASC",
   ).bind(cutoff.iso).all<MatchRow>();
   // 저장 행은 보존하고 읽을 때 격리한다. SQL 날짜 정규화만 신뢰하지 않는다.
-  return dedupeResults((results ?? []).filter((r) => isEligibleResult(r, now)));
+  return dedupeResults((results ?? []).filter((r) => isEligibleStoredResult(r, now)));
 }
 
 export async function getLeagueDrawRate(env: Env, league: string): Promise<number> {

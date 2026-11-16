@@ -1,3 +1,4 @@
+import { isEligibleStoredResult } from "./resultEligibility";
 // upcoming 라운드의 round_matches를 matches 테이블의 실제 결과와 대조해 정산(round_results 채움)
 import { NAME_MAP } from "./nameMap";
 import { discoverRoundMasterSeq, fetchRoundResults } from "./wisetoto";
@@ -45,7 +46,7 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
       )
         .bind(...(kickoffDate ? [rm.league, homeEn, awayEn, kickoffDate, kickoffDate] : [rm.league, homeEn, awayEn]))
         .first<{ hg: number; ag: number; date: string }>();
-      if (!match) continue;
+      if (!match || !isEligibleStoredResult({ ...match, league: rm.league, home: homeEn, away: awayEn })) continue;
 
       const actual = match.hg > match.ag ? "H" : match.hg === match.ag ? "D" : "A";
       writes.push(

@@ -14,7 +14,7 @@ import { leagueInfo, LEAGUE_INFO } from "./teamNames";
 import { NATIONAL_LEAGUE } from "./fixtures";
 import { seasonOf, homeAdvForLeague, HOME_ADV, type MatchRow } from "./elo";
 import { isValidResult, seasonLabel } from "./leagueTables";
-import { isEligibleResult } from "./resultEligibility";
+import { isEligibleStoredResult } from "./resultEligibility";
 
 /** 시즌 한 줄을 보여줄 최소 경기 수. 미만이면 비율 대신 '표본 부족'. */
 export const MIN_SEASON_MATCHES = 30;
@@ -120,7 +120,7 @@ export function computeDrawRates(rows: readonly MatchRow[], now = Date.now()): D
   const today = isoDay(now);
   const byLeague = new Map<string, MatchRow[]>();
   for (const r of rows) {
-    if (!isValidResult(r) || !isEligibleResult(r, now)) continue;
+    if (!isValidResult(r) || !isEligibleStoredResult(r, now)) continue;
     const list = byLeague.get(r.league);
     if (list) list.push(r);
     else byLeague.set(r.league, [r]);

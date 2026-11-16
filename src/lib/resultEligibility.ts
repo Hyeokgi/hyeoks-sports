@@ -42,3 +42,16 @@ export function isEligibleResult(row: { date: unknown; hg: unknown; ag: unknown 
   resultUtcCutoff(nowMs);
   return parseResultScore(row.hg) != null && parseResultScore(row.ag) != null && isEligibleResultDate(row.date, nowMs);
 }
+
+/** 원본을 지우지 않는 읽기 격리. 해제는 원천 대조 후 별도 코드 검토로만 한다. */
+export const RESULT_QUARANTINE = [{ id: 964046, league: "라리가", date: "2026-12-09", home: "Rayo Vallecano", away: "Athletic Club", hg: 0, ag: 0, observedAt: "2026-11-16T14:26:05.537Z", reason: "기준 시각보다 미래인 0:0 저장 결과. 직접 유입원·올바른 날짜·종료 상태 확인 전 읽기 격리" }] as const;
+export interface StoredResultCandidate { league?: unknown; date: unknown; home?: unknown; away?: unknown; hg: unknown; ag: unknown }
+export function isQuarantinedResult(row: StoredResultCandidate): boolean {
+  return RESULT_QUARANTINE.some(q => row.league === q.league && row.date === q.date && row.home === q.home && row.away === q.away && parseResultScore(row.hg) === q.hg && parseResultScore(row.ag) === q.ag);
+}
+export function isQuarantinedStoredElo(row: { league?: string; team: string; lastMatchDate: string | null }): boolean {
+  return RESULT_QUARANTINE.some(q => row.league === q.league && row.lastMatchDate === q.date && (row.team === q.home || row.team === q.away));
+}
+export function isEligibleStoredResult(row: StoredResultCandidate, nowMs = Date.now()): boolean {
+  return isEligibleResult(row, nowMs) && !isQuarantinedResult(row);
+}
