@@ -37,3 +37,6 @@
 @media (max-width:370px){.site-nav a{padding:0 6px;font-size:.86rem}}
 @media (max-width:400px){.site-footer-groups{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.skip-link{transition:none}}
+
+/* 주 메뉴는 가로 스크롤이나 작은 글자 대신 자연스럽게 줄바꿈한다. 도구는 숨기지 않되 과도하게 강조하지 않는다. */
+.site-nav{flex-wrap:wrap;overflow-x:visible}.site-nav a.site-nav-tool{margin-left:0;border:0;color:inherit;opacity:.78}.site-nav a.site-nav-tool[aria-current]{opacity:1;background:rgba(127,140,160,.18)}@media(max-width:420px){.site-nav{width:100%;margin:0}.site-nav a,.site-nav a.site-nav-tool{font-size:.92rem;padding:0 10px;min-height:44px}}
