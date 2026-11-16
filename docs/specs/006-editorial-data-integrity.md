@@ -27,3 +27,13 @@
 - https://support.google.com/adsense/answer/10015918?hl=ko
 - https://support.google.com/adsense/answer/7299563
 - https://developers.google.com/search/docs/essentials/spam-policies
+
+
+## 운영 읽기 전용 진단 (2026-11-16 23:26 KST)
+- Actions run: https://github.com/Hyeokgi/hyeoks-sports/actions/runs/43885621331 (task=diagnose-result-integrity, READ_ONLY_NO_WRITES).
+- 고정 기준 시각: 2026-11-16T14:26:05.537Z. 원본 10,229행 중 미래 결과 1행과 별칭 중복 50행을 읽기 단계에서 제외한 비교 표본은 10,178행이었다. 중복 50행은 기존 별칭 정규화 중복 판정이며 원본 삭제를 뜻하지 않는다.
+- 의심 행: id=964046, 라리가, 2026-12-09, Rayo Vallecano–Athletic Club 0:0. 미래 행의 존재는 확인했지만 직접 유입 소스·올바른 경기 날짜·실제 종료 여부는 아직 원천과 대조하지 못했다.
+- 같은 수식으로 안전 표본을 순수 재계산하면 Rayo Vallecano Elo 1498.083812 → 1502.374494, Athletic Club 1516.159162 → 1511.868480으로 두 팀만 달라졌다. 라리가 저장 표본 무승부율은 330/1261(26.1697%) → 329/1260(26.1111%)였다. 이는 복구 예상 차이이며 DB에 반영한 값이 아니다. 특정 완료 시즌 전체 통계로 표현하지 않는다.
+- 조회된 보존 대상 수: prediction_snapshots 215행, prediction_history 2,159행, round_predictions 406행. 행 수만으로 각 예측 입력의 오염 여부가 입증되지는 않는다. 해당 테이블을 소급 재작성하지 않는다.
+- 기존 task=deploy에는 D1 백필과 admin/sync가 결합돼 있으므로 코드만 배포하는 용도로 실행하지 않았다. PR 검증과 운영 배포·파생 테이블 복구를 분리한다.
+- PR #30 CI: ee83dd4 기준 typecheck, 370개 단위 테스트, SQLite 추가 전용 제약 검사, 클라이언트 빌드 통과. 이후 커밋의 최종 CI는 PR에서 별도 확인한다.
