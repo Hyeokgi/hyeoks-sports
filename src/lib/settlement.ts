@@ -1,4 +1,4 @@
-import { isEligibleStoredResult } from "./resultEligibility";
+import { isEligibleStoredResult, parseResultDate } from "./resultEligibility";
 // upcoming 라운드의 round_matches를 matches 테이블의 실제 결과와 대조해 정산(round_results 채움)
 import { NAME_MAP } from "./nameMap";
 import { discoverRoundMasterSeq, fetchRoundResults } from "./wisetoto";
@@ -40,7 +40,8 @@ export async function settleRounds(env: Env): Promise<{ settled: number; matches
       if (!homeEn || !awayEn) continue;
 
       // 날짜만 있는 결과는 종료 시각을 증명하지 않으므로 주 경로도 킥오프+여유시간을 기다린다.
-      const kickoffMs = rm.kickoff_at ? Date.parse(rm.kickoff_at) : NaN;
+      const kickoff = parseResultDate(rm.kickoff_at);
+      const kickoffMs = kickoff?.granularity === "timestamp" ? kickoff.ms : NaN;
       if (!Number.isFinite(kickoffMs) || kickoffMs + FINISH_BUFFER_MS > now) continue;
       const kickoffDate = new Date(kickoffMs).toISOString().slice(0, 10);
       // 최신의 부적격 행이 유효 후보를 가리지 않게 좁은 날짜 창의 후보를 읽는다.
