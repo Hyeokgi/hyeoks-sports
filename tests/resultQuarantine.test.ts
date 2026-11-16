@@ -65,7 +65,7 @@ function settlementFixture(kickoff: string | null, candidates: { hg:number;ag:nu
   return {env,writes,queries};
 }
 describe("정산 전에 종료 가능 시각과 유효 후보 확인",()=>{
-  it.each(["2026-11-16T20:00:00Z",null,"invalid-date"])("킥오프 이전·시각 미확인(%s)은 날짜만 같은 점수로 정산하지 않는다",async(kickoff)=>{
+  it.each(["2026-11-16T20:00:00Z",null,"invalid-date","2026-11-16"])("킥오프 이전·시각 미확인(%s)은 날짜만 같은 점수로 정산하지 않는다",async(kickoff)=>{
     vi.spyOn(Date,"now").mockReturnValue(Date.parse("2026-11-16T12:00:00Z"));
     const f=settlementFixture(kickoff,[{date:"2026-11-16",hg:1,ag:0}]);
     expect(await settleRounds(f.env)).toEqual({settled:0,matchesUpdated:0});
