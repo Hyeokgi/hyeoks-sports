@@ -42,12 +42,42 @@ describe("원본 보존·명시적 읽기 격리", () => {
     const env = { DB: {
       prepare: (sql: string) => {
         const stmt = { sql, bind: (..._values: unknown[]) => stmt,
-          all: async () => ({ results: sql.includes("FROM rounds") ? [{ id: 1, round_no: 70 }] : sql.includes("FROM round_matches") ? [{ id: 2, seq: 1, league: "라리가", home_kr: "라요", away_kr: "빌바오", kickoff_at: "2026-12-09T12:00:00Z" }] : [] }),
-          first: async () => ({ hg: 0, ag: 0, date: suspect.date }) };
+          all: async () => ({ results: sql.includes("FROM rounds") ? [{ id: 1, round_no: 70 }] : sql.includes("FROM round_matches") ? [{ id: 2, seq: 1, league: "라리가", home_kr: "라요", away_kr: "빌바오", kickoff_at: "2026-12-09T12:00:00Z" }] : sql.includes("FROM matches") ? [{ hg: 0, ag: 0, date: suspect.date }] : [] }) };
         return stmt;
       }, batch: async (stmts: unknown[]) => { writes.push(...stmts); return []; },
     } } as any;
     expect(await settleRounds(env)).toEqual({ settled: 0, matchesUpdated: 0 });
     expect(writes).toEqual([]);
+  });
+});
+
+function settlementFixture(kickoff: string | null, candidates: { hg:number;ag:number;date:string }[]) {
+  const writes: {sql:string;values:unknown[]}[] = [];
+  const queries: string[] = [];
+  const env = { DB: {
+    prepare: (sql: string) => {
+      queries.push(sql);
+      const stmt = { sql, values: [] as unknown[], bind: (...values: unknown[]) => {stmt.values=values;return stmt;},
+        all: async () => ({ results: sql.includes("FROM rounds") ? [{id:1,round_no:70}] : sql.includes("FROM round_matches") ? [{id:2,seq:1,league:"라리가",home_kr:"라요",away_kr:"빌바오",kickoff_at:kickoff}] : sql.includes("FROM matches") ? candidates : [] }) };
+      return stmt;
+    }, batch: async (stmts: {sql:string;values:unknown[]}[]) => {writes.push(...stmts);return [];},
+  } } as any;
+  return {env,writes,queries};
+}
+describe("정산 전에 종료 가능 시각과 유효 후보 확인",()=>{
+  it.each(["2026-11-16T20:00:00Z",null,"invalid-date"])("킥오프 이전·시각 미확인(%s)은 날짜만 같은 점수로 정산하지 않는다",async(kickoff)=>{
+    vi.spyOn(Date,"now").mockReturnValue(Date.parse("2026-11-16T12:00:00Z"));
+    const f=settlementFixture(kickoff,[{date:"2026-11-16",hg:1,ag:0}]);
+    expect(await settleRounds(f.env)).toEqual({settled:0,matchesUpdated:0});
+    expect(f.writes).toEqual([]);
+    expect(f.queries.some(q=>q.includes("FROM matches"))).toBe(false);
+  });
+  it("최신 격리 후보가 있어도 날짜 창 안의 유효한 다음 후보를 확인한다",async()=>{
+    vi.spyOn(Date,"now").mockReturnValue(now);
+    const f=settlementFixture("2026-12-08T12:00:00Z",[{date:suspect.date,hg:0,ag:0},{date:"2026-12-08",hg:2,ag:1}]);
+    expect(await settleRounds(f.env)).toEqual({settled:1,matchesUpdated:1});
+    const result=f.writes.find(s=>s.sql.includes("INSERT OR REPLACE INTO round_results"));
+    expect(result?.values.slice(0,4)).toEqual([2,"H",2,1]);
+    expect(f.queries.find(q=>q.includes("FROM matches"))).toContain("LIMIT 5");
   });
 });
