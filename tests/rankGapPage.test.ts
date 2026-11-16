@@ -88,8 +88,9 @@ describe("같은 현재 시즌 팀 안의 순위 차이", () => {
 
 describe("웹 고유 해설과 표시", () => {
   it("실행 시계가 아니라 집계 자료의 기준 시각으로 Elo 자격을 판정한다", () => {
+    const captured = input([league()]);
     const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2025-01-01T00:00:00Z"));
-    try { expect(computeRankGaps(input([league()])).leagues).toHaveLength(1); }
+    try { expect(computeRankGaps(captured).leagues).toHaveLength(1); }
     finally { clock.mockRestore(); }
   });
   it("입력에 있는 숫자로만 실제 발견을 설명하고 전체 표·출처·링크를 제공한다", () => {
