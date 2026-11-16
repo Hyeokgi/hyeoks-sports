@@ -259,3 +259,8 @@ scripts/recent_accuracy.ts      실전 적중률 분해
 - 확률 성적표는 사전 스냅샷·확정 결과만 평가하며 입력 계산 시각까지 추가 검증한다. 기존 `/performance`와 경기 수가 다를 수 있다. 소표본·Wilson 95% 구간·모델 버전 미기록을 공개한다. 100경기 미만 noindex는 내부 편집 기준이며 검색엔진 요구가 아니다.
 - 새 `prediction_history`(migration 0014)는 앞으로 관측한 확률·출처 변화만 추가 저장한다. 기존 마지막 스냅샷 동작은 유지한다. 과거 데이터 복원·UPDATE·DELETE 금지. `history-instrumentation-v1`은 수집 규격 출발점이지 검증된 모델 버전이 아니다. 상세: `docs/specs/prediction-history.md`.
 - 배포 시 migration을 먼저 적용한다. CI는 타입·단위테스트·빌드에 더해 `scripts/test_prediction_history_sql.mjs`로 실제 SQLite 구문과 추가 전용 제약을 검사한다. 모델 수학·가중치 변경 없음.
+
+
+## 2026-11-16 결과 정합성 수정 패치(배포 여부 별도 확인)
+
+`docs/specs/006-editorial-data-integrity.md` 참조. 미래 날짜 결과와 빈 점수→0–0 경로를 막는 결과 자격 검사를 추가했다. 표의 '완료/전체' 표현을 저장 자료 범위로 좁히고 조건부 사이트맵을 일치시켰다. 계수·가중치나 운영 DB·사전 예측은 변경하지 않는다. 운영 화면에 나타난 2026-12-09 라리가 행의 직접 원인은 아직 미확정이며, 기존 Elo·저장 예측 입력의 오염 여부는 백업 후 별도 진단·복구가 필요하다. 이 패치만으로 기존 자료 정상화나 AdSense 문제 해결 완료를 선언하지 않는다.
