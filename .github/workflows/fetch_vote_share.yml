@@ -46,6 +46,7 @@ on:
           - probe-wisetoto-403
           - measure-market-weight-extra
           - diagnose-sync
+          - diagnose-result-integrity
           - recent-accuracy
           - check-pages
           - usage-stats
@@ -979,3 +980,21 @@ jobs:
         with:
           name: fixtures-json
           path: fixtures.json
+
+
+  # 별도 읽기 전용 진단. 자동 스케줄·배포와 연결하지 않는다.
+  diagnose-result-integrity:
+    if: github.event_name == 'workflow_dispatch' && inputs.task == 'diagnose-result-integrity'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Build read-only integrity diagnostic
+        run: npx --no-install esbuild scripts/diagnose_result_integrity.ts --bundle --platform=node --format=esm --outfile=/tmp/hyeoks-result-integrity.mjs
+      - name: Read result history and compare derived values
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node /tmp/hyeoks-result-integrity.mjs
