@@ -61,7 +61,7 @@ describe("리그별 무승부 비율 계산", () => {
     expect(epl.summary.matches).toBe(0);
     expect(epl.summary.enough).toBe(false);
     const h = renderDrawRatesPage(ov);
-    expect(h).toContain("진행 중");
+    expect(h).toContain("현재 구간 저장분");
   });
 
   it(`${MIN_SEASON_MATCHES}경기 미만은 표본 부족`, () => {
@@ -85,6 +85,29 @@ describe("리그별 무승부 비율 계산", () => {
     const ov = computeDrawRates(gen("J1리그", "2025-03-01", 40), NOW);
     expect(season(ov, "J1리그", 2025).label).toContain("역년 기준(1~12월)");
     expect(renderDrawRatesPage(ov)).toContain(J1_SEASON_NOTE);
+  });
+});
+
+describe("시각 정합성과 수집 범위", () => {
+  it("현재 시즌의 미래 결과와 잘못된 달력 날짜는 비율에서 제외한다", () => {
+    const rows: MatchRow[] = [
+      {league:"라리가", date:"2026-11-08",home:"A",away:"B",hg:1,ag:0},
+      {league:"라리가", date:"2026-12-09",home:"A",away:"C",hg:0,ag:0},
+      {league:"라리가", date:"2026-02-30",home:"A",away:"D",hg:1,ag:1},
+    ];
+    const ov = computeDrawRates(rows, Date.parse("2026-11-16T12:00:00Z"));
+    expect(ov.totalMatches).toBe(1);
+    expect(season(ov,"라리가",2026).lastDate).toBe("2026-11-08");
+  });
+  it("2개 연도만 있으면 3시즌을 모두 수집한 것처럼 표현하지 않는다",()=>{
+    const ov = computeDrawRates([...gen("MLS","2024-03-01",40),...gen("MLS","2025-03-01",40)],NOW);
+    const h=renderDrawRatesPage(ov);
+    expect(h).toContain("2/3개 구간 저장분");
+    expect(h).toContain("자료 없는 구간: 2023");
+    expect(h).toContain("수집 완전성 미확인");
+    expect(h).toContain("리그별 포함 연도·구간 수·수집 완전성이 다르므로");
+    expect(h).not.toContain("최근 완료 3시즌 합계");
+    expect(h).not.toContain(">완료<");
   });
 });
 

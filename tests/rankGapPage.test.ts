@@ -87,6 +87,11 @@ describe("같은 현재 시즌 팀 안의 순위 차이", () => {
 });
 
 describe("웹 고유 해설과 표시", () => {
+  it("실행 시계가 아니라 집계 자료의 기준 시각으로 Elo 자격을 판정한다", () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2025-01-01T00:00:00Z"));
+    try { expect(computeRankGaps(input([league()])).leagues).toHaveLength(1); }
+    finally { clock.mockRestore(); }
+  });
   it("입력에 있는 숫자로만 실제 발견을 설명하고 전체 표·출처·링크를 제공한다", () => {
     const ov = computeRankGaps(input([league(), league("K리그1"), league("MLS")]));
     const h = renderRankGapPage(ov);
@@ -94,6 +99,9 @@ describe("웹 고유 해설과 표시", () => {
     expect(h).toContain("Team0: 순위표 1위, 같은 참가 팀 안 Elo 8위, 차이 -7계단 · 7경기 7승점, 득실차 0");
     expect(h).toContain("Team7: 순위표 8위, 같은 참가 팀 안 Elo 1위, 차이 +7계단");
     expect(h).toContain("자체 집계(공식 순위 아님)");
+    expect(h).toContain("현재 시즌 저장 결과에 등장한 팀 비교");
+    expect(h).toContain("Elo 점수");
+    expect(h).toContain("순위와 Elo는 얼마나 다를까?");
     expect(h).toContain("동부·서부 콘퍼런스");
     expect(h).toContain("상·하위 그룹");
     expect(h).toContain("Elo 순위는 예상 최종 순위가 아닙니다.");
