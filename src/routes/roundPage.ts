@@ -1,3 +1,4 @@
+import { STORY_PATHS } from "../lib/stories";
 // GET /round/:no           - 검색 노출용 회차 분석 페이지(HTML)
 // GET /round/:no/draft     - 블로그 초안(검색 제외, 복사 버튼)
 // GET /sitemap.xml, /robots.txt
@@ -275,7 +276,7 @@ export async function handleSitemap(env: Env, request: Request): Promise<Respons
     seen.add(loc);
     urls.push(entry);
   };
-  for (const p of [...SITE_PATHS, ...GUIDE_PATHS]) add(`<url><loc>${origin}${p}</loc></url>`);
+  for (const p of [...SITE_PATHS, ...GUIDE_PATHS, ...STORY_PATHS]) add(`<url><loc>${origin}${p}</loc></url>`);
   try {
     const ratings = await loadRatingsOverview(env);
     if (ratingsIndexable(ratings)) add(`<url><loc>${origin}/ratings</loc></url>`);

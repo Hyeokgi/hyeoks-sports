@@ -56,7 +56,7 @@ async function safePage(label: string, make: () => Promise<Response>): Promise<R
 
 async function cached(request: Request, key: string, make: () => Promise<Response>): Promise<Response> {
   const cache = (globalThis as any).caches?.default as Cache | undefined;
-  const cacheKey = new Request(`${new URL(request.url).origin}${key}`, { method: "GET" });
+  const cacheKey = new Request(`${new URL(request.url).origin}${key}?release=editorial-20261116`, { method: "GET" });
   if (cache) {
     const hit = await cache.match(cacheKey);
     if (hit) return hit;

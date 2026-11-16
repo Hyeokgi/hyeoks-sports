@@ -11,7 +11,7 @@ const PARTIAL_TTL = 60;
 
 export async function handleRatingsPage(env: Env): Promise<Response> {
   const cache = (globalThis as any).caches?.default as Cache | undefined;
-  const key = new Request(PUBLIC_ORIGIN + "/ratings", { method: "GET" });
+  const key = new Request(PUBLIC_ORIGIN + "/ratings?release=editorial-20261116", { method: "GET" });
   const hit = cache ? await cache.match(key) : undefined;
   if (hit) return hit;
   try {
