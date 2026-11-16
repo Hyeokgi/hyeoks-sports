@@ -15,7 +15,7 @@ export interface Story {
 
 const AUDIT_URL = "https://github.com/Hyeokgi/hyeoks-sports/actions/runs/43885621331";
 const SNAPSHOT_PATH = "/stories/laliga-draw-sample/snapshot.json";
-const PUBLISHED = "2026-11-16";
+const PUBLISHED = "2026-11-17";
 
 export const LALIGA_SNAPSHOT = {
   schema: 1,
