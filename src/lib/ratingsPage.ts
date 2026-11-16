@@ -113,7 +113,8 @@ export function renderRatingsPage(ov: RatingsOverview): string {
 <p class="site-eyebrow">전력 순위</p>
 <h1>리그별 Elo 전력 순위</h1>
 <p>HYEOKS가 저장한 경기 결과로 계산한 리그별 Elo 상위 팀과, 같은 결과로 다시 센 시즌 순위표 순위를 나란히 보여줍니다. Elo는 결과만으로 갱신하는 상대 전력 지수이며, 순위표와 다른 점은 아래에서 실제 수치로 설명합니다.</p>
-<p class="site-note">집계 시각 ${e(fullKst(ov.generatedAt))} · 클럽 리그는 각 리그의 가장 최근 시즌 참가 팀만 표시 · <a href="/guide/elo-rating">Elo 레이팅 가이드</a> · <a href="/methodology">계산 방법</a></p>
+<p class="site-note">결과·Elo의 반영 날짜가 집계 시각 이후이거나 확인 불가능한 값은 표시하지 않습니다.</p>
+<p class="site-note">집계 시각 ${e(fullKst(ov.generatedAt))} · 클럽 리그는 가장 최근 시즌의 저장 결과에 등장한 팀만 표시 · 공식 참가 명단과 수집 완전성은 별도 확인 필요 · <a href="/guide/elo-rating">Elo 레이팅 가이드</a> · <a href="/methodology">계산 방법</a></p>
 ${ov.truncated ? `<p class="site-callout">최근 경기 자료가 조회 한도를 넘어 이번에는 순위표 비교를 생략했습니다.</p>` : ""}
 </section>
 <div class="site-grid">${panels}${nationalPanel(ov)}</div>

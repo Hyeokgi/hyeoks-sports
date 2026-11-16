@@ -1,6 +1,7 @@
 // D1 조회/저장 헬퍼
 import type { Env, RoundMatchRow, RoundPredictionRow, RoundRow } from "../types";
 import type { MatchRow } from "./elo";
+import { isEligibleResult, resultUtcCutoff } from "./resultEligibility";
 import { dedupeResults } from "./teamAlias";
 
 export async function listRounds(env: Env): Promise<RoundRow[]> {
@@ -170,11 +171,13 @@ export async function getLatestVoteShare(
 // Elo·폼·상대 전적·무승부율의 원본. 팀명을 정식 키로 바꾸고 같은 경기의 두 표기(악센트 유무)는 하나만 남긴다
 // (teamAlias.ts). DB에 이미 들어간 옛 표기 줄도 여기서 합쳐지므로 DB를 고치지 않아도 계산이 맞는다.
 // 리그·날짜는 바뀌지 않으므로 SQL 정렬(리그, 날짜 오름차순)이 그대로 유지된다.
-export async function getAllMatches(env: Env): Promise<MatchRow[]> {
+export async function getAllMatches(env: Env, now = Date.now()): Promise<MatchRow[]> {
+  const cutoff = resultUtcCutoff(now);
   const { results } = await env.DB.prepare(
-    "SELECT league, date, home, away, hg, ag FROM matches ORDER BY league ASC, date ASC",
-  ).all<MatchRow>();
-  return dedupeResults(results ?? []);
+    "SELECT league, date, home, away, hg, ag FROM matches WHERE julianday(date) <= julianday(?) ORDER BY league ASC, date ASC",
+  ).bind(cutoff.iso).all<MatchRow>();
+  // 저장 행은 보존하고 읽을 때 격리한다. SQL 날짜 정규화만 신뢰하지 않는다.
+  return dedupeResults((results ?? []).filter((r) => isEligibleResult(r, now)));
 }
 
 export async function getLeagueDrawRate(env: Env, league: string): Promise<number> {

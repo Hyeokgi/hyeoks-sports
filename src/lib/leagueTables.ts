@@ -1,3 +1,4 @@
+import { isEligibleResult, isEligibleResultDate, parseResultDate, resultUtcCutoff } from "./resultEligibility";
 // 리그 순위표(자체 집계)와 Elo 전력 순위 - 순수 계산 모듈(D1·화면 의존 없음).
 //
 // 왜 만들었나(2026-10 AdSense '가치 낮은 콘텐츠' 대응 2단계)
@@ -71,7 +72,7 @@ export function isValidResult(r: ResultRow): boolean {
     typeof r.away === "string" && r.away !== "" &&
     r.home !== r.away &&
     isGoal(r.hg) && isGoal(r.ag) &&
-    typeof r.date === "string" && Number.isFinite(Date.parse(r.date))
+    parseResultDate(r.date) != null
   );
 }
 
@@ -89,11 +90,12 @@ export function seasonLabel(league: string, season: number): string {
 }
 
 /** 가장 최근 저장 경기의 시즌. 휴식기에도 '마지막 시즌' 순위표를 보여주기 위해 오늘 날짜가 아니라 자료 기준으로 정한다. */
-export function latestSeason(league: string, rows: readonly ResultRow[]): number | null {
+export function latestSeason(league: string, rows: readonly ResultRow[], now = Date.now()): number | null {
+  resultUtcCutoff(now);
   let best = -Infinity;
   let date: string | null = null;
   for (const r of rows) {
-    if (!isValidResult(r)) continue;
+    if (!isValidResult(r) || !isEligibleResult(r, now)) continue;
     const t = Date.parse(r.date);
     if (t > best) {
       best = t;
@@ -126,10 +128,11 @@ interface Acc {
  * 한 리그의 시즌 순위표. season을 주지 않으면 가장 최근 경기의 시즌을 쓴다.
  * rows는 그 리그 경기만 넘긴다(리그 구분은 호출 쪽 책임). 유효한 경기가 없으면 null.
  */
-export function computeStandings(league: string, rows: readonly ResultRow[], season?: number): Standings | null {
-  const valid = rows.filter(isValidResult);
+export function computeStandings(league: string, rows: readonly ResultRow[], season?: number, now = Date.now()): Standings | null {
+  resultUtcCutoff(now);
+  const valid = rows.filter((r) => isValidResult(r) && isEligibleResult(r, now));
   if (valid.length === 0) return null;
-  const target = season ?? latestSeason(league, valid);
+  const target = season ?? latestSeason(league, valid, now);
   if (target == null) return null;
   // 같은 날 경기의 순서는 최근 5경기 표시에만 영향이 있다. 결과가 매번 같도록 홈팀 이름으로 고정한다.
   const inSeason = valid
@@ -228,14 +231,18 @@ export function rankElo(
     changes?: ReadonlyMap<string, number> | null;
     activeSince?: string | null;
     limit?: number;
+    now?: number;
   } = {},
 ): EloRankRow[] {
+  const now = opts.now ?? Date.now();
+  resultUtcCutoff(now);
   const seen = new Set<string>();
   const since = opts.activeSince ? Date.parse(opts.activeSince) : NaN;
   const useTeams = opts.teams != null && opts.teams.size > 0;
   const picked: EloInput[] = [];
   for (const r of rows) {
     if (!r.team || seen.has(r.team) || typeof r.elo !== "number" || !Number.isFinite(r.elo)) continue;
+    if (r.lastMatchDate != null && !isEligibleResultDate(r.lastMatchDate, now)) continue;
     if (useTeams) {
       if (!opts.teams!.has(r.team)) continue;
     } else if (Number.isFinite(since)) {
@@ -267,11 +274,12 @@ export function rankElo(
  * cutoff 전에 경기가 없던 팀(새로 올라온 팀 등)은 비교 기준이 없어 결과에서 빠진다.
  * 시즌이 바뀐 뒤 첫 경기에서 적용되는 회귀(1500 쪽으로 25%)도 변화량에 포함된다.
  */
-export function eloChangeSince(league: string, rows: readonly ResultRow[], cutoffDate: string): Map<string, number> {
+export function eloChangeSince(league: string, rows: readonly ResultRow[], cutoffDate: string, nowMs = Date.now()): Map<string, number> {
   const out = new Map<string, number>();
-  const cutoff = Date.parse(cutoffDate);
+  resultUtcCutoff(nowMs);
+  const cutoff = parseResultDate(cutoffDate)?.ms ?? NaN;
   if (!Number.isFinite(cutoff)) return out;
-  const valid = rows.filter(isValidResult).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
+  const valid = rows.filter((r) => isValidResult(r) && isEligibleResult(r, nowMs)).sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
   const toMatch = (r: ResultRow) => ({ league, date: r.date, home: r.home, away: r.away, hg: r.hg, ag: r.ag });
   const now = computeEloAndHistory(valid.map(toMatch)).elo;
   const past = computeEloAndHistory(valid.filter((r) => Date.parse(r.date) <= cutoff).map(toMatch)).elo;
@@ -310,13 +318,14 @@ export function rankNationalElo(
   nowMs: number,
   opts: { minMatches: number; activeDays: number; limit: number },
 ): EloRankRow[] {
+  resultUtcCutoff(nowMs);
   const since = nowMs - opts.activeDays * 86400e3;
   const seen = new Set<string>();
   const picked = rows.filter((r) => {
     if (!r.team || seen.has(r.team) || typeof r.elo !== "number" || !Number.isFinite(r.elo)) return false;
     if (!(r.nMatches >= opts.minMatches)) return false;
     const t = r.lastMatchDate ? Date.parse(r.lastMatchDate) : NaN;
-    if (!Number.isFinite(t) || t < since) return false;
+    if (!Number.isFinite(t) || t < since || !isEligibleResultDate(r.lastMatchDate, nowMs)) return false;
     seen.add(r.team);
     return true;
   });
