@@ -1,10 +1,10 @@
 // 편집 콘텐츠와 고정 집계 스냅샷은 DB 조회·쓰기 없이 제공한다.
-import { STORY_SNAPSHOTS, renderStoriesIndex, renderStory } from "../lib/stories";
+import { STORIES, STORY_SNAPSHOTS, storyIsPublished, renderStoriesIndex, renderStory } from "../lib/stories";
 import { errorPage, publicHtml } from "../lib/publicSite";
 export function handleStoriesPage(pathname: string): Response | null {
   if (pathname === "/stories") return publicHtml(renderStoriesIndex());
   const snapshotSlug = /^\/stories\/([a-z0-9-]+)\/snapshot\.json$/.exec(pathname)?.[1];
-  if (snapshotSlug && Object.prototype.hasOwnProperty.call(STORY_SNAPSHOTS, snapshotSlug)) {
+  if (snapshotSlug && Object.prototype.hasOwnProperty.call(STORY_SNAPSHOTS, snapshotSlug) && STORIES.some(s=>s.slug===snapshotSlug && storyIsPublished(s))) {
     return new Response(JSON.stringify(STORY_SNAPSHOTS[snapshotSlug], null, 2), { headers: {
       "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=86400",
       "x-robots-tag": "noindex", "x-content-type-options": "nosniff",
