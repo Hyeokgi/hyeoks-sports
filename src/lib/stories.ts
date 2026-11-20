@@ -103,28 +103,39 @@ export const STORY_PATHS: readonly string[] = ["/stories", ...STORIES.map((story
 
 
 export const STORY_SNAPSHOTS: Readonly<Record<string, unknown>> = { "laliga-draw-sample": LALIGA_SNAPSHOT, ...FOOTBALL_NEWS_SNAPSHOTS };
-/** 발행 전 기사를 최신 글처럼 표시하지 않는다. 동률이면 편집 등록 순서를 유지한다. */
-export function recentFootballStories(now = Date.now()): readonly Story[] {
-  return STORIES.filter(s => s.kind === "match-report" && Number.isFinite(Date.parse(s.publishedAt)) && Date.parse(s.publishedAt) <= now && Number.isFinite(Date.parse(s.eventDate ?? "")) && Date.parse(s.eventDate!) <= now).sort((a,b) => Date.parse(b.publishedAt)-Date.parse(a.publishedAt));
+/** 날짜만 쓴 발행일·경기일은 한국시간 날짜다. 자료 확인 시점보다 앞서 공개하지 않는다. */
+function calendarMs(value: string): number { return Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(value) ? value + "T00:00:00+09:00" : value); }
+export function storyIsPublished(story: Story, now = Date.now()): boolean {
+  const publication = calendarMs(story.publishedAt);
+  const evidence = story.dataAsOf == null ? publication : Date.parse(story.dataAsOf);
+  return Number.isFinite(now) && Number.isFinite(publication) && Number.isFinite(evidence) && Math.max(publication, evidence) <= now;
 }
-export function readingStories(): readonly Story[] { return STORIES.filter(s => s.kind !== "match-report"); }
+export function publishedStoryPaths(now = Date.now()): readonly string[] { return ["/stories", ...STORIES.filter(s=>storyIsPublished(s,now)).map(s=>"/stories/"+s.slug)]; }
+export function recentFootballStories(now = Date.now()): readonly Story[] {
+  return STORIES.filter(s => s.kind === "match-report" && storyIsPublished(s,now) && Number.isFinite(calendarMs(s.eventDate ?? "")) && calendarMs(s.eventDate!) <= now).sort((a,b) => calendarMs(b.publishedAt)-calendarMs(a.publishedAt));
+}
+export function hasRecentFootballStories(now = Date.now()): boolean {
+  const latest = Math.max(...recentFootballStories(now).map(s=>calendarMs(s.eventDate!)));
+  return Number.isFinite(latest) && now - latest <= 7 * 86400e3;
+}
+export function readingStories(now = Date.now()): readonly Story[] { return STORIES.filter(s => s.kind !== "match-report" && storyIsPublished(s,now)); }
 function eventLabel(value: string): string { return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value + " (한국시간)" : fullKst(value); }
 export function storyCard(story: Story): string {
   return `<article class="site-panel${story.kind === "match-report" ? " news-card" : ""}"><p class="site-eyebrow">${e(story.topic ?? story.category)}</p>${story.featureStat ? `<p class="news-card-number">${e(story.featureStat.value)}</p>` : ""}<h3><a href="/stories/${e(story.slug)}">${e(story.title)}</a></h3><p>${e(story.summary)}</p><p class="site-note story-meta">발행 ${e(story.publishedAt.slice(0, 10))} · 약 ${story.readingMinutes}분${story.eventDate ? `<br>경기 ${e(eventLabel(story.eventDate))}` : ""}</p></article>`;
 }
 export function storyCards(entries: readonly Story[] = STORIES): string { return entries.map(storyCard).join(""); }
-export function renderStoriesIndex(): string {
-  return renderSitePage({ title: "축구 이야기 · 경기 속 재미있는 숫자", description: "최근 축구 경기에서 발견한 숫자와 흥미로운 장면을 읽습니다. 경기 이야기 뒤에서 통계 읽는 법과 계산 근거도 확인할 수 있습니다.", path: "/stories", event: "stories_view", body: `<header class="site-intro magazine-intro"><p class="site-eyebrow">HYEOKS 축구 이야기</p><h1>축구, 숫자로 한 번 더</h1><p>큰 승리 뒤의 작은 숫자, 한 골 차 경기 속의 뜻밖의 기록. 최근 경기의 재미에서 시작합니다.</p></header><section aria-labelledby="recent-football"><h2 id="recent-football">경기에서 찾은 이야기 · 최근 발행순</h2><div class="site-grid story-grid">${storyCards(recentFootballStories())}</div></section><section class="site-section magazine-reading"><h2>통계가 더 재미있어지는 읽는 법</h2><div class="site-grid story-grid">${storyCards(readingStories())}</div></section><p class="site-note">경기 날짜와 기사 발행일은 구분합니다. 모든 기사는 출처·계산 근거를 남기며 숫자를 자동으로 덮어쓰지 않습니다. <a href="/editorial">편집·정정 원칙</a> · <a href="/sources">자료 출처</a></p>` });
+export function renderStoriesIndex(now = Date.now()): string {
+  return renderSitePage({ title: "축구 이야기 · 경기 속 재미있는 숫자", description: "축구 경기에서 발견한 숫자와 흥미로운 장면을 읽습니다. 경기 이야기 뒤에서 통계 읽는 법과 계산 근거도 확인할 수 있습니다.", path: "/stories", event: "stories_view", body: `<header class="site-intro magazine-intro"><p class="site-eyebrow">HYEOKS 축구 이야기</p><h1>축구, 숫자로 한 번 더</h1><p>큰 승리 뒤의 작은 숫자, 한 골 차 경기 속의 뜻밖의 기록. 기록 속 축구의 재미에서 시작합니다.</p></header><section aria-labelledby="recent-football"><h2 id="recent-football">${hasRecentFootballStories(now) ? "최근 경기에서 찾은 이야기" : "경기 이야기 아카이브"}</h2><div class="site-grid story-grid">${storyCards(recentFootballStories(now))}</div></section><section class="site-section magazine-reading"><h2>통계가 더 재미있어지는 읽는 법</h2><div class="site-grid story-grid">${storyCards(readingStories(now))}</div></section><p class="site-note">경기 날짜와 기사 발행일은 구분합니다. 모든 기사는 출처·계산 근거를 남기며 숫자를 자동으로 덮어쓰지 않습니다. <a href="/editorial">편집·정정 원칙</a> · <a href="/sources">자료 출처</a></p>` });
 }
-export function renderStory(slug: string): string | null {
+export function renderStory(slug: string, now = Date.now()): string | null {
   const story = STORIES.find(s => s.slug === slug);
-  if (!story) return null;
+  if (!story || !storyIsPublished(story, now)) return null;
   const storyPath = "/stories/" + story.slug;
   const snapshotPath = storyPath + "/snapshot.json";
   const hasSnapshot = Object.prototype.hasOwnProperty.call(STORY_SNAPSHOTS, story.slug);
   const citations = story.sources?.length ? [...story.sources] : story.dataAsOf ? [AUDIT_URL] : [PUBLIC_ORIGIN + "/methodology", PUBLIC_ORIGIN + "/sources"];
   if (hasSnapshot) citations.push(PUBLIC_ORIGIN + snapshotPath);
   const structured = JSON.stringify({ "@context": "https://schema.org", "@type": "Article", headline: story.title, description: story.summary, inLanguage: "ko", url: PUBLIC_ORIGIN + storyPath, mainEntityOfPage: PUBLIC_ORIGIN + storyPath, author: { "@type": "Organization", name: "HYEOKS", url: PUBLIC_ORIGIN + "/about" }, datePublished: story.publishedAt, dateModified: story.publishedAt, citation: citations, ...(hasSnapshot ? { isBasedOn: { "@type": "Dataset", name: story.title + " · 집계 스냅샷", url: PUBLIC_ORIGIN + snapshotPath, dateCreated: story.dataAsOf } } : {}) }).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
-  const related = STORIES.filter(s => s.slug !== slug && s.kind === story.kind).slice(0,2).map(s => `<li><a href="/stories/${e(s.slug)}">${e(s.title)}</a></li>`).join("");
+  const related = STORIES.filter(s => s.slug !== slug && s.kind === story.kind && storyIsPublished(s,now)).slice(0,2).map(s => `<li><a href="/stories/${e(s.slug)}">${e(s.title)}</a></li>`).join("");
   return renderSitePage({ title: story.title, description: story.summary, path: storyPath, event: "story_view", body: `<article class="site-prose story-article"><header><p><a href="/stories">축구 이야기</a> / ${e(story.topic ?? story.category)}</p><h1>${e(story.title)}</h1><p class="story-lede">${e(story.summary)}</p><p class="news-date">HYEOKS · 발행 <time datetime="${e(story.publishedAt)}">${e(story.publishedAt.slice(0,10))}</time> · 약 ${story.readingMinutes}분${story.eventDate ? `<br>경기: ${e(eventLabel(story.eventDate))}` : ""}</p><details class="story-reading-notes"><summary>자료 범위·편집 안내</summary><p>${e(story.scope)}</p><p>${story.dataAsOf ? "자료 확인: " + e(fullKst(story.dataAsOf)) : "최신 성과 수치를 인용하지 않는 방법론·자료 읽기 글입니다."}</p><p>작성: HYEOKS. AI 편집 보조: 초안과 문장 정리에 AI를 활용했습니다. 독립 전문가의 심사나 현장 취재를 뜻하지 않습니다.</p></details></header>${story.body}<section id="story-evidence"><h2>출처와 직접 계산한 근거</h2><p><a href="#story-sources">본문의 원자료 설명</a>${hasSnapshot ? ` · <a href="${snapshotPath}">고정 집계 스냅샷 JSON</a>` : ""}</p><ul>${citations.filter(c=>c!==PUBLIC_ORIGIN+snapshotPath).map(c=>`<li><a href="${e(c)}">${e(new URL(c).hostname)} 원자료</a></li>`).join("")}</ul><p class="site-note">본문과 숫자는 자동 갱신하지 않습니다. 오류가 확인되면 수정일·이유·적용 범위를 남깁니다. 현재 정정 이력은 없습니다. <a href="/editorial">정정 원칙</a> · <a href="/contact">오류 제보</a></p></section>${related ? `<nav aria-label="관련 이야기"><h2>함께 읽을 이야기</h2><ul>${related}</ul></nav>` : ""}<aside class="story-next-steps"><h2>이제 확률도 궁금하다면</h2><p>경기 이야기를 읽은 뒤, 데이터와 확률을 별도 화면에서 살펴볼 수 있습니다. 확률은 경기 결과나 수익을 보장하지 않습니다.</p><div class="magazine-links"><a href="/matches">경기별 확률과 출처</a><a href="/performance">사전 예측의 검증 기록</a><a href="/app">승무패 도구</a></div></aside></article><script type="application/ld+json">${structured}</script>` });
 }
