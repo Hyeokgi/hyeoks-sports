@@ -856,8 +856,8 @@ function pageShell(o: ShellOpts): string {
 ${o.keywords?.length ? `<meta name="keywords" content="${e(o.keywords.join(", "))}">\n` : ""}${o.canonical ? `<link rel="canonical" href="${e(o.canonical)}">
 <meta property="og:type" content="${o.ogType ?? "website"}"><meta property="og:title" content="${e(o.title)}"><meta property="og:description" content="${e(o.description)}"><meta property="og:url" content="${e(o.canonical)}">\n` : ""}<meta name="theme-color" content="#0a0c12">
 <link rel="stylesheet" href="/fonts/pretendard/pretendard.css">
-${ld}<style>${CSS}</style><link rel="stylesheet" href="/nav.css"></head>
-<body>${publicHeader(o.canonical ? new URL(o.canonical).pathname : o.active ?? "/matches")}
+${ld}<style>${CSS}</style><link rel="stylesheet" href="/nav.css?v=football-20261120"><link rel="stylesheet" href="/reader.css?v=football-20261120"></head>
+<body data-reading-theme="light">${publicHeader(o.canonical ? new URL(o.canonical).pathname : o.active ?? "/matches")}
 <main id="content">
 ${o.body}
 </main>
