@@ -43,7 +43,8 @@ function withSiteChrome(res: Response, path: string): Response {
   if (res.status !== 200 || !(res.headers.get("content-type") ?? "").includes("text/html")) return res;
   let mainSeen = false;
   return new HTMLRewriter()
-    .on("head", { element(el) { el.append('<link rel="stylesheet" href="/nav.css?v=editorial-20261116">', { html: true }); } })
+    .on("head", { element(el) { el.append('<link rel="stylesheet" href="/nav.css?v=football-20261120">' + (path === "/app" ? "" : '<link rel="stylesheet" href="/reader.css?v=football-20261120">'), { html: true }); } })
+    .on("body", { element(el) { if (path !== "/app") el.setAttribute("data-reading-theme", "light"); } })
     .on("a.skip-link", { element(el) { el.remove(); } })
     .on("header.site-header", { element(el) { el.replace(siteHeader(path), { html: true }); } })
     .on("nav.app-public-nav", { element(el) { el.replace(siteHeader(path), { html: true }); } })
