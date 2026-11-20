@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { renderDataHome } from "../src/lib/dataHome";
 import { navSection, siteHeader, siteFooter } from "../src/lib/publicSite";
@@ -8,14 +8,15 @@ import { LEAGUE_EDITORIAL, leagueEditorialHtml } from "../src/lib/leagueEditoria
 import { LEAGUE_INFO } from "../src/lib/teamNames";
 import { USAGE_EVENTS } from "../src/lib/usage";
 import { STORIES, STORY_PATHS } from "../src/lib/stories";
-const data = { generatedAt: "2026-11-16T14:26:00Z", matches: [], performance: null, performanceUnavailable: false, rounds: [] };
-afterEach(() => vi.unstubAllGlobals());
+const data = { generatedAt: "2026-11-20T14:00:00Z", matches: [], performance: null, performanceUnavailable: false, rounds: [] };
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-20T14:00:00Z")); });
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 describe("이야기 중심 공개 화면", () => {
   it("기사와 원자료가 도구보다 먼저 나오며 도구를 숨기지 않는다", () => {
     const html = renderDataHome(data);
-    expect(html).toContain("축구 숫자,");
+    expect(html).toContain("축구의 재미,");
     expect(html.match(/<h1(?:\s[^>]*)?>/g)).toHaveLength(1);
-    expect(html.indexOf('id="h-stories"')).toBeLessThan(html.indexOf("부가기능: 승무패"));
+    expect(html.indexOf('id="h-stories"')).toBeLessThan(html.indexOf("더 살펴보기: 승무패"));
     for (const story of STORIES) expect(html).toContain('href="/stories/' + story.slug + '"');
     for (const url of ["/app", "/performance", "/matches", "/guide/", "/sources"]) expect(html).toContain('href="' + url + '"');
     expect(html).not.toContain("가장 가까운 경기");

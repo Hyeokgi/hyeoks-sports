@@ -9,7 +9,7 @@ const TTL = 3600;
 
 export async function handleDrawRatesPage(env: Env): Promise<Response> {
   const cache = (globalThis as any).caches?.default as Cache | undefined;
-  const key = new Request(PUBLIC_ORIGIN + "/insights/draw-rates?release=editorial-20261116", { method: "GET" });
+  const key = new Request(PUBLIC_ORIGIN + "/insights/draw-rates?release=football-20261120", { method: "GET" });
   const hit = cache ? await cache.match(key) : undefined;
   if (hit) return hit;
   try {

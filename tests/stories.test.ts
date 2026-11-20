@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, beforeEach, afterEach, vi, it } from "vitest";
 import { LALIGA_SNAPSHOT, STORIES, STORY_PATHS, storyCards, renderStoriesIndex, renderStory } from "../src/lib/stories";
 
 function jsonLd(html: string): Record<string, any>[] {
   return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((match) => JSON.parse(match[1]));
 }
 
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-20T14:00:00Z")); });
+afterEach(() => vi.useRealTimers());
 describe("고정 편집 기사와 집계 자료", () => {
   it("고정 시점의 분자·분모·제외 조건을 유지한다", () => {
     expect(LALIGA_SNAPSHOT.schema).toBe(1);
@@ -20,13 +22,13 @@ describe("고정 편집 기사와 집계 자료", () => {
     expect(LALIGA_SNAPSHOT.limitations.join(" ")).toContain("직접 유입원");
   });
 
-  it("중복 없는 완성 기사 3개와 공개 경로를 반환한다", () => {
-    expect(STORIES.map((story) => story.slug)).toEqual(["laliga-draw-sample", "points-and-elo", "probability-and-accuracy"]);
-    expect(new Set(STORIES.map((story) => story.slug)).size).toBe(3);
+  it("중복 없는 경기 기사와 읽을거리의 공개 경로를 반환한다", () => {
+    expect(STORIES.filter(story => story.kind !== "match-report").map(story => story.slug)).toEqual(["laliga-draw-sample", "points-and-elo", "probability-and-accuracy"]);
+    expect(new Set(STORIES.map((story) => story.slug)).size).toBe(6);
     expect(STORY_PATHS).toEqual(["/stories", ...STORIES.map((story) => `/stories/${story.slug}`)]);
     expect(STORY_PATHS.some((path) => path.endsWith(".json"))).toBe(false);
-    expect(storyCards().match(/<article /g)).toHaveLength(3);
-    for (const story of STORIES) expect(story.body.match(/<h2>/g)!.length).toBeGreaterThanOrEqual(5);
+    expect(storyCards().match(/<article /g)).toHaveLength(6);
+    for (const story of STORIES) expect(story.body.match(/<h2>/g)!.length).toBeGreaterThanOrEqual(story.kind === "match-report" ? 3 : 5);
   });
 
   it.each(STORIES)("$slug 의미 구조·출처·안전한 JSON-LD", (story) => {
