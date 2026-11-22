@@ -34,7 +34,7 @@ describe("경기 재미를 먼저 읽는 매거진",()=>{
     expect(home()).toContain("최근 경기에서 찾은 이야기");
     const archive=home("2026-12-01T12:00:00Z");
     expect(archive).toContain("경기 이야기 다시 읽기");
-    expect(archive).not.toContain("요즘 축구의 흥밋거리");
+    expect(archive).not.toContain("요즘 경기엔 어떤 반전이 있었을까요?");
   });
   it("자료 확인 전에는 홈·목록·직접 기사·JSON·사이트맵 경로가 함께 비공개다",()=>{
     const before=Date.parse(FOOTBALL_NEWS[0].dataAsOf!)-1;
@@ -70,6 +70,7 @@ describe("경기 재미를 먼저 읽는 매거진",()=>{
     const article=html.split('<article class="site-prose story-article">')[1];
     expect(article.indexOf('id="story-sources"')).toBeLessThan(article.indexOf("이제 확률도 궁금하다면"));
     expect(article.indexOf("이제 확률도 궁금하다면")).toBeLessThan(article.indexOf('href="/app"'));
+    expect(article).toMatch(/<details class="story-reading-notes"><summary>(?:점수판 열기|추가시간에 무슨 일이 있었을까\?|두 경기 점수 공개)<\/summary><p><strong>/);
     expect(html).toContain('data-reading-theme="light"');
     for(const source of s.sources)expect(html).toContain(source.replaceAll('&','&amp;'));
   });
