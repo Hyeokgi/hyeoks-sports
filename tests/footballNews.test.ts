@@ -96,7 +96,7 @@ describe("최근 경기 기사의 고정 원자료", () => {
     expect(story.body).not.toMatch(/<h2>(?:질문|관찰|한계):/);
     const lead = story.body.split("</section>")[0];
     expect(lead).not.toMatch(/예측|확률|토토|구매|베팅/);
-    expect(story.body.match(/<section(?:s|>)/g)).toHaveLength(4);
+    expect(story.body.match(/<section(?:[ ]|>)/g)).toHaveLength(4);
     expect(story.body.match(/<summary>/g)).toHaveLength(1);
     expect(s.limitations.length).toBeGreaterThan(0);
   });
