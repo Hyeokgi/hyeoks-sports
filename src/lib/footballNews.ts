@@ -1,7 +1,6 @@
 // 기사 논증을 재현하도록 원자료와 산식을 고정한다. stories의 런타임 순환 참조는 만들지 않는다.
 import type { Story } from "./stories";
 
-const AS_OF = "2026-11-20T13:30:46.941Z";
 const PUBLISHED = "2026-11-20";
 const FOTMOB = "https://www.fotmob.com/matches/qatar-vs-south-korea/1jxi0j";
 const UEFA_REPORT = "https://www.uefa.com/uefanationsleague/news/02ab-22146db70e40-12d581ab82a9-1000--uefa-nations-league-matchday-6-highlights-belgium-france/";
@@ -101,10 +100,100 @@ const korea = {
   limitations: ["친선전 5경기는 상대·경기 장소·선발이 일치하지 않는 작은 비교 표본이다. 단일 경기로 장기 결정력이나 전술적 원인을 입증하지 않는다.", "xG 및 슈팅별 위치·난도는 이 스냅샷에 포함하지 않는다.", "출처 페이지는 갱신될 수 있지만 이 발췌 스냅샷은 자동 갱신하지 않는다."]
 } as const;
 
+const NATIONS_AS_OF = "2026-11-22T08:48:02.551Z";
+const DENMARK_MATCH = "https://www.uefa.com/uefanationsleague/match/2047919--denmark-vs-norway/";
+const NORWAY_FOTMOB = "https://www.fotmob.com/matches/denmark-vs-norway/2bbwdn";
+const DENMARK_ELO = "https://eloratings.net/Denmark.tsv";
+const NORWAY_ELO = "https://eloratings.net/Norway.tsv";
+const FIRST_MEETING = "https://www.uefa.com/uefanationsleague/match/2048005--norway-vs-denmark/";
+const norwayEvidence = {
+  "all": {
+    "shots": [
+      7,
+      21
+    ],
+    "onTarget": [
+      4,
+      6
+    ],
+    "xg": [
+      1.62,
+      4.2
+    ],
+    "nonPenaltyXg": [
+      1.62,
+      3.42
+    ]
+  },
+  "first": {
+    "shots": [
+      4,
+      10
+    ],
+    "xg": [
+      1.51,
+      1.89
+    ]
+  },
+  "second": {
+    "shots": [
+      3,
+      11
+    ],
+    "xg": [
+      0.11,
+      2.31
+    ]
+  },
+  "preMatchElo": {
+    "denmark": 1920,
+    "norway": 1909,
+    "difference": 11,
+    "sourceRows": [
+      "2026\t11\t14\tPT\tDK\t1\t4\tENA\t\t-59\t1996\t1920\t0\t+6\t5\t12",
+      "2026\t11\t14\tNO\tWA\t3\t1\tENA\t\t8\t1909\t1673\t−2\t0\t15\t48"
+    ],
+    "venueAdjustment": false
+  },
+  "previousFive": [
+    {
+      "round": 1,
+      "result": "Norway 3-2 Denmark",
+      "url": "https://www.uefa.com/uefanationsleague/match/2048005--norway-vs-denmark/",
+      "norwayGoals": 3
+    },
+    {
+      "round": 2,
+      "result": "Norway 1-2 Portugal",
+      "url": "https://www.uefa.com/uefanationsleague/match/2047978--norway-vs-portugal/",
+      "norwayGoals": 1
+    },
+    {
+      "round": 3,
+      "result": "Wales 2-1 Norway",
+      "url": "https://www.uefa.com/uefanationsleague/match/2047950--wales-vs-norway/",
+      "norwayGoals": 1
+    },
+    {
+      "round": 4,
+      "result": "Portugal 2-1 Norway",
+      "url": "https://www.uefa.com/uefanationsleague/match/2047924--portugal-vs-norway/",
+      "norwayGoals": 1
+    },
+    {
+      "round": 5,
+      "result": "Norway 3-1 Wales",
+      "url": "https://www.uefa.com/uefanationsleague/match/2047893--norway-vs-wales/",
+      "norwayGoals": 3
+    }
+  ],
+  "penaltyXg": 0.7884
+} as const;
+
 const norway = {
-  schema: 1, asOf: AS_OF,
-  scope: "UEFA 현지 2026-11-17 덴마크–노르웨이 종료 1경기 (한국시간 11-18)",
-  sources: [UEFA_REPORT, UEFA_RESULTS], sourceReportDate: "2026-11-17",
+  schema: 1, asOf: NATIONS_AS_OF,
+  scope: "덴마크–노르웨이 2026-11-17 경기와 노르웨이의 앞선 A4조 5경기, 경기 전 Elo",
+  sources: [UEFA_REPORT, UEFA_RESULTS, DENMARK_MATCH, NORWAY_FOTMOB, FIRST_MEETING, DENMARK_ELO, NORWAY_ELO], evidence: norwayEvidence, sourceReportDate: "2026-11-17",
   kickoffAt: "2026-11-17T19:45:00Z", kickoffKst: "2026-11-18T04:45:00+09:00",
   match: { home: "덴마크", away: "노르웨이", status: "FT", homeGoals: 2, awayGoals: 3 },
   goals: [
@@ -118,7 +207,7 @@ const norway = {
     norwayLateGoalSharePercent: { numerator: 2, denominator: 3, formula: "2 / 3 * 100", value: 2 / 3 * 100, rounded: 66.7, definition: "이 경기 노르웨이의 3골 중 83분 이후 2골" },
     norwayGoalDifferenceSwing: { from: -2, to: 1, formula: "1 - (-2)", value: 3 }
   },
-  limitations: ["득점 순서와 기록된 분 표기만 분석한다. 슈팅·xG·역전 빈도는 포함하지 않는다.", "90+6은 원문 추가시간 표기이며 정확한 초 단위 득점 간격으로 환산하지 않는다."]
+  limitations: ["xG는 FotMob 단일 제공처의 슈팅별 기대득점 모델이다. 실제 득점 수나 승리 확률로 해석하지 않는다.", "90+6은 원문 추가시간 표기이며 정확한 초 단위 득점 간격으로 환산하지 않는다."]
 } as const;
 
 const eightMatches = [
@@ -131,19 +220,74 @@ const eightMatches = [
   { home: "보스니아 헤르체고비나", away: "루마니아", homeGoals: 2, awayGoals: 1 },
   { home: "폴란드", away: "스웨덴", homeGoals: 1, awayGoals: 1 }
 ] as const;
+const comparisonScores = [
+  [1,"A4","2048005","Norway 3-2 Denmark",3,2],
+  [1,"A4","2048002","Portugal 1-0 Wales",1,0],
+  [1,"B3","2048006","Austria 3-1 Israel",3,1],
+  [1,"B3","2048007","Kosovo 1-0 Republic of Ireland",1,0],
+  [1,"B2","2048014","Georgia 0-1 Northern Ireland",0,1],
+  [1,"B2","2048012","Hungary 0-1 Ukraine",0,1],
+  [1,"B4","2048013","Poland 0-0 Bosnia and Herzegovina",0,0],
+  [1,"B4","2048015","Sweden 2-1 Romania",2,1],
+  [2,"A4","2047977","Denmark 2-0 Wales",2,0],
+  [2,"B3","2047979","Austria 3-1 Kosovo",3,1],
+  [2,"A4","2047978","Norway 1-2 Portugal",1,2],
+  [2,"B3","2047982","Israel 0-3 Republic of Ireland",0,3],
+  [2,"B2","2047991","Georgia 0-0 Ukraine",0,0],
+  [2,"B2","2047986","Northern Ireland 0-0 Hungary",0,0],
+  [2,"B4","2047984","Romania 2-4 Bosnia and Herzegovina",2,4],
+  [2,"B4","2047985","Sweden 3-1 Poland",3,1],
+  [3,"A4","2047957","Denmark 2-4 Portugal",2,4],
+  [3,"A4","2047950","Wales 2-1 Norway",2,1],
+  [3,"B3","2047952","Israel 0-0 Kosovo",0,0],
+  [3,"B3","2047953","Republic of Ireland 2-2 Austria",2,2],
+  [3,"B2","2047962","Hungary 1-0 Georgia",1,0],
+  [3,"B2","2047959","Ukraine 0-3 Northern Ireland",0,3],
+  [3,"B4","2047964","Bosnia and Herzegovina 1-1 Sweden",1,1],
+  [3,"B4","2047963","Poland 6-0 Romania",6,0],
+  [4,"B3","2047927","Kosovo 1-1 Austria",1,1],
+  [4,"A4","2047924","Portugal 2-1 Norway",2,1],
+  [4,"A4","2047930","Wales 0-1 Denmark",0,1],
+  [4,"B3","2047929","Republic of Ireland 1-1 Israel",1,1],
+  [4,"B2","2047934","Northern Ireland 0-0 Georgia",0,0],
+  [4,"B2","2047932","Ukraine 1-2 Hungary",1,2],
+  [4,"B4","2047939","Bosnia and Herzegovina 1-0 Poland",1,0],
+  [4,"B4","2047933","Romania 0-1 Sweden",0,1],
+  [5,"B3","2047896","Kosovo 0-0 Israel",0,0],
+  [5,"A4","2047893","Norway 3-1 Wales",3,1],
+  [5,"B2","2047895","Georgia 0-2 Hungary",0,2],
+  [5,"A4","2047892","Portugal 1-4 Denmark",1,4],
+  [5,"B2","2047897","Northern Ireland 1-0 Ukraine",1,0],
+  [5,"B3","2047894","Austria 1-0 Republic of Ireland",1,0],
+  [5,"B4","2047891","Romania 2-1 Poland",2,1],
+  [5,"B4","2047890","Sweden 3-2 Bosnia and Herzegovina",3,2]
+] as const;
+const comparisonRounds = [1, 2, 3, 4, 5].map(round => {
+  const rows = comparisonScores.filter(row => row[0] === round);
+  return { round, matches: rows.length, goals: rows.reduce((sum, row) => sum + row[4] + row[5], 0) };
+});
+const suppliedResultGroups = ["A4","A4","B2","B2","B3","B3","B4","B4"] as const;
+const comparisonMatches = comparisonRounds.reduce((n, r) => n + r.matches, 0);
+const comparisonGoals = comparisonRounds.reduce((n, r) => n + r.goals, 0);
+const groupComparison = ["A4", "B2", "B3", "B4"].map(group => {
+  const earlier = comparisonScores.filter(r => r[1] === group);
+  const last = eightMatches.filter((_, i) => suppliedResultGroups[i] === group);
+  return { group, priorMatches: earlier.length, priorGoals: earlier.reduce((n, r) => n + r[4] + r[5], 0), finalMatches: last.length, finalGoals: last.reduce((n, r) => n + r.homeGoals + r.awayGoals, 0) };
+});
 const concentration = {
-  schema: 1, asOf: AS_OF,
-  scope: "UEFA 공식 Tuesday results 현지 2026-11-17 편성 8경기만 (한국시간 11-18 새벽)",
+  schema: 1, asOf: NATIONS_AS_OF,
+  scope: "UEFA 네이션스리그 A4·B2·B3·B4조 1~6차전 48경기. 6차전 8경기는 현지 2026-11-17",
   sources: [UEFA_REPORT, UEFA_RESULTS], sourceReportDate: "2026-11-17", eventLocalDate: "2026-11-17",
   kickoffAt: "2026-11-17T19:45:00Z", kickoffKst: "2026-11-18T04:45:00+09:00",
-  matches: eightMatches,
+  matches: eightMatches, matchGroups: suppliedResultGroups,
+  comparison: { selection: "같은 네 조의 1~5차전 전 경기", columns: ["round", "group", "uefaMatchId", "sourceResult", "homeGoals", "awayGoals"], scores: comparisonScores, rounds: comparisonRounds, matches: comparisonMatches, goals: comparisonGoals, average: comparisonGoals / comparisonMatches, byGroup: groupComparison },
   calculations: {
     totalGoals: { terms: [5, 5, 2, 1, 2, 3, 3, 2], formula: "5 + 5 + 2 + 1 + 2 + 3 + 3 + 2", value: 23 },
     topTwoSharePercent: { numerator: 10, denominator: 23, formula: "10 / 23 * 100", value: 10 / 23 * 100, rounded: 43.5 },
     remainingAverage: { numerator: 13, denominator: 6, formula: "(23 - 10) / (8 - 2)", value: 13 / 6, rounded: 2.17 },
     overallAverage: { numerator: 23, denominator: 8, formula: "23 / 8", value: 2.875, rounded: 2.88 }
   },
-  limitations: ["대회 전체나 이날의 모든 A매치가 아니라 명시한 공식 결과 8경기의 집계다.", "득점 집중도는 이 묶음의 분포이며 최근 득점 증가 추세를 입증하지 않는다."]
+  limitations: ["UEFA 네이션스리그 전체가 아닌 같은 네 조끼리의 비교다.", "득점 집중도는 이 묶음의 분포이며 최근 득점 증가 추세를 입증하지 않는다."]
 } as const;
 
 export const FOOTBALL_NEWS_SNAPSHOTS: Readonly<Record<string, unknown>> = {
@@ -168,27 +312,29 @@ export const FOOTBALL_NEWS: readonly FootballNewsStory[] = [
 <section id="story-sources"><h2>비교에 쓴 경기와 계산 근거</h2><p><a href="${FOTMOB}">FotMob 카타르전 기록</a>과 <a href="https://hyeoks.com/performance/data.json">HYEOKS 종료 경기 자료</a>에서 최종 점수를 대조했다. *‘큰 기회’는 FotMob의 Big Chances 항목이다. 아래 점수와 슈팅은 한국 기준이며, 비율은 경기별 비율을 평균 내지 않고 5경기 합계로 계산했다.</p><ul>${koreaComparison.map(row => `<li><a href="${row.source}">${row.date.slice(5)} ${row.opponent}전</a> ${row.goals}대${row.goalsAgainst} · 슛 ${row.shots}개 / 유효 ${row.onTarget}개</li>`).join("")}</ul><p>경기 전 Elo: <a href="${ELO_SOURCES[0]}">한국 경기별 기록</a>·<a href="${ELO_SOURCES[1]}">카타르 경기별 기록</a> (<a href="${ELO_SOURCES[2]}">한국 원자료</a>·<a href="${ELO_SOURCES[3]}">카타르 원자료</a>). <a href="/stories/korea-qatar-20-shots-one-goal/snapshot.json">비교에 사용한 원자료와 계산 내역(JSON)</a>.</p></section>`
   },
   {
-    slug: "norway-denmark-comeback-clock", title: "14분에 0대2. 83분에 다시 시작된 경기",
-    summary: "덴마크가 먼저 두 골을 넣었어요. 노르웨이가 한 골씩 따라붙을 때마다, 다음 골의 의미가 달라졌어요.",
-    category: "최근 경기 · 득점 시계", publishedAt: PUBLISHED, dataAsOf: AS_OF,
-    scope: norway.scope, readingMinutes: 4, kind: "match-report", eventDate: "2026-11-18",
-    featureStat: { value: "0:2→3:2", label: "노르웨이가 뒤집은 점수" }, topic: "네이션스리그 · 막판 반전", sources: norway.sources,
-    body: `<section><h2>14분, 덴마크가 두 골 앞섰어요</h2><p>11분에 라스무스 호일룬, 14분에 피에르에밀 호이비에르가 넣었어요. 노르웨이는 시작한 지 14분 만에 0대2. 37분 홀란이 한 골을 따라붙었지만, 82분까지도 덴마크가 2대1로 앞섰어요.</p></section>
-<section><h2>83분, 이제 2대2. 이대로 끝났을까요?</h2><p>외데고르가 동점골을 넣었어요. 노르웨이에겐 이제 한 골이면 역전. 마지막 점수판을 열어 보세요.</p><details class="story-reading-notes"><summary>추가시간에 무슨 일이 있었을까?</summary><p><strong>90+6분, 홀란이 페널티킥을 넣었어요.</strong> 두 골을 먼저 내준 노르웨이가 3대2로 이겼습니다.</p><figure class="news-stat-figure"><figcaption>다섯 골을 시간순으로 · 덴마크 : 노르웨이</figcaption><ol class="news-goal-events"><li><time>11분</time> <span>호일룬</span> <strong>1:0</strong></li><li><time>14분</time> <span>호이비에르</span> <strong>2:0</strong></li><li><time>37분</time> <span>홀란</span> <strong>2:1</strong></li><li><time>83분</time> <span>외데고르</span> <strong>2:2</strong></li><li><time>90+6분</time> <span>홀란</span> <strong>2:3</strong></li></ol></figure></details></section>
-<section><h2>같은 3대2라도 이야기는 달라요</h2><p>먼저 앞서고 버틴 3대2도 있죠. 이 경기의 3대2는 노르웨이의 세 골 가운데 두 골이 83분부터 나왔어요. 점수판에 ‘3대2’만 남기면 사라지는 반전이에요. 다만 골이 들어간 시간만으로 어느 팀이 더 잘했는지까지는 알 수 없어요.</p></section>
-<section><h2>앞선 시간과 이긴 팀은 달랐어요</h2><p>기록에 적힌 분으로만 세면 덴마크는 첫 골을 넣은 11분부터 동점을 내준 83분까지 약 72분 동안 앞섰어요. 노르웨이는 90+6분 결승골 전까지 한 번도 앞서지 못했고요. 오래 앞선 팀과 마지막에 앞선 팀이 달랐던 거예요. 여기서 72분은 공식 골 시간의 분 표시를 뺀 값이라 초 단위까지 잰 시간은 아니에요.</p><p>중간에서 한 장면만 골라 볼까요? 37분 홀란의 첫 골 직후에는 여전히 덴마크가 이기고 있었어요. 그래도 다음 골 하나의 의미가 바뀌었죠. 0대2에서는 한 골을 넣어도 아직 뒤지지만, 1대2에서는 다음 골이 바로 동점이니까요. 83분의 동점골이 나오자 그다음 한 골은 승부를 뒤집는 골이 됐고요.</p></section><section><h2>이 역전은 마지막 골 하나로 설명되지 않아요</h2><p>기억에 남는 건 90+6분이지만, 앞의 두 골이 없었다면 그 페널티킥은 결승골이 아니었어요. <strong>37분에는 추격, 83분에는 동점, 추가시간에는 역전.</strong> 이 세 장면을 순서대로 봐야 3대2가 왜 특별했는지 드러나요. 다음에 역전 경기의 하이라이트를 본다면, 결승골만큼이나 뒤진 팀이 처음 한 골을 따라붙는 순간을 눈여겨보세요.</p></section>
-<section id="story-sources"><h2>어디서 확인했나요?</h2><p><a href="${UEFA_REPORT}">UEFA 공식 경기 기사</a>와 <a href="${UEFA_RESULTS}">팀별 경기 결과</a>를 봤어요. <a href="/stories/norway-denmark-comeback-clock/snapshot.json">골을 넣은 선수와 시간, 계산에 쓴 숫자</a>도 남겼어요.</p></section>`
+    slug: "norway-denmark-comeback-clock", title: "덴마크는 72분을 앞섰다. 노르웨이는 어떻게 뒤집었을까?",
+    summary: "경기 전 Elo는 11점 차이였지만 후반 슈팅은 11대3. 마지막 페널티킥을 빼고도 노르웨이의 역전이 설명되는지 살폈습니다.",
+    category: "경기 분석", publishedAt: PUBLISHED, dataAsOf: NATIONS_AS_OF,
+    scope: norway.scope, readingMinutes: 7, kind: "match-report", eventDate: "2026-11-18",
+    featureStat: { value: "0:2→3:2", label: "노르웨이가 뒤집은 점수" }, topic: "네이션스리그 · 경기 분석", sources: norway.sources,
+    body: `<section><h2>두 골을 먼저 내주고도 슛을 더 많이 했다</h2><p>덴마크는 14분 만에 2대0으로 앞섰다. 11분 라스무스 호일룬의 선제골, 14분 피에르에밀 호이비에르의 헤더가 연달아 나왔다. 그런데 전반이 끝났을 때 슈팅은 노르웨이가 10대4로 앞서 있었다. 점수는 덴마크가 2대1로 앞섰지만, 기회를 더 자주 만든 쪽은 반대였다.</p><p>결말만 보면 추가시간 페널티킥 하나가 승부를 가른 경기다. 하지만 그 킥을 빼도 노르웨이가 더 위협적인 기회를 만들었는지, 그리고 3대2가 경기 전 전력 차를 감안해 얼마나 놀라운 결과였는지 따로 볼 필요가 있다.</p></section>
+<section><h2>경기 전 전력은 거의 같았다</h2><p>양 팀이 11월 14일 경기를 마쳤을 때 World Football Elo Ratings 점수는 덴마크 1,920점, 노르웨이 1,909점이었다. 덴마크가 11점 앞섰다. 홈 이점을 따로 반영하지 않은 원점수라 승률로 읽을 수는 없지만, 전력 점수만 놓고 보면 큰 격차가 없었다.</p><p>노르웨이는 앞선 조별리그 5경기에서 9골을 넣었다. 경기당 1.8골이다. 그중 포르투갈과의 두 경기, 웨일스 원정에서는 한 골씩 넣고 모두 1대2로 졌다. 반면 9월 덴마크와의 첫 맞대결은 노르웨이가 이미 3대2로 이긴 경기였다. 이번에도 3골을 넣은 건 평소보다 높은 득점이지만, 이 상대를 꺾은 것 자체가 처음은 아니었다.</p></section>
+<section><h2>후반에는 슛의 횟수뿐 아니라 기회의 질도 벌어졌다</h2><p>전반 덴마크는 슛 4개에서 2골을 얻었다. FotMob의 전반 기대득점(xG)은 덴마크 1.51, 노르웨이 1.89였다. xG는 각각의 슛이 골이 될 가능성을 추정해 더한 값이다. 실제 점수와는 다르고, 같은 슛을 다른 데이터 업체가 다르게 평가할 수 있다.</p><figure class="news-stat-figure"><figcaption>덴마크 : 노르웨이 · FotMob 기록</figcaption><div class="news-stat-row"><span>전반 슈팅</span><strong>4 : 10</strong></div><div class="news-stat-row"><span>후반 슈팅</span><strong>3 : 11</strong></div><div class="news-stat-row"><span>후반 기대득점</span><strong>0.11 : 2.31</strong></div><div class="news-stat-row"><span>전체 기대득점</span><strong>1.62 : 4.20</strong></div><div class="news-stat-row"><span>페널티킥 제외 기대득점</span><strong>1.62 : 3.42</strong></div></figure><p>후반에는 덴마크도 세 번 찼지만 세 슛을 합한 xG가 0.11이었다. 노르웨이는 11번 차서 2.31을 쌓았다. 물론 마지막 페널티킥은 큰 기회다. 그래서 경기 전체에서 페널티킥을 빼고 비교해 봤다. 그래도 노르웨이가 3.42대1.62로 앞섰다. 마지막 킥 하나가 기회의 차이를 만들어낸 건 아니었다.</p><p>다만 슈팅과 xG만으로 후반 흐름이 왜 그렇게 바뀌었는지는 알 수 없다. 뒤진 팀이 공격에 더 많은 선수를 투입했는지, 덴마크가 의도적으로 내려앉았는지는 이 숫자만으로 판정하지 않았다.</p></section>
+<section><h2>83분까지 동점조차 아니었다</h2><p>37분 홀란이 빈 골문에 공을 밀어 넣어 1대2로 따라붙었지만 덴마크는 83분까지 리드를 지켰다. 공식 기록의 분 표시를 빼면 11분부터 약 72분이다. 외데고르의 동점골이 나오고 나서야 노르웨이는 다음 한 골로 승부를 끝낼 수 있었다.</p><details class="story-reading-notes"><summary>추가시간에 무슨 일이 있었을까?</summary><p><strong>90+6분 홀란의 페널티킥이 들어갔다.</strong> 노르웨이가 이 경기에서 처음 앞선 순간이었고, UEFA는 이 승리로 노르웨이가 A4조 2위와 8강 진출을 확정했다고 기록했다.</p></details><p>두 팀은 최종 승점 9로 같았다. 하지만 노르웨이는 덴마크와의 두 맞대결에서 모두 3대2로 이겼다. 2대2로 끝났다면 덴마크가 10점, 노르웨이가 7점이었다. 마지막 한 골이 단순히 경기 승패뿐 아니라 조별리그 순위까지 바꾼 셈이다.</p></section>
+<section><h2>의외였던 건 누가 이겼느냐보다, 언제 앞섰느냐다</h2><p><strong>전력은 비슷했고, 그날의 기회는 노르웨이 쪽이 더 많았다. 극적이었던 건 그 우세가 승부에 반영된 시점이다.</strong> 노르웨이는 페널티킥을 빼도 더 좋은 기회를 만들었지만, 83분에야 동점을 만들고 추가시간까지 기다려야 했다. 덴마크가 오래 앞섰다는 사실과 노르웨이가 더 위협적인 기회를 만들었다는 사실은 서로 모순되지 않는다.</p><p>이 경기를 다시 본다면 결승골보다 먼저 전반 37분에 멈춰 볼 만하다. 그때도 노르웨이는 뒤지고 있었다. 다만 0대2일 때는 한 골을 넣어도 뒤지지만, 1대2가 된 뒤에는 다음 기회 하나가 동점을 만들 수 있었다. 마지막 페널티킥은 그때 시작된 추격의 끝이었다.</p></section>
+<section id="story-sources"><h2>경기·전력·비교에 쓴 자료</h2><p><a href="${UEFA_REPORT}">UEFA 6차전 리포트</a>와 <a href="${DENMARK_MATCH}">공식 경기 페이지</a>에서 득점과 진출을, <a href="${FIRST_MEETING}">첫 맞대결</a>과 <a href="${UEFA_RESULTS}">UEFA 팀별 결과</a>에서 앞선 다섯 경기를 확인했다. 슈팅과 xG는 <a href="${NORWAY_FOTMOB}">FotMob 경기 기록</a>을 사용했다. Elo는 <a href="${DENMARK_ELO}">덴마크 원자료</a>와 <a href="${NORWAY_ELO}">노르웨이 원자료</a>의 11월 14일 경기 종료 뒤 값을 썼다. <a href="/stories/norway-denmark-comeback-clock/snapshot.json">경기별 숫자와 원자료(JSON)</a>.</p></section>`
   },
   {
-    slug: "nations-league-eight-matches-23-goals", title: "8경기에서 23골. 두 경기만 봤다면 몇 골?",
-    summary: "같은 날 두 경기만 봤는데 한 사람은 네 골, 다른 사람은 열 골을 봤을 수도 있어요. 여덟 경기의 점수판을 펼쳐봤어요.",
-    category: "최근 경기 · 골의 분포", publishedAt: PUBLISHED, dataAsOf: AS_OF,
-    scope: concentration.scope, readingMinutes: 4, kind: "match-report", eventDate: "2026-11-18",
-    featureStat: { value: "43.5%", label: "두 경기에 나온 골의 비율" }, topic: "네이션스리그 · 골 많은 경기", sources: concentration.sources,
-    body: `<section><h2>두 경기만 챙겨 볼 수 있다면?</h2><p>네이션스리그 여덟 경기에서 23골이 나왔어요. 나중에 보니 골이 가장 많이 나온 두 경기의 최종 점수가 똑같았어요. 두 경기를 합쳐 6골, 8골, 10골 중 몇 골이었을까요?</p><details class="story-reading-notes"><summary>두 경기 점수 공개</summary><p><strong>10골이에요.</strong> 노르웨이가 덴마크를, 포르투갈이 웨일스를 각각 3대2로 이겼어요. 한 경기에서 다섯 골씩, 둘을 더하면 23골의 절반 가까이예요(약 43.5%).</p></details></section>
-<section><h2>나머지 여섯 경기는 어땠을까요?</h2><p>우크라이나와 조지아 경기는 1대0, 헝가리와 북아일랜드 경기는 1대1이었어요. 두 3대2 경기를 빼고 나면 여섯 경기에서 13골, 한 경기당 약 2.2골이에요.</p><figure class="news-stat-figure"><figcaption>23골을 두 묶음으로 나눠 보면</figcaption><div class="news-stat-row"><span>3대2로 끝난 두 경기</span><strong>10골</strong></div><div class="news-stat-row"><span>나머지 여섯 경기</span><strong>13골</strong></div></figure></section>
-<section><h2>평균 3골쯤? 실제로 3골이 나온 건 두 경기</h2><p>23골을 8경기로 나누면 경기당 약 2.9골이에요. 그런데 딱 세 골이 나온 경기는 아일랜드의 3대0과 보스니아 헤르체고비나의 2대1뿐이었어요. 평균은 전체를 한 줄로 보여주지만, 실제 점수는 한 골부터 다섯 골까지 달랐어요.</p></section>
-<section><h2>첫 화면에 어떤 경기를 틀었느냐에 따라</h2><p>다섯 골씩 나온 두 경기만 봤다면 “골이 쏟아지네”라고 할 만해요. 그런데 1대1로 끝난 경기도 세 편이었어요. 그중 두 편을 골랐다면 본 골은 네 개, 골이 가장 많았던 두 편을 봤다면 열 개예요. 같은 날 같은 대회를 봤는데도 이야기할 거리가 달랐겠죠.</p><p>여덟 경기를 골 수대로 줄 세워 볼까요?</p><p><strong>1 · 2 · 2 · 2 · 3 · 3 · 5 · 5</strong></p><p>8경기 중 6경기는 3골 이하였어요. 평균이 3골에 가까운 건 맨 오른쪽의 5골짜리 두 경기가 숫자를 끌어올렸기 때문이에요. 그렇다고 나머지가 재미없었다는 뜻은 아니에요. 이 글에서 센 건 골 개수이지, 긴장감이나 경기의 재미가 아니니까요.</p></section><section><h2>‘골이 많았다’ 다음엔 ‘어디서?’</h2><p>23골은 맞는 말이지만 그 숫자만으로는 여덟 점수판이 보이지 않아요. <strong>여덟 경기에서 골이 고루 터졌다기보다, 3대2 두 경기가 전체 숫자를 눈에 띄게 끌어올린 날</strong>에 가까웠어요. 다음에 “하루에 몇 골이 터졌다”는 기사를 만나면, 합계 옆에 가장 골이 많았던 경기 두 편만 놓고 보세요. 제목만 읽었을 때와 꽤 다른 그림이 나올 수 있어요.</p></section>
-<section id="story-sources"><h2>여덟 경기 점수도 볼 수 있나요?</h2><p>네. <a href="${UEFA_REPORT}">UEFA가 현지 11월 17일 결과로 올린 경기</a>와 <a href="${UEFA_RESULTS}">팀별 경기 결과</a>를 봤어요. 한국시간으로는 11월 18일 새벽 경기예요. <a href="/stories/nations-league-eight-matches-23-goals/snapshot.json">여덟 경기 점수와 계산</a>을 확인해 보세요. 다른 대회나 그날 열린 모든 대표팀 경기를 더한 숫자는 아니에요.</p></section>`
+    slug: "nations-league-eight-matches-23-goals", title: "8경기 23골, 정말 골이 많이 터진 날이었을까?",
+    summary: "같은 네 조의 앞선 40경기와 비교했더니 23골은 평균보다 많았습니다. 다만 차이를 만든 건 거의 전부 A4조 두 경기였습니다.",
+    category: "경기 분석", publishedAt: PUBLISHED, dataAsOf: NATIONS_AS_OF,
+    scope: concentration.scope, readingMinutes: 7, kind: "match-report", eventDate: "2026-11-18",
+    featureStat: { value: "43.5%", label: "두 경기에 나온 골의 비율" }, topic: "네이션스리그 · 득점 분석", sources: concentration.sources,
+    body: `<section><h2>23골 중 10골이 두 경기에서 나왔다</h2><p>한국시간 11월 18일 새벽에 열린 UEFA 네이션스리그 여덟 경기에서 모두 23골이 나왔다. 그중 10골이 같은 조의 두 경기에 몰렸다. 어느 경기였을까? 나머지 여섯 경기의 합은 13골이었다.</p><details class="story-reading-notes"><summary>두 경기 점수 공개</summary><p><strong>덴마크 2대3 노르웨이, 웨일스 2대3 포르투갈.</strong> 두 경기만으로 전체 골의 43.5%가 나왔다.</p></details><p>그날은 정말 골이 많이 나온 날이었을까? 합계만으로는 답하기 어렵다. 같은 팀들이 치른 앞선 경기에서는 평소 몇 골이 나왔는지, 23골 가운데 어떤 조가 숫자를 끌어올렸는지부터 봤다.</p></section>
+<section><h2>평소보다 많았다. 하지만 가장 많았던 날은 아니다</h2><p>비교 기준은 이날 경기를 치른 A4·B2·B3·B4조다. 네 조는 매 라운드 두 경기씩, 모두 여덟 경기를 치렀다. 다른 조를 섞지 않고 1~5차전 40경기를 세니 총 97골이었다. 경기당 2.43골, 여덟 경기로 환산하면 19.4골이다.</p><figure class="news-stat-figure"><figcaption>같은 네 조의 라운드별 득점 · 매 라운드 8경기</figcaption><div class="news-stat-row"><span>1차전</span><strong>16골</strong></div><div class="news-stat-row"><span>2차전</span><strong>22골</strong></div><div class="news-stat-row"><span>3차전</span><strong>25골</strong></div><div class="news-stat-row"><span>4차전</span><strong>13골</strong></div><div class="news-stat-row"><span>5차전</span><strong>21골</strong></div><div class="news-stat-row"><span>6차전 · 현지 11월 17일</span><strong>23골</strong></div></figure><p>23골은 앞선 평균보다 3.6골 많았고, 직전 5차전보다 2골 많았다. 그래도 25골이 나온 3차전에는 못 미쳤다. 같은 네 조의 여섯 라운드 중 두 번째였으니, ‘평소보다 많았다’는 말은 맞지만 ‘유례없이 많았다’고 할 숫자는 아니다.</p></section>
+<section><h2>A4조는 경기당 5골, 나머지 여섯 경기는 2.17골</h2><p>두 3대2 경기가 모두 A4조였다. 이 조의 앞선 10경기에서는 33골, 경기당 3.30골이 나왔다. 최종전 두 경기는 경기당 5.00골이었다. 반면 B2·B3·B4조는 앞선 30경기에서 64골(2.13골), 최종전 여섯 경기에서 13골(2.17골)이었다. B리그 세 조의 득점은 사실상 앞선 평균과 비슷했다.</p><p>라운드당 증가분 3.6골을 나눠 보면 더 분명하다. A4조는 이전 두 경기 평균 6.6골에서 10골로 3.4골 늘었다. B리그 세 조는 여섯 경기 평균 12.8골에서 13골로 0.2골 늘었다. <strong>이날 평균을 끌어올린 건 여덟 경기 전체가 아니라 거의 전부 A4조 두 경기였다.</strong></p></section>
+<section><h2>같은 날을 봐도 기억에 남는 골 수가 다르다</h2><p>여덟 경기의 골 수를 낮은 순서로 놓으면 1·2·2·2·3·3·5·5다. 경기당 평균은 2.88골이지만 가운데 두 값의 평균인 중앙값은 2.5골이다. 세 골 이하로 끝난 경기가 여섯 경기였다. 중계를 두 편만 챙겼다면, 1대1 두 경기를 본 사람은 4골을, A4조 두 경기를 본 사람은 10골을 봤다.</p><p>같은 네 조를 비교해도 상대 조합과 홈·원정, 조별리그 상황은 라운드마다 다르다. 따라서 이 숫자로 ‘최종전이라 수비가 느슨해졌다’고 결론 내릴 수 없다. 슈팅과 경기별 전술이 아니라 최종 점수만 비교한 기사다.</p></section>
+<section><h2>다득점 라운드였지만, 다득점 경기가 고루 나온 건 아니다</h2><p><strong>23골은 비교 기준보다 높았다. 그 차이를 만든 곳을 좁혀보니 A4조 두 경기였다.</strong> 합계만 보면 여덟 경기 전체에서 골이 쏟아진 것처럼 들리지만, 여섯 경기만 놓고 보면 이전과 거의 같았다. 다음에 하루 골 합계를 볼 때도 먼저 경기 수를 나누고, 골이 가장 많이 나온 경기들이 평균을 얼마나 움직였는지 함께 보면 보도 제목 뒤의 점수판이 보인다.</p></section>
+<section id="story-sources"><h2>비교에 쓴 48경기</h2><p><a href="${UEFA_REPORT}">UEFA 현지 11월 17일 리포트</a>와 <a href="${UEFA_RESULTS}">UEFA 공식 라운드별 결과</a>를 대조했다. 비교는 같은 네 조의 1~6차전에 한정했다. <a href="/stories/nations-league-eight-matches-23-goals/snapshot.json">경기별 점수와 조별·라운드별 계산(JSON)</a>에서 표본을 확인할 수 있다.</p></section>`
   }
 ];
