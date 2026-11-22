@@ -85,6 +85,23 @@ describe("최근 경기 기사의 고정 원자료", () => {
     expect(totals.every((n: number) => n > 0)).toBe(true);
   });
 
+  it("노르웨이 슈팅·Elo와 같은 네 조의 비교 집계를 재현한다", () => {
+    const n = snapshot("norway-denmark-comeback-clock").evidence;
+    expect(n.all.shots).toEqual([7,21]);
+    expect(n.first.shots.map((x: number,i: number) => x+n.second.shots[i])).toEqual(n.all.shots);
+    expect(n.second.xg).toEqual([0.11,2.31]);
+    expect(n.all.nonPenaltyXg).toEqual([1.62,3.42]);
+    expect(n.previousFive.reduce((sum: number,r: any) => sum+r.norwayGoals,0)/5).toBe(1.8);
+    expect(n.preMatchElo.sourceRows.map((r: string) => +r.split("\t")[10])).toEqual([1996,1909]);
+    expect(+n.preMatchElo.sourceRows[0].split("\t")[11]-n.preMatchElo.norway).toBe(11);
+    const c = snapshot("nations-league-eight-matches-23-goals").comparison;
+    expect(new Set(c.scores.map((r: any) => r[2])).size).toBe(40);
+    expect(c.rounds.map((r: any) => [r.matches,r.goals])).toEqual([[8,16],[8,22],[8,25],[8,13],[8,21]]);
+    expect(c.scores.reduce((sum: number,r: any) => sum+r[4]+r[5],0)).toBe(97);
+    expect(c.average).toBe(97/40);
+    expect(c.byGroup.map((r: any) => [r.group,r.priorGoals,r.finalGoals])).toEqual([["A4",33,10],["B2",12,3],["B3",21,5],["B4",31,5]]);
+  });
+
   it("기사와 스냅샷은 중복 없는 일대일 slug 계약이다", () => {
     expect(FOOTBALL_NEWS).toHaveLength(3);
     const slugs = FOOTBALL_NEWS.map((s) => s.slug);
@@ -96,7 +113,7 @@ describe("최근 경기 기사의 고정 원자료", () => {
     const s = snapshot(story.slug);
     expect(story.kind).toBe("match-report");
     expect(story.publishedAt).toBe("2026-11-20");
-    expect(story.dataAsOf).toBe(story.slug.startsWith("korea-") ? "2026-11-22T08:19:09.438Z" : "2026-11-20T13:30:46.941Z");
+    expect(story.dataAsOf).toBe(story.slug.startsWith("korea-") ? "2026-11-22T08:19:09.438Z" : "2026-11-22T08:48:02.551Z");
     expect(s.asOf).toBe(story.dataAsOf);
     expect(s.scope).toBe(story.scope);
     expect(s.sources).toEqual(story.sources);
