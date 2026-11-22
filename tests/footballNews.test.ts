@@ -23,6 +23,27 @@ describe("최근 경기 기사의 고정 원자료", () => {
     expect(onTarget.value).toBe(45);
   });
 
+  it("카타르전 이전 친선전과 킥오프 전 Elo를 재계산한다", () => {
+    const s = snapshot("korea-qatar-20-shots-one-goal");
+    const c = s.comparison;
+    expect(c.matches.map((m: any) => m.date)).toEqual(["2026-09-24", "2026-09-28", "2026-10-02", "2026-10-06", "2026-11-13"]);
+    expect(c.sums).toEqual({ goals: 8, shots: 57, onTarget: 27, bigChances: 12, shotsAgainst: 51, onTargetAgainst: 20 });
+    for (const [key, total] of Object.entries(c.sums)) {
+      expect(c.matches.reduce((sum: number, row: any) => sum + row[key], 0)).toBe(total);
+      expect(c.averages[key]).toBe(Number(total) / 5);
+    }
+    expect(c.conversionPercent).toBe(8 / 57 * 100);
+    expect(c.onTargetPercent).toBe(27 / 57 * 100);
+    expect(c.onTargetConversionPercent).toBe(8 / 27 * 100);
+    expect(s.stats.firstHalfShots.away + s.stats.secondHalfShots.away).toBe(s.stats.totalShots.away);
+    expect(s.stats.bigChances.away - s.stats.bigChancesMissed.away).toBe(1);
+    const e = s.preMatchElo;
+    expect(Number(e.sourceRows.koreaPrior.split("\t")[11])).toBe(e.korea);
+    expect(Number(e.sourceRows.qatarPrior.split("\t")[10])).toBe(e.qatar);
+    expect(e.difference).toBe(256);
+    expect(e.korea - e.qatar).toBe(e.difference);
+  });
+
   it("노르웨이전 득점 순서·추가시간과 직접 계산을 보존한다", () => {
     const s = snapshot("norway-denmark-comeback-clock");
     expect(s.goals.map((g: any) => g.minute)).toEqual(["11", "14", "37", "83", "90+6"]);
@@ -75,7 +96,7 @@ describe("최근 경기 기사의 고정 원자료", () => {
     const s = snapshot(story.slug);
     expect(story.kind).toBe("match-report");
     expect(story.publishedAt).toBe("2026-11-20");
-    expect(story.dataAsOf).toBe("2026-11-20T13:30:46.941Z");
+    expect(story.dataAsOf).toBe(story.slug.startsWith("korea-") ? "2026-11-22T08:19:09.438Z" : "2026-11-20T13:30:46.941Z");
     expect(s.asOf).toBe(story.dataAsOf);
     expect(s.scope).toBe(story.scope);
     expect(s.sources).toEqual(story.sources);
@@ -96,7 +117,7 @@ describe("최근 경기 기사의 고정 원자료", () => {
     expect(story.body).not.toMatch(/<h2>(?:질문|관찰|한계):/);
     const lead = story.body.split("</section>")[0];
     expect(lead).not.toMatch(/예측|확률|토토|구매|베팅/);
-    expect(story.body.match(/<section(?:[ ]|>)/g)).toHaveLength(6);
+    expect(story.body.match(/<section(?:[ ]|>)/g)).toHaveLength(story.slug.startsWith("korea-") ? 7 : 6);
     expect(story.body.match(/<summary>/g)).toHaveLength(1);
     const takeaway = story.body.split("<section><h2>").at(-1)!;
     expect(takeaway).toContain("</strong>");

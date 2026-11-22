@@ -15,20 +15,90 @@ export type FootballNewsStory = Story & {
   sources: readonly string[];
 };
 
+const KOREA_AS_OF = "2026-11-22T08:19:09.438Z";
+const ELO_SOURCES = ["https://eloratings.net/South_Korea","https://eloratings.net/Qatar","https://eloratings.net/South_Korea.tsv","https://eloratings.net/Qatar.tsv"] as const;
+const koreaComparison = [
+  {
+    "date": "2026-09-24",
+    "opponent": "에콰도르",
+    "goals": 3,
+    "goalsAgainst": 0,
+    "shots": 11,
+    "onTarget": 5,
+    "bigChances": 2,
+    "shotsAgainst": 10,
+    "onTargetAgainst": 3,
+    "source": "https://www.fotmob.com/matches/ecuador-vs-south-korea/1qoxpg"
+  },
+  {
+    "date": "2026-09-28",
+    "opponent": "우루과이",
+    "goals": 1,
+    "goalsAgainst": 4,
+    "shots": 14,
+    "onTarget": 7,
+    "bigChances": 2,
+    "shotsAgainst": 9,
+    "onTargetAgainst": 4,
+    "source": "https://www.fotmob.com/matches/uruguay-vs-south-korea/1j2hak"
+  },
+  {
+    "date": "2026-10-02",
+    "opponent": "베네수엘라",
+    "goals": 0,
+    "goalsAgainst": 0,
+    "shots": 7,
+    "onTarget": 3,
+    "bigChances": 2,
+    "shotsAgainst": 12,
+    "onTargetAgainst": 4,
+    "source": "https://www.fotmob.com/matches/venezuela-vs-south-korea/1j3n9y"
+  },
+  {
+    "date": "2026-10-06",
+    "opponent": "우즈베키스탄",
+    "goals": 2,
+    "goalsAgainst": 0,
+    "shots": 10,
+    "onTarget": 6,
+    "bigChances": 2,
+    "shotsAgainst": 12,
+    "onTargetAgainst": 4,
+    "source": "https://www.fotmob.com/matches/south-korea-vs-uzbekistan/293eqg"
+  },
+  {
+    "date": "2026-11-13",
+    "opponent": "사우디아라비아",
+    "goals": 2,
+    "goalsAgainst": 3,
+    "shots": 15,
+    "onTarget": 6,
+    "bigChances": 4,
+    "shotsAgainst": 8,
+    "onTargetAgainst": 5,
+    "source": "https://www.fotmob.com/matches/saudi-arabia-vs-south-korea/20g0w4"
+  }
+] as const;
+const comparisonKeys = ["goals", "shots", "onTarget", "bigChances", "shotsAgainst", "onTargetAgainst"] as const;
+const comparisonSums = Object.fromEntries(comparisonKeys.map(key => [key, koreaComparison.reduce((sum, row) => sum + row[key], 0)])) as Record<typeof comparisonKeys[number], number>;
+const comparisonAverages = Object.fromEntries(comparisonKeys.map(key => [key, comparisonSums[key] / koreaComparison.length])) as typeof comparisonSums;
+
 const korea = {
-  schema: 1, asOf: AS_OF,
-  scope: "2026-11-17 카타르–대한민국 종료 1경기",
-  sources: [FOTMOB, "https://hyeoks.com/performance/data.json"],
+  schema: 1, asOf: KOREA_AS_OF,
+  scope: "카타르전 1경기와 한국 남자 A대표팀 직전 친선전 5경기, 킥오프 전 Elo",
+  sources: [FOTMOB, "https://hyeoks.com/performance/data.json", ...koreaComparison.map(row => row.source), ...ELO_SOURCES],
   kickoffAt: "2026-11-17T14:00:00Z", kickoffKst: "2026-11-17T23:00:00+09:00",
   match: { home: "카타르", away: "대한민국", status: "FT", homeGoals: 0, awayGoals: 1 },
-  stats: { totalShots: { home: 2, away: 20 }, shotsOnTarget: { home: 0, away: 9 }, possessionPercent: { home: 43, away: 57 } },
+  stats: { totalShots: { home: 2, away: 20 }, shotsOnTarget: { home: 0, away: 9 }, possessionPercent: { home: 43, away: 57 }, bigChances: { home: 0, away: 8 }, bigChancesMissed: { home: 0, away: 7 }, firstHalfShots: { home: 0, away: 12 }, secondHalfShots: { home: 2, away: 8 } },
   goals: [{ team: "대한민국", player: "오세훈", minute: "43", assist: "송민규" }],
+  comparison: { selection: "카타르전 이전 한국 남자 A대표팀의 직전 친선전 5경기 전부. 월드컵과 다른 공식 대회는 제외", matches: koreaComparison, sums: comparisonSums, averages: comparisonAverages, conversionPercent: comparisonSums.goals / comparisonSums.shots * 100, onTargetPercent: comparisonSums.onTarget / comparisonSums.shots * 100, onTargetConversionPercent: comparisonSums.goals / comparisonSums.onTarget * 100 },
+  preMatchElo: { source: "World Football Elo Ratings", sources: ELO_SOURCES, korea: 1717, qatar: 1461, difference: 1717 - 1461, asOfMatches: "2026-11-13", sourceRows: { koreaPrior: "2026\t11\t13\tSA\tKR\t3\t2\tF\tQA\t13\t1652\t1717\t+1\t−7\t54\t41", qatarPrior: "2026\t11\t13\tQA\tAU\t0\t3\tF\t\t-8\t1461\t1794\t−2\t+3\t89\t24", headToHead: "2026\t11\t17\tQA\tKR\t0\t1\tF\t\t-6\t1455\t1723\t−1\t+3\t89\t36" }, method: "각 팀 직전 경기 종료 후 Elo를 사용. 경기장 효과를 더하지 않은 원점수 차이이며 HYEOKS 예측이나 예상 점수가 아님." },
   calculations: {
     observedConversionPercent: { numerator: 1, denominator: 20, formula: "1 / 20 * 100", value: 5 },
     shotsOnTargetPercent: { numerator: 9, denominator: 20, formula: "9 / 20 * 100", value: 45 }
   },
-  sourceRoles: { matchStatistics: FOTMOB, finalScoreCrossCheckOnly: "https://hyeoks.com/performance/data.json" },
-  limitations: ["단일 경기 관측값이며 장기 결정력이나 전술적 원인을 입증하지 않는다.", "xG 및 슈팅별 위치·난도는 이 스냅샷에 포함하지 않는다.", "출처 페이지는 갱신될 수 있지만 이 발췌 스냅샷은 자동 갱신하지 않는다."]
+  sourceRoles: { matchStatistics: FOTMOB, comparisonStatistics: "FotMob", preMatchElo: "World Football Elo Ratings", finalScoreCrossCheckOnly: "https://hyeoks.com/performance/data.json" },
+  limitations: ["친선전 5경기는 상대·경기 장소·선발이 일치하지 않는 작은 비교 표본이다. 단일 경기로 장기 결정력이나 전술적 원인을 입증하지 않는다.", "xG 및 슈팅별 위치·난도는 이 스냅샷에 포함하지 않는다.", "출처 페이지는 갱신될 수 있지만 이 발췌 스냅샷은 자동 갱신하지 않는다."]
 } as const;
 
 const norway = {
@@ -84,16 +154,18 @@ export const FOOTBALL_NEWS_SNAPSHOTS: Readonly<Record<string, unknown>> = {
 
 export const FOOTBALL_NEWS: readonly FootballNewsStory[] = [
   {
-    slug: "korea-qatar-20-shots-one-goal", title: "슈팅 20대2, 한국은 몇 골 넣었을까?",
-    summary: "슛은 20대2였는데, 점수판도 그만큼 벌어졌을까요? 한국의 슛 20개를 세 부류로 나눠 보면 한 골 차 승부가 다르게 보여요.",
-    category: "최근 경기 · 숫자 한 장", publishedAt: PUBLISHED, dataAsOf: AS_OF,
-    scope: korea.scope, readingMinutes: 4, kind: "match-report", eventDate: "2026-11-17",
-    featureStat: { value: "20:2", label: "한국 vs 카타르 · 슛 횟수" }, topic: "대한민국 · 골 맞히기", sources: korea.sources,
-    body: `<section><h2>스무 번 찼어요. 몇 골이었을까요?</h2><p>한국은 20번, 카타르는 2번 슛을 했어요. 슛만 놓고 보면 10배 차이죠. 이 숫자만 보고 점수를 맞힌다면 1대0, 2대0, 3대0 중 어느 쪽일까요?</p><details class="story-reading-notes"><summary>점수판 열기</summary><p><strong>한국이 1대0으로 이겼어요.</strong> 43분에 송민규의 도움을 받은 오세훈이 넣은 한 골이 끝까지 남았습니다.</p></details></section>
-<section><h2>20번 중 9번은 골이 될 뻔했거나 실제로 들어갔어요</h2><p>골이 되거나, 막지 않았다면 골이 됐을 슛을 ‘유효슈팅’이라고 해요. 한국의 슛 20개 중 9개가 여기에 들어갔고, 그중 1개가 골이 됐어요. 20개 중 1개니까 5%예요. 다음 슛도 5%라는 뜻은 아니고, 이 경기에서 실제로 들어간 비율이에요.</p><figure class="news-stat-figure"><figcaption>한국 / 카타르, 숫자 세 줄로 다시 보기</figcaption><div class="news-stat-row"><span>전체 슛</span><strong>20 / 2</strong></div><div class="news-stat-row"><span>유효슈팅</span><strong>9 / 0</strong></div><div class="news-stat-row"><span>골</span><strong>1 / 0</strong></div></figure></section>
-<section><h2>공을 가진 시간도 열 배였을까요?</h2><p>그건 아니었어요. 공을 얼마나 갖고 있었는지 보여주는 점유율은 한국 57%, 카타르 43%였어요. 공을 더 많이 갖는 것과 슛을 많이 하는 건 같은 얘기가 아니에요. 이 기록만으로 왜 한 골에 그쳤는지까지는 알 수 없어요.</p></section>
-<section><h2>같은 경기를 세 가지 숫자로 보면</h2><p>친구 한 명에게 점수만 알려주면 “한 골 차였네”라는 말이 나올 거예요. 다른 친구에게 유효슈팅 수만 알려주면 “한국 쪽에서 골이 나올 만한 슛이 훨씬 많았네”라고 하겠죠. 둘 다 맞아요. 한 사람은 승부가 얼마나 가까웠는지, 다른 사람은 양쪽이 얼마나 자주 골문을 위협했는지 본 거예요.</p><p>한국의 슛 20개를 다시 나눠 볼까요? 유효슈팅으로 잡히지 않은 게 11개, 유효슈팅이었지만 골이 아닌 게 8개, 실제로 들어간 게 1개예요. 19개가 모두 똑같은 ‘실패’는 아니었죠. 반대로 카타르는 슛을 두 번 했으니 ‘한 번도 못 찼다’는 말은 틀리고, ‘유효슈팅이 없었다’가 정확해요.</p></section><section><h2>1대0은 결과, 9대0은 그날의 또 다른 기록</h2><p>이 경기에서 한국은 점수로 한 골 앞섰고, 유효슈팅에서는 아홉 개 앞섰어요. 그래서 <strong>‘점수는 가까웠지만, 골문을 위협한 횟수는 크게 달랐다’</strong>가 두 숫자를 가장 잘 묶는 한 문장이에요. 다음에 1대0 경기를 보면 슛 수만 보지 말고 유효슈팅도 나란히 보세요. 그 한 골이 전부였는지, 점수판에 남지 않은 위협이 더 있었는지 구분하는 데 도움이 돼요.</p></section>
-<section id="story-sources"><h2>어디서 확인했나요?</h2><p><a href="${FOTMOB}">FotMob 경기 기록</a>에서 슛과 득점자를, <a href="https://hyeoks.com/performance/data.json">HYEOKS 결과 자료</a>에서도 최종 점수를 확인했어요. <a href="/stories/korea-qatar-20-shots-one-goal/snapshot.json">사용한 숫자와 계산</a>도 볼 수 있어요.</p></section>`
+    slug: "korea-qatar-20-shots-one-goal", title: "슈팅 20개에 1골. 한국은 카타르전에서 잘했을까?",
+    summary: "카타르전 1대0 승리. 직전 친선전 5경기와 경기 전 Elo를 기준으로, 한국이 평소보다 잘한 부분과 아쉬웠던 부분을 나눠 봤습니다.",
+    category: "경기 분석", publishedAt: PUBLISHED, dataAsOf: KOREA_AS_OF,
+    scope: korea.scope, readingMinutes: 7, kind: "match-report", eventDate: "2026-11-17",
+    featureStat: { value: "20:2", label: "한국 vs 카타르 · 슛 횟수" }, topic: "대한민국 · 경기 분석", sources: korea.sources,
+    body: `<section><h2>43분에 멈춘 점수판</h2><p>전반 43분, 송민규의 도움을 받은 오세훈이 골을 넣었다. 한국이 넣은 첫 골이자 마지막 골이었다. 11월 17일 카타르를 상대로 거둔 1대0 승리. 그런데 점수판을 닫고 경기 기록을 펼치면 전혀 다른 숫자가 보인다. 슈팅 20대2, 유효슈팅 9대0. 한 골 차였지만, 두 팀이 골문을 위협한 횟수는 한 골 차가 아니었다.</p><details class="story-reading-notes"><summary>퀴즈: 한국은 직전 5경기에서 평균 몇 번 슛을 했을까?</summary><p><strong>11.4개.</strong> 카타르전의 20개는 평균보다 8.6개가 많다. 그런데 골은 오히려 평균보다 적었다.</p></details><p>한국이 못한 걸까, 아니면 이길 팀이 이긴 걸까. 답을 내려면 상대와의 전력 차이, 한국이 만든 기회, 그리고 그 기회를 골로 바꾼 결과를 나눠 봐야 한다.</p></section>
+<section><h2>기회는 최근 친선전 중 가장 많이 만들었다</h2><p>비교 대상은 카타르전 직전 한국 남자 A대표팀이 치른 친선전 5경기다. 경기 유형을 맞추기 위해 월드컵은 넣지 않았다. 에콰도르, 우루과이, 베네수엘라, 우즈베키스탄, 사우디아라비아를 만난 경기를 빠짐없이 넣었고, 슈팅 통계는 모두 FotMob 기록을 썼다.</p><figure class="news-stat-figure"><figcaption>한국의 직전 친선전 5경기 평균 → 카타르전</figcaption><div class="news-stat-row"><span>한국 슈팅</span><strong>11.4 → 20</strong></div><div class="news-stat-row"><span>한국 유효슈팅</span><strong>5.4 → 9</strong></div><div class="news-stat-row"><span>한국의 큰 기회*</span><strong>2.4 → 8</strong></div><div class="news-stat-row"><span>한국 득점</span><strong>1.6 → 1</strong></div><div class="news-stat-row"><span>상대 슈팅</span><strong>10.2 → 2</strong></div><div class="news-stat-row"><span>상대 유효슈팅</span><strong>4.0 → 0</strong></div></figure><p>슈팅 20개는 직전 5경기 평균보다 약 75% 많았다. 그 5경기에서 가장 많이 찬 사우디전도 15개였다. 유효슈팅 역시 직전 최다였던 우루과이전의 7개를 넘어섰다. 단지 먼 곳에서 슛을 많이 때린 날로 보기 어려운 이유도 있다. FotMob이 득점 가능성이 높은 상황으로 분류한 ‘큰 기회’가 8번이었다. 직전 5경기 평균은 2.4번, 최다는 4번이었다. 다만 이 수치는 기록 업체가 분류한 횟수이지, 예상 득점(xG)이 아니다.</p></section>
+<section><h2>골문에는 평소만큼 보냈다. 골이 덜 들어갔다</h2><p>카타르전에서 슛이 골문을 향한 비율은 45%(20개 중 9개)였다. 직전 5경기를 합한 47.4%(57개 중 27개)와 큰 차이가 없다. 적어도 유효슈팅 비율로 보면, 스무 번이나 찼는데 골문을 제대로 못 맞힌 경기는 아니었다.</p><p>차이는 그다음에 있었다. 직전 5경기에서는 유효슈팅 27개가 8골이 됐다(29.6%). 이번엔 9개가 1골이었다(11.1%). 전체 슛을 기준으로 봐도 14.0%에서 5.0%로 떨어졌다. FotMob 기록에서도 큰 기회 8번 중 7번이 득점으로 이어지지 않았다. 한 골이 적어 보이는 건 단순히 슛을 많이 했기 때문만은 아니다. <strong>골문을 향한 슛도, 득점에 가까웠다고 분류된 기회도 평소보다 많았는데 득점은 오히려 적었다.</strong></p><p>그렇다고 슛 20개면 반드시 두세 골을 넣어야 한다는 뜻은 아니다. 각 슛의 위치와 난도가 같지 않고, 이 자료로는 슛의 질이나 골키퍼의 선방이 각각 얼마나 영향을 줬는지 가를 수 없다. 이 경기의 마무리 결과가 낮았다는 것과 한국의 결정력이 나빠졌다는 것은 다른 주장이다.</p></section>
+<section><h2>카타르는 후반에도 골문을 맞히지 못했다</h2><p>전반 슈팅은 12대0이었다. 한국이 앞선 채 들어간 후반에도 8대2였다. 카타르의 두 슛은 모두 후반에 나왔지만 유효슈팅은 하나도 없었다. 직전 5경기에서 한국은 상대에게 평균 10.2개의 슛과 4.0개의 유효슈팅을 내줬다. 이번 경기의 2개와 0개는 그보다 적었다.</p><p>그래서 이 1대0을 한국이 한 골을 넣고 내내 몰린 경기로 읽기는 어렵다. 다만 상대의 슈팅이 적었다는 사실만으로 수비 전술 하나가 성공했다거나, 어떤 상대를 만나도 같은 수비력을 보일 거라고 말할 수는 없다.</p></section>
+<section><h2>경기 전 Elo, 한국이 256점 앞섰다</h2><p>World Football Elo Ratings에서 양 팀의 직전 경기인 11월 13일 경기 종료 뒤 점수를 확인했다. 한국은 사우디아라비아전 뒤 1,717점, 카타르는 호주전 뒤 1,461점이었다. 킥오프 전에 비교할 수 있는 원점수 차이는 256점이다. 카타르의 홈 이점을 따로 보정하지 않은 값이다.</p><p>Elo는 지난 경기 결과와 상대의 전력을 반영해 매긴 점수다. 이 기준에선 한국이 더 강한 팀이었고, 한국의 승리는 경기 전 전력 구도와 맞았다. 하지만 256점 차이가 몇 골 차로 이겨야 한다는 뜻은 아니다. 반대로 직전 5경기 평균도 상대의 수준이나 경기 장소를 같게 맞춘 수치가 아니다. Elo는 <strong>왜 한국이 우세한 쪽이었는지</strong> 설명하고, 슈팅과 득점 기록은 <strong>그 우세가 이날 어떻게 나타났는지</strong> 보여준다.</p></section>
+<section><h2>결과는 예상과 맞았고, 과정은 평균 이상이었다</h2><p><strong>평소보다 잘한 건 기회를 만들고 상대 슛을 줄인 부분이다. 평소보다 못한 건 만든 기회를 골로 바꾼 결과다.</strong> 1대0은 전력상 앞서던 팀이 이겼다는 사실을 전한다. 20대2와 9대0은 왜 이 경기를 점수보다 크게 앞선 경기로 볼 수 있는지 설명한다. 1골은 그 차이를 점수판에 충분히 남기지는 못했다는 뜻이다.</p><p>다음 경기에서 볼 건 골 수 하나가 아니다. 슈팅과 유효슈팅이 계속 많이 나오는데 골만 적다면 마무리를 더 살펴볼 이유가 생긴다. 반대로 슈팅 자체가 줄면 먼저 기회를 만드는 과정부터 봐야 한다. 카타르전 한 경기로는 추세를 말할 수 없지만, 어디를 더 봐야 할지는 알 수 있다.</p></section>
+<section id="story-sources"><h2>비교에 쓴 경기와 계산 근거</h2><p><a href="${FOTMOB}">FotMob 카타르전 기록</a>과 <a href="https://hyeoks.com/performance/data.json">HYEOKS 종료 경기 자료</a>에서 최종 점수를 대조했다. *‘큰 기회’는 FotMob의 Big Chances 항목이다. 아래 점수와 슈팅은 한국 기준이며, 비율은 경기별 비율을 평균 내지 않고 5경기 합계로 계산했다.</p><ul>${koreaComparison.map(row => `<li><a href="${row.source}">${row.date.slice(5)} ${row.opponent}전</a> ${row.goals}대${row.goalsAgainst} · 슛 ${row.shots}개 / 유효 ${row.onTarget}개</li>`).join("")}</ul><p>경기 전 Elo: <a href="${ELO_SOURCES[0]}">한국 경기별 기록</a>·<a href="${ELO_SOURCES[1]}">카타르 경기별 기록</a> (<a href="${ELO_SOURCES[2]}">한국 원자료</a>·<a href="${ELO_SOURCES[3]}">카타르 원자료</a>). <a href="/stories/korea-qatar-20-shots-one-goal/snapshot.json">비교에 사용한 원자료와 계산 내역(JSON)</a>.</p></section>`
   },
   {
     slug: "norway-denmark-comeback-clock", title: "14분에 0대2. 83분에 다시 시작된 경기",
