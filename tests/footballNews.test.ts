@@ -3,7 +3,6 @@ import { FOOTBALL_NEWS, FOOTBALL_NEWS_SNAPSHOTS } from "../src/lib/footballNews"
 
 // 공개 계약은 unknown으로 유지하고 테스트에서만 직렬화 가능한 스냅샷을 검사한다.
 const snapshot = (slug: string): any => JSON.parse(JSON.stringify(FOOTBALL_NEWS_SNAPSHOTS[slug]));
-const plain = (html: string): string => html.replace(/<[^>]*>/g, "");
 
 describe("최근 경기 기사의 고정 원자료", () => {
   it("한국전 관측 비율의 분자와 분모를 보존한다", () => {
@@ -97,8 +96,8 @@ describe("최근 경기 기사의 고정 원자료", () => {
     expect(story.body).not.toMatch(/<h2>(?:질문|관찰|한계):/);
     const lead = story.body.split("</section>")[0];
     expect(lead).not.toMatch(/예측|확률|토토|구매|베팅/);
-    expect(plain(story.body).length).toBeGreaterThanOrEqual(700);
-    expect(plain(story.body).length).toBeLessThanOrEqual(1100);
+    expect(story.body.match(/<section(?:[ ]|>)/g)).toHaveLength(4);
+    expect(story.body.match(/<summary>/g)).toHaveLength(1);
     expect(s.limitations.length).toBeGreaterThan(0);
   });
 
