@@ -38,8 +38,8 @@ describe("최근 경기 기사의 고정 원자료", () => {
     expect(s.stats.firstHalfShots.away + s.stats.secondHalfShots.away).toBe(s.stats.totalShots.away);
     expect(s.stats.bigChances.away - s.stats.bigChancesMissed.away).toBe(1);
     const e = s.preMatchElo;
-    expect(Number(e.sourceRows.koreaPrior.split("\t")[10])).toBe(e.korea);
-    expect(Number(e.sourceRows.qatarPrior.split("\t")[9])).toBe(e.qatar);
+    expect(Number(e.sourceRows.koreaPrior.split("\t")[11])).toBe(e.korea);
+    expect(Number(e.sourceRows.qatarPrior.split("\t")[10])).toBe(e.qatar);
     expect(e.difference).toBe(256);
     expect(e.korea - e.qatar).toBe(e.difference);
   });

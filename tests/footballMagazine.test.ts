@@ -7,9 +7,9 @@ import { handleStoriesPage } from "../src/routes/storiesPage";
 import { renderSitePage } from "../src/lib/publicSite";
 import { renderLeaguePage } from "../src/lib/matchPage";
 import { leagueInfo } from "../src/lib/teamNames";
-const now = Date.parse("2026-11-20T14:00:00Z");
+const now = Date.parse("2026-11-22T09:00:00Z");
 const home = (generatedAt = new Date(now).toISOString()) => renderDataHome({generatedAt,matches:[],performance:null,performanceUnavailable:false,rounds:[]});
-beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-20T14:00:00Z")); });
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-22T09:00:00Z")); });
 afterEach(() => vi.useRealTimers());
 describe("경기 재미를 먼저 읽는 매거진",()=>{
   it("한국전이 대표 기사이며 설명·확률·도구는 뒤에 둔다",()=>{
@@ -21,7 +21,7 @@ describe("경기 재미를 먼저 읽는 매거진",()=>{
     expect(lead).toBeGreaterThan(0);
     expect(lead).toBeLessThan(reading);expect(reading).toBeLessThan(data);expect(data).toBeLessThan(tools);
     const feature=html.slice(lead,reading);
-    expect(feature).toContain("슈팅 20대2");
+    expect(feature).toContain("슈팅 20개에 1골");
     expect(feature).not.toContain("구매");
     expect(feature).not.toContain("토토");
     for(const story of FOOTBALL_NEWS) expect(html).toContain('href="/stories/'+story.slug+'"');
@@ -37,10 +37,10 @@ describe("경기 재미를 먼저 읽는 매거진",()=>{
     expect(archive).not.toContain("요즘 경기엔 어떤 반전이 있었을까요?");
   });
   it("자료 확인 전에는 홈·목록·직접 기사·JSON·사이트맵 경로가 함께 비공개다",()=>{
-    const before=Date.parse(FOOTBALL_NEWS[0].dataAsOf!)-1;
-    vi.setSystemTime(new Date(before));
-    const paths=publishedStoryPaths(before);
     for(const s of FOOTBALL_NEWS){
+      const before=Date.parse(s.dataAsOf!)-1;
+      vi.setSystemTime(new Date(before));
+      const paths=publishedStoryPaths(before);
       expect(storyIsPublished(s,before)).toBe(false);
       expect(paths).not.toContain('/stories/'+s.slug);
       expect(renderStory(s.slug,before)).toBeNull();
@@ -70,7 +70,7 @@ describe("경기 재미를 먼저 읽는 매거진",()=>{
     const article=html.split('<article class="site-prose story-article">')[1];
     expect(article.indexOf('id="story-sources"')).toBeLessThan(article.indexOf("이제 확률도 궁금하다면"));
     expect(article.indexOf("이제 확률도 궁금하다면")).toBeLessThan(article.indexOf('href="/app"'));
-    expect(article).toMatch(/<details class="story-reading-notes"><summary>(?:점수판 열기|추가시간에 무슨 일이 있었을까\?|두 경기 점수 공개)<\/summary><p><strong>/);
+    expect(article).toMatch(/<details class="story-reading-notes"><summary>(?:퀴즈: 한국은 직전 5경기에서 평균 몇 번 슛을 했을까\?|추가시간에 무슨 일이 있었을까\?|두 경기 점수 공개)<\/summary><p><strong>/);
     expect(html).toContain('data-reading-theme="light"');
     for(const source of s.sources)expect(html).toContain(source.replaceAll('&','&amp;'));
   });

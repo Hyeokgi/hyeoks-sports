@@ -5,7 +5,7 @@ function jsonLd(html: string): Record<string, any>[] {
   return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((match) => JSON.parse(match[1]));
 }
 
-beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-20T14:00:00Z")); });
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-22T09:00:00Z")); });
 afterEach(() => vi.useRealTimers());
 describe("고정 편집 기사와 집계 자료", () => {
   it("고정 시점의 분자·분모·제외 조건을 유지한다", () => {

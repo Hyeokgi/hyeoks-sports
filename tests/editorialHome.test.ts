@@ -8,8 +8,8 @@ import { LEAGUE_EDITORIAL, leagueEditorialHtml } from "../src/lib/leagueEditoria
 import { LEAGUE_INFO } from "../src/lib/teamNames";
 import { USAGE_EVENTS } from "../src/lib/usage";
 import { STORIES, STORY_PATHS } from "../src/lib/stories";
-const data = { generatedAt: "2026-11-20T14:00:00Z", matches: [], performance: null, performanceUnavailable: false, rounds: [] };
-beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-20T14:00:00Z")); });
+const data = { generatedAt: "2026-11-22T09:00:00Z", matches: [], performance: null, performanceUnavailable: false, rounds: [] };
+beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-22T09:00:00Z")); });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 describe("이야기 중심 공개 화면", () => {
   it("기사와 원자료가 도구보다 먼저 나오며 도구를 숨기지 않는다", () => {
