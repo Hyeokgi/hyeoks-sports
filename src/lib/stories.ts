@@ -1,4 +1,5 @@
 import { FOOTBALL_NEWS, FOOTBALL_NEWS_SNAPSHOTS } from "./footballNews";
+import { DRAW_RANK_STORY, DRAW_RANK_SNAPSHOT } from "./drawRankStory";
 // 편집 기사와 집계 스냅샷은 고정한다. 라이브 자료의 갱신으로 과거 논증을 바꾸지 않는다.
 import { escapeText as e, fullKst, PUBLIC_ORIGIN, renderSitePage } from "./publicSite";
 
@@ -50,6 +51,7 @@ export const LALIGA_SNAPSHOT = {
 
 export const STORIES: readonly Story[] = [
   ...FOOTBALL_NEWS,
+  DRAW_RANK_STORY,
   {
     slug: "laliga-draw-sample",
     title: "무승부 26.1%, 다음 경기의 확률일까?",
@@ -102,7 +104,7 @@ export const STORIES: readonly Story[] = [
 export const STORY_PATHS: readonly string[] = ["/stories", ...STORIES.map((story) => `/stories/${story.slug}`)];
 
 
-export const STORY_SNAPSHOTS: Readonly<Record<string, unknown>> = { "laliga-draw-sample": LALIGA_SNAPSHOT, ...FOOTBALL_NEWS_SNAPSHOTS };
+export const STORY_SNAPSHOTS: Readonly<Record<string, unknown>> = { "laliga-draw-sample": LALIGA_SNAPSHOT, ...FOOTBALL_NEWS_SNAPSHOTS, [DRAW_RANK_STORY.slug]: DRAW_RANK_SNAPSHOT };
 /** 날짜만 쓴 발행일·경기일은 한국시간 날짜다. 자료 확인 시점보다 앞서 공개하지 않는다. */
 function calendarMs(value: string): number { return Date.parse(/^\d{4}-\d{2}-\d{2}$/.test(value) ? value + "T00:00:00+09:00" : value); }
 export function storyIsPublished(story: Story, now = Date.now()): boolean {
@@ -118,7 +120,7 @@ export function hasRecentFootballStories(now = Date.now()): boolean {
   const latest = Math.max(...recentFootballStories(now).map(s=>calendarMs(s.eventDate!)));
   return Number.isFinite(latest) && now - latest <= 7 * 86400e3;
 }
-export function readingStories(now = Date.now()): readonly Story[] { return STORIES.filter(s => s.kind !== "match-report" && storyIsPublished(s,now)); }
+export function readingStories(now = Date.now()): readonly Story[] { return STORIES.filter(s => s.kind !== "match-report" && storyIsPublished(s,now)).sort((a,b) => calendarMs(b.publishedAt)-calendarMs(a.publishedAt)); }
 function eventLabel(value: string): string { return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value + " (한국시간)" : fullKst(value); }
 export function storyCard(story: Story): string {
   return `<article class="site-panel${story.kind === "match-report" ? " news-card" : ""}"><p class="site-eyebrow">${e(story.topic ?? story.category)}</p>${story.featureStat ? `<p class="news-card-number">${e(story.featureStat.value)}</p>` : ""}<h3><a href="/stories/${e(story.slug)}">${e(story.title)}</a></h3><p>${e(story.summary)}</p><p class="site-note story-meta">발행 ${e(story.publishedAt.slice(0, 10))} · 약 ${story.readingMinutes}분${story.eventDate ? `<br>경기 ${e(eventLabel(story.eventDate))}` : ""}</p></article>`;

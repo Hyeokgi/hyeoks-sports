@@ -7,7 +7,7 @@ import { handleStoriesPage } from "../src/routes/storiesPage";
 import { LEAGUE_EDITORIAL, leagueEditorialHtml } from "../src/lib/leagueEditorial";
 import { LEAGUE_INFO } from "../src/lib/teamNames";
 import { USAGE_EVENTS } from "../src/lib/usage";
-import { STORIES, STORY_PATHS } from "../src/lib/stories";
+import { STORIES, publishedStoryPaths, storyIsPublished } from "../src/lib/stories";
 const data = { generatedAt: "2026-11-22T09:00:00Z", matches: [], performance: null, performanceUnavailable: false, rounds: [] };
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-22T09:00:00Z")); });
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
@@ -17,7 +17,7 @@ describe("이야기 중심 공개 화면", () => {
     expect(html).toContain("축구의 재미,");
     expect(html.match(/<h1(?:\s[^>]*)?>/g)).toHaveLength(1);
     expect(html.indexOf('id="h-stories"')).toBeLessThan(html.indexOf("더 살펴보기: 승무패"));
-    for (const story of STORIES) expect(html).toContain('href="/stories/' + story.slug + '"');
+    for (const story of STORIES.filter(s => storyIsPublished(s))) expect(html).toContain('href="/stories/' + story.slug + '"');
     for (const url of ["/app", "/performance", "/matches", "/guide/", "/sources"]) expect(html).toContain('href="' + url + '"');
     expect(html).not.toContain("가장 가까운 경기");
     expect(html).not.toContain('src="https://pagead2.googlesyndication.com');
@@ -39,7 +39,7 @@ describe("이야기 중심 공개 화면", () => {
     for (const event of ["stories_view", "story_view"]) expect(USAGE_EVENTS).toContain(event);
   });
   it("기사와 스냅샷의 응답·색인 정책을 구분하고 없는 글은 404다", async () => {
-    for (const p of STORY_PATHS) {
+    for (const p of publishedStoryPaths()) {
       const response = handleStoriesPage(p)!;
       expect(response.status).toBe(200);
       expect(response.headers.get("x-robots-tag")).toBeNull();
@@ -73,4 +73,17 @@ describe("이야기 중심 공개 화면", () => {
     expect(job).not.toMatch(/wrangler d1|admin\/sync|recompute=|backfill_leagues|secret put/);
     expect(job).toContain("contents: read");
   });
+});
+
+it("웹 검증 시리즈는 KST 공개 시각 전에는 기사와 근거 파일을 숨긴다", async () => {
+  const url = '/stories/draw-first-rank-audit', when = Date.parse('2026-12-01T07:30:00+09:00');
+  vi.setSystemTime(when-1);
+  expect(handleStoriesPage(url)?.status).toBe(404);
+  expect(handleStoriesPage(url+'/snapshot.json')?.status).toBe(404);
+  vi.setSystemTime(when);
+  expect(handleStoriesPage(url)?.status).toBe(200);
+  const evidence = handleStoriesPage(url+'/snapshot.json')!;
+  expect(evidence.status).toBe(200);
+  expect(evidence.headers.get('x-robots-tag')).toBe('noindex');
+  expect(await evidence.json()).toMatchObject({totals:{total:100,actualDraw:19}});
 });
