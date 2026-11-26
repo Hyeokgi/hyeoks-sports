@@ -1,5 +1,6 @@
+import { DRAW_RANK_SNAPSHOT, DRAW_RANK_STORY, summarizeDrawAudit } from "../src/lib/drawRankStory";
 import { describe, expect, beforeEach, afterEach, vi, it } from "vitest";
-import { LALIGA_SNAPSHOT, STORIES, STORY_PATHS, storyCards, renderStoriesIndex, renderStory } from "../src/lib/stories";
+import { LALIGA_SNAPSHOT, STORIES, STORY_PATHS, storyCards, renderStoriesIndex, renderStory, publishedStoryPaths, readingStories } from "../src/lib/stories";
 
 function jsonLd(html: string): Record<string, any>[] {
   return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((match) => JSON.parse(match[1]));
@@ -23,16 +24,16 @@ describe("고정 편집 기사와 집계 자료", () => {
   });
 
   it("중복 없는 경기 기사와 읽을거리의 공개 경로를 반환한다", () => {
-    expect(STORIES.filter(story => story.kind !== "match-report").map(story => story.slug)).toEqual(["laliga-draw-sample", "points-and-elo", "probability-and-accuracy"]);
-    expect(new Set(STORIES.map((story) => story.slug)).size).toBe(6);
+    expect(STORIES.filter(story => story.kind !== "match-report").map(story => story.slug)).toEqual(["draw-first-rank-audit", "laliga-draw-sample", "points-and-elo", "probability-and-accuracy"]);
+    expect(new Set(STORIES.map((story) => story.slug)).size).toBe(7);
     expect(STORY_PATHS).toEqual(["/stories", ...STORIES.map((story) => `/stories/${story.slug}`)]);
     expect(STORY_PATHS.some((path) => path.endsWith(".json"))).toBe(false);
-    expect(storyCards().match(/<article /g)).toHaveLength(6);
+    expect(storyCards().match(/<article /g)).toHaveLength(7);
     for (const story of STORIES) expect(story.body.match(/<h2>/g)!.length).toBeGreaterThanOrEqual(story.kind === "match-report" ? 3 : 5);
   });
 
   it.each(STORIES)("$slug 의미 구조·출처·안전한 JSON-LD", (story) => {
-    const html = renderStory(story.slug)!;
+    const html = renderStory(story.slug, Date.parse("2026-12-01T08:00:00+09:00"))!;
     expect(html.match(/<h1(?:\s[^>]*)?>/g)).toHaveLength(1);
     expect(html).toContain('<article class="site-prose story-article">');
     expect(html).toContain(`<link rel="canonical" href="https://hyeoks.com/stories/${story.slug}">`);
@@ -81,4 +82,21 @@ describe("고정 편집 기사와 집계 자료", () => {
     expect(html).not.toContain('content="noindex');
     expect(html).not.toMatch(/<script[^>]+src=["'][^"']*(?:adsbygoogle|googlesyndication|doubleclick)/i);
   });
+});
+
+it("고정된 100행에서 무승부 순위와 실제 결과를 재현한다", () => {
+  const rows = DRAW_RANK_SNAPSHOT.rows;
+  expect(new Set(rows.map(r=>r.roundMatchId)).size).toBe(100);
+  expect(rows.every(r=>Date.parse(r.capturedAt)<Date.parse(r.kickoffAt))).toBe(true);
+  expect(rows.every(r=>r.pDraw>0 && Math.abs(r.pHome+r.pDraw+r.pAway-1)<1e-5)).toBe(true);
+  expect(summarizeDrawAudit()).toMatchObject({total:100, home:51, away:30, actualDraw:19, ranks:[0,0,63,37], draws:[0,0,12,7], market:54, model:46});
+});
+it("예정 시각 전에는 기사, 홈 카드, 사이트맵에 노출하지 않는다", () => {
+  const at = Date.parse(DRAW_RANK_STORY.publishedAt), slug = DRAW_RANK_STORY.slug;
+  expect(renderStory(slug, at-1)).toBeNull();
+  expect(publishedStoryPaths(at-1)).not.toContain('/stories/'+slug);
+  expect(renderStory(slug, at)).toContain('12경기 · 19.0%');
+  expect(renderStory(slug, at)).toContain('7경기 · 18.9%');
+  expect(readingStories(at)[0]).toBe(DRAW_RANK_STORY);
+  expect(publishedStoryPaths(at)).toContain('/stories/'+slug);
 });
